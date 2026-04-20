@@ -4,6 +4,7 @@ enum BackgroundAppNotifications {
     static let notificationObject = "com.aerospace-switcher"
     static let showSwitcher = Notification.Name("com.aerospace-switcher.show-switcher")
     static let toggleSwitcher = Notification.Name("com.aerospace-switcher.toggle-switcher")
+    static let quitApp = Notification.Name("com.aerospace-switcher.quit-app")
 
     static let sourceUserInfoKey = "source"
     static let eventIDUserInfoKey = "event_id"
@@ -11,7 +12,7 @@ enum BackgroundAppNotifications {
     static let commandUserInfoKey = "command"
     static let timestampUserInfoKey = "timestamp"
 
-    static func userInfo(source: OverlayOpenSource, command: String) -> [String: Any] {
+    static func userInfo(source: AppCommandSource, command: String) -> [String: Any] {
         [
             sourceUserInfoKey: source.rawValue,
             eventIDUserInfoKey: UUID().uuidString,
@@ -22,9 +23,11 @@ enum BackgroundAppNotifications {
     }
 }
 
-enum OverlayOpenSource: String {
+enum AppCommandSource: String {
     case externalShowCommand = "external_show_command"
     case externalToggleCommand = "external_toggle_command"
+    case externalQuitCommand = "external_quit_command"
+    case externalRestartCommand = "external_restart_command"
     case menuBarAction = "menu_bar_action"
     case internalActivation = "internal_activation"
     case unexpectedExternalTrigger = "unexpected_external_trigger"

@@ -9,6 +9,7 @@ final class AppCoordinator: NSObject, NSApplicationDelegate {
     private lazy var previewCoordinator = PreviewCoordinator(client: client, config: config)
     private var overlayWindowController: OverlayWindowController?
     private var menuBarController: MenuBarController?
+    private var isStopped = false
 
     init(config: AppConfig) {
         self.config = config
@@ -59,6 +60,11 @@ final class AppCoordinator: NSObject, NSApplicationDelegate {
     }
 
     func stop() {
+        guard !isStopped else {
+            return
+        }
+
+        isStopped = true
         logger.info("Stopping app coordinator")
         DistributedNotificationCenter.default().removeObserver(self)
         overlayWindowController?.hideOverlay()
@@ -84,7 +90,7 @@ final class AppCoordinator: NSObject, NSApplicationDelegate {
         }
     }
 
-    func showOverlay(source: OverlayOpenSource = .internalActivation) {
+    func showOverlay(source: AppCommandSource = .internalActivation) {
         logger.info("Showing overlay source=\(source.rawValue)")
         overlayWindowController?.showOverlay()
     }
@@ -94,7 +100,7 @@ final class AppCoordinator: NSObject, NSApplicationDelegate {
         overlayWindowController?.hideOverlay()
     }
 
-    func toggleOverlay(source: OverlayOpenSource = .internalActivation) {
+    func toggleOverlay(source: AppCommandSource = .internalActivation) {
         guard overlayWindowController?.isOverlayVisible == true else {
             showOverlay(source: source)
             return
@@ -124,12 +130,19 @@ final class AppCoordinator: NSObject, NSApplicationDelegate {
             object: BackgroundAppNotifications.notificationObject,
             suspensionBehavior: .deliverImmediately
         )
+        DistributedNotificationCenter.default().addObserver(
+            self,
+            selector: #selector(quitAppNotification(_:)),
+            name: BackgroundAppNotifications.quitApp,
+            object: BackgroundAppNotifications.notificationObject,
+            suspensionBehavior: .deliverImmediately
+        )
     }
 
     @objc private func showOverlayNotification(_ notification: Notification) {
         let metadata = externalTriggerMetadata(
             from: notification,
-            expectedSource: .externalShowCommand
+            expectedSources: [.externalShowCommand]
         )
         logExternalTriggerMetadata(metadata, action: "show")
 
@@ -139,25 +152,36 @@ final class AppCoordinator: NSObject, NSApplicationDelegate {
     @objc private func toggleOverlayNotification(_ notification: Notification) {
         let metadata = externalTriggerMetadata(
             from: notification,
-            expectedSource: .externalToggleCommand
+            expectedSources: [.externalToggleCommand]
         )
         logExternalTriggerMetadata(metadata, action: "toggle")
 
         toggleOverlay(source: metadata.source)
     }
 
+    @objc private func quitAppNotification(_ notification: Notification) {
+        let metadata = externalTriggerMetadata(
+            from: notification,
+            expectedSources: [.externalQuitCommand, .externalRestartCommand]
+        )
+        logExternalTriggerMetadata(metadata, action: "quit")
+
+        quit()
+    }
+
     private func externalTriggerMetadata(
         from notification: Notification,
-        expectedSource: OverlayOpenSource
+        expectedSources: Set<AppCommandSource>
     ) -> ExternalTriggerMetadata {
         let userInfo = notification.userInfo ?? [:]
         let rawSource = userInfo[BackgroundAppNotifications.sourceUserInfoKey] as? String
-        let parsedSource = rawSource.flatMap(OverlayOpenSource.init(rawValue:))
+        let parsedSource = rawSource.flatMap(AppCommandSource.init(rawValue:))
         let source = parsedSource ?? .unexpectedExternalTrigger
 
-        if source != expectedSource {
+        if !expectedSources.contains(source) {
+            let expected = expectedSources.map(\.rawValue).sorted().joined(separator: ",")
             hotkeyLogger.warning(
-                "External trigger source mismatch notification=\(notification.name.rawValue) expected=\(expectedSource.rawValue) received=\(rawSource ?? "missing")"
+                "External trigger source mismatch notification=\(notification.name.rawValue) expected=\(expected) received=\(rawSource ?? "missing")"
             )
         }
 
@@ -173,7 +197,7 @@ final class AppCoordinator: NSObject, NSApplicationDelegate {
 
     private func logExternalTriggerMetadata(_ metadata: ExternalTriggerMetadata, action: String) {
         hotkeyLogger.info(
-            "Received external \(action) switcher trigger notification=\(metadata.notificationName) source=\(metadata.source.rawValue) event_id=\(metadata.eventID) sender_pid=\(metadata.senderPID) command=\(metadata.command) timestamp=\(metadata.timestamp)"
+            "Received external \(action) trigger notification=\(metadata.notificationName) source=\(metadata.source.rawValue) event_id=\(metadata.eventID) sender_pid=\(metadata.senderPID) command=\(metadata.command) timestamp=\(metadata.timestamp)"
         )
     }
 
@@ -197,7 +221,7 @@ final class AppCoordinator: NSObject, NSApplicationDelegate {
 
 private struct ExternalTriggerMetadata {
     let notificationName: String
-    let source: OverlayOpenSource
+    let source: AppCommandSource
     let eventID: String
     let senderPID: String
     let command: String
