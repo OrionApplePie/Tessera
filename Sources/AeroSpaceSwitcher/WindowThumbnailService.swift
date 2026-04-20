@@ -5,9 +5,11 @@ import Foundation
 @MainActor
 final class WindowThumbnailService {
     private let targetThumbnailSize: CGSize
+    private let logger: AppLogger
 
     init(config: AppConfig = .default) {
         self.targetThumbnailSize = config.windowThumbnailTargetSize
+        self.logger = AppLogger(debugMode: config.debugMode, category: .capture)
     }
 
     func thumbnails(for requests: [WindowPreviewRequest]) async -> [String: CGImage] {
@@ -16,7 +18,7 @@ final class WindowThumbnailService {
         }
 
         guard #available(macOS 14.0, *) else {
-            fputs("AeroSpaceSwitcher: window thumbnails require macOS 14 or newer\n", stderr)
+            logger.warning("Window thumbnails require macOS 14 or newer")
             return [:]
         }
 
@@ -28,10 +30,7 @@ final class WindowThumbnailService {
 
             for request in requests {
                 guard let window = matcher.bestMatch(for: request.window, excluding: usedWindowIDs) else {
-                    fputs(
-                        "AeroSpaceSwitcher: no ScreenCaptureKit match for a window from \(request.window.appName)\n",
-                        stderr
-                    )
+                    logger.debug("No ScreenCaptureKit match for a requested window")
                     continue
                 }
 
@@ -40,16 +39,14 @@ final class WindowThumbnailService {
                 do {
                     result[request.id] = try await captureThumbnail(for: window)
                 } catch {
-                    fputs(
-                        "AeroSpaceSwitcher: failed to capture thumbnail for a window from \(request.window.appName): \(error)\n",
-                        stderr
-                    )
+                    logger.warning("Failed to capture a window thumbnail: \(error)")
                 }
             }
 
+            logger.debug("Captured \(result.count) window thumbnails")
             return result
         } catch {
-            fputs("AeroSpaceSwitcher: ScreenCaptureKit content unavailable: \(error)\n", stderr)
+            logger.error("ScreenCaptureKit content unavailable: \(error)")
             return [:]
         }
     }

@@ -6,27 +6,30 @@ import Foundation
 @MainActor
 final class WorkspaceScreenshotService {
     private let targetSnapshotSize: CGSize
+    private let logger: AppLogger
 
     init(config: AppConfig = .default) {
         self.targetSnapshotSize = config.fullSnapshotTargetSize
+        self.logger = AppLogger(debugMode: config.debugMode, category: .capture)
     }
 
     func captureFocusedWorkspaceSnapshot() async -> CGImage? {
         guard #available(macOS 14.0, *) else {
-            fputs("AeroSpaceSwitcher: full workspace snapshots require macOS 14 or newer\n", stderr)
+            logger.warning("Full workspace snapshots require macOS 14 or newer")
             return nil
         }
 
         do {
             let content = try await SCShareableContent.current
             guard let display = selectDisplay(from: content.displays) else {
-                fputs("AeroSpaceSwitcher: no ScreenCaptureKit display available for full snapshot\n", stderr)
+                logger.warning("No ScreenCaptureKit display available for full snapshot")
                 return nil
             }
 
+            logger.debug("Capturing full workspace snapshot")
             return try await captureDisplaySnapshot(display)
         } catch {
-            fputs("AeroSpaceSwitcher: full workspace snapshot unavailable: \(error)\n", stderr)
+            logger.error("Full workspace snapshot unavailable: \(error)")
             return nil
         }
     }

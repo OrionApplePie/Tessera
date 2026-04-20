@@ -28,20 +28,45 @@ enum CLI {
             printOverview(workspaces: workspaces, windows: windows)
 
         case "show":
-            DistributedNotificationCenter.default().post(
+            postExternalSwitcherNotification(
+                command: "show",
                 name: BackgroundAppNotifications.showSwitcher,
-                object: nil
+                source: .externalShowCommand
             )
 
         case "toggle":
-            DistributedNotificationCenter.default().post(
+            postExternalSwitcherNotification(
+                command: "toggle",
                 name: BackgroundAppNotifications.toggleSwitcher,
-                object: nil
+                source: .externalToggleCommand
             )
 
         default:
             throw CLIError.invalidArguments("Unknown command: \(arguments[0])")
         }
+    }
+
+    private static func postExternalSwitcherNotification(
+        command: String,
+        name: Notification.Name,
+        source: OverlayOpenSource
+    ) {
+        let logger = AppLogger(debugMode: true, category: .hotkey)
+        let userInfo = BackgroundAppNotifications.userInfo(source: source, command: command)
+
+        logger.info("CLI \(command) command started")
+        logger.info(
+            "Posting distributed notification name=\(name.rawValue) object=\(BackgroundAppNotifications.notificationObject)"
+        )
+        logger.debug("Distributed notification userInfo=\(userInfo)")
+
+        DistributedNotificationCenter.default().post(
+            name: name,
+            object: BackgroundAppNotifications.notificationObject,
+            userInfo: userInfo
+        )
+
+        logger.info("CLI \(command) command finished")
     }
 
     static func printUsageAndExit() -> Never {

@@ -14,4 +14,4 @@ max_window_thumbnails_per_workspace = 4
 close_after_workspace_switch = true
 show_menu_bar_icon = true
 refresh_focused_workspace_only = true
-
+debug_mode = false

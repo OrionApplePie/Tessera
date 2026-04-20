@@ -7,6 +7,7 @@ final class PreviewCoordinator: ObservableObject {
     @Published private(set) var isRefreshPaused = false
 
     private let config: AppConfig
+    private let logger: AppLogger
     private let client: AeroSpaceClient
     private let thumbnailService: WindowThumbnailService
     private let screenshotService: WorkspaceScreenshotService
@@ -22,6 +23,7 @@ final class PreviewCoordinator: ObservableObject {
         previewCache: WorkspacePreviewCache? = nil
     ) {
         self.config = config
+        self.logger = AppLogger(debugMode: config.debugMode, category: .preview)
         self.client = client
         self.thumbnailService = thumbnailService ?? WindowThumbnailService(config: config)
         self.screenshotService = screenshotService ?? WorkspaceScreenshotService(config: config)
@@ -35,6 +37,7 @@ final class PreviewCoordinator: ObservableObject {
         }
 
         isRunning = true
+        logger.info("Starting preview coordinator")
 
         Task { @MainActor [weak self] in
             await self?.refreshNow()
@@ -48,14 +51,17 @@ final class PreviewCoordinator: ObservableObject {
         refreshTask = nil
         previewCache.clear()
         tiles = Self.placeholderTiles()
+        logger.info("Stopped preview coordinator and cleared in-memory preview cache")
     }
 
     func pauseRefresh() {
         isRefreshPaused = true
+        logger.info("Preview refresh paused")
     }
 
     func resumeRefresh() {
         isRefreshPaused = false
+        logger.info("Preview refresh resumed")
 
         if isRunning {
             Task { @MainActor [weak self] in
@@ -65,6 +71,7 @@ final class PreviewCoordinator: ObservableObject {
     }
 
     func refreshNow() async {
+        logger.info("Refreshing preview model now")
         await refreshWorkspaceModel()
         await refreshFocusedWorkspaceSnapshot()
     }
@@ -72,8 +79,9 @@ final class PreviewCoordinator: ObservableObject {
     func switchWorkspace(_ workspaceID: String) {
         do {
             try client.switchWorkspace(workspaceID)
+            logger.info("Workspace switch command sent")
         } catch {
-            fputs("Error: \(error)\n", stderr)
+            logger.error("Failed to switch workspace: \(error)")
             return
         }
 
@@ -100,6 +108,7 @@ final class PreviewCoordinator: ObservableObject {
             let workspaces = try client.listWorkspaces()
             let windows = try client.listWindows()
             var model = makeTiles(workspaces: workspaces, windows: windows)
+            logger.debug("Loaded \(workspaces.count) workspaces and \(windows.count) windows")
 
             previewCache.storeWorkspaceIDs(model.tiles.map(\.id))
             applyCache(to: &model.tiles)
@@ -107,15 +116,18 @@ final class PreviewCoordinator: ObservableObject {
 
             let thumbnails = await thumbnailService.thumbnails(for: model.requests)
             if !thumbnails.isEmpty {
+                logger.debug("Applying \(thumbnails.count) window thumbnails")
                 previewCache.storeWindowThumbnails(
                     thumbnails,
                     groupedByWorkspace: model.requestWorkspaceIDs
                 )
                 applyCache(to: &model.tiles)
                 tiles = model.tiles
+            } else if !model.requests.isEmpty {
+                logger.warning("No window thumbnails available; UI will use fallback previews")
             }
         } catch {
-            fputs("AeroSpaceSwitcher: failed to refresh workspace previews: \(error)\n", stderr)
+            logger.error("Failed to refresh workspace previews: \(error)")
         }
     }
 
@@ -195,9 +207,11 @@ final class PreviewCoordinator: ObservableObject {
         do {
             let focusedIDs = try client.listFocusedWorkspaceIDs()
             guard let focusedWorkspaceID = focusedIDs.first else {
+                logger.warning("No focused workspace reported by AeroSpace")
                 return
             }
 
+            logger.debug("Refreshing focused workspace snapshot")
             updateFocusedWorkspace(focusedWorkspaceID)
 
             var updatedTiles = tiles
@@ -205,17 +219,19 @@ final class PreviewCoordinator: ObservableObject {
             tiles = updatedTiles
 
             guard let snapshot = await screenshotService.captureFocusedWorkspaceSnapshot() else {
+                logger.warning("Focused workspace snapshot unavailable; using cached/fallback preview")
                 return
             }
 
             previewCache.storeFullSnapshot(snapshot, for: focusedWorkspaceID)
+            logger.debug("Stored full snapshot for focused workspace")
             updateFocusedWorkspace(focusedWorkspaceID)
 
             updatedTiles = tiles
             applyCache(to: &updatedTiles)
             tiles = updatedTiles
         } catch {
-            fputs("AeroSpaceSwitcher: failed to refresh focused workspace snapshot: \(error)\n", stderr)
+            logger.error("Failed to refresh focused workspace snapshot: \(error)")
         }
     }
 

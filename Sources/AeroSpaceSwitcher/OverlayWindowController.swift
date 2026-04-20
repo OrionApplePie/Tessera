@@ -4,10 +4,12 @@ import SwiftUI
 final class OverlayWindowController: NSWindowController, NSWindowDelegate {
     private let previewCoordinator: PreviewCoordinator
     private let closeAfterWorkspaceSwitch: Bool
+    private let logger: AppLogger
 
-    init(previewCoordinator: PreviewCoordinator, closeAfterWorkspaceSwitch: Bool = true) {
+    init(previewCoordinator: PreviewCoordinator, closeAfterWorkspaceSwitch: Bool = true, debugMode: Bool = false) {
         self.previewCoordinator = previewCoordinator
         self.closeAfterWorkspaceSwitch = closeAfterWorkspaceSwitch
+        self.logger = AppLogger(debugMode: debugMode, category: .overlay)
 
         let window = OverlayPanel(
             contentRect: NSRect(x: 0, y: 0, width: 1_450, height: 290),
@@ -40,10 +42,12 @@ final class OverlayWindowController: NSWindowController, NSWindowDelegate {
         window.center()
         window.makeKeyAndOrderFront(nil)
         NSApp.activate(ignoringOtherApps: true)
+        logger.debug("Overlay window ordered front")
     }
 
     func hideOverlay() {
         window?.orderOut(nil)
+        logger.debug("Overlay window ordered out")
     }
 
     var isOverlayVisible: Bool {
@@ -68,6 +72,7 @@ final class OverlayWindowController: NSWindowController, NSWindowDelegate {
     }
 
     private func selectWorkspace(_ workspaceID: String) {
+        logger.info("Workspace selected from overlay")
         previewCoordinator.switchWorkspace(workspaceID)
         if closeAfterWorkspaceSwitch {
             hideOverlay()

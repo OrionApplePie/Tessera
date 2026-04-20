@@ -11,6 +11,7 @@ struct AppConfig {
     var closeAfterWorkspaceSwitch: Bool
     var showMenuBarIcon: Bool
     var refreshFocusedWorkspaceOnly: Bool
+    var debugMode: Bool
 
     static let `default` = AppConfig(
         refreshIntervalSeconds: 3,
@@ -21,7 +22,7 @@ struct AppConfig {
         maxWindowThumbnailsPerWorkspace: 4,
         closeAfterWorkspaceSwitch: true,
         showMenuBarIcon: true,
-        refreshFocusedWorkspaceOnly: true
+        refreshFocusedWorkspaceOnly: true,
+        debugMode: false
     )
 }
-

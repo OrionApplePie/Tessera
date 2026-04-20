@@ -2,27 +2,31 @@ import Foundation
 
 struct AppConfigLoader {
     let configURL: URL
+    private let logger: AppLogger
 
     init(
         configURL: URL = FileManager.default.homeDirectoryForCurrentUser
-            .appendingPathComponent(".config/aerospace-switcher/config.toml")
+            .appendingPathComponent(".config/aerospace-switcher/config.toml"),
+        logger: AppLogger = AppLogger(debugMode: true, category: .config)
     ) {
         self.configURL = configURL
+        self.logger = logger
     }
 
     func load() -> AppConfig {
         guard FileManager.default.fileExists(atPath: configURL.path) else {
+            logger.info("Config not found at \(configURL.path); using defaults")
             return .default
         }
 
         do {
             let text = try String(contentsOf: configURL, encoding: .utf8)
-            return try parse(text)
+            let config = try parse(text)
+            logger.info("Loaded config from \(configURL.path)")
+            logger.debug("Config debug_mode is \(config.debugMode)")
+            return config
         } catch {
-            fputs(
-                "AeroSpaceSwitcher: failed to load config at \(configURL.path), using defaults: \(error)\n",
-                stderr
-            )
+            logger.error("Failed to load config at \(configURL.path); using defaults: \(error)")
             return .default
         }
     }
@@ -90,6 +94,11 @@ struct AppConfigLoader {
             values["refresh_focused_workspace_only"],
             default: config.refreshFocusedWorkspaceOnly,
             key: "refresh_focused_workspace_only"
+        )
+        config.debugMode = try bool(
+            values["debug_mode"],
+            default: config.debugMode,
+            key: "debug_mode"
         )
 
         return config
@@ -191,4 +200,3 @@ enum AppConfigError: Error, CustomStringConvertible {
         }
     }
 }
-
