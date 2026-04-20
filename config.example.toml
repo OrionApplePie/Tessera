@@ -1,0 +1,17 @@
+# AeroSpaceSwitcher example config
+# Copy to ~/.config/aerospace-switcher/config.toml and edit as needed.
+
+refresh_interval_seconds = 3
+full_snapshot_stale_seconds = 15
+window_thumbnails_stale_seconds = 30
+
+full_snapshot_target_width = 480
+full_snapshot_target_height = 300
+window_thumbnail_target_width = 240
+window_thumbnail_target_height = 160
+max_window_thumbnails_per_workspace = 4
+
+close_after_workspace_switch = true
+show_menu_bar_icon = true
+refresh_focused_workspace_only = true
+
