@@ -83,8 +83,10 @@ final class OverlayWindowController: NSWindowController, NSWindowDelegate {
       return
     }
 
-    // The list must not move while it is being read, so it is frozen for as long
-    // as the overlay is up.
+    // Which window you came from is worked out now rather than taken from the last
+    // background refresh, which can be a refresh interval out of date. Then the
+    // list is frozen for as long as the overlay is up.
+    windowCoordinator.refreshActiveWindow()
     windowCoordinator.holdList()
 
     // The highlight is placed fresh every time: the window list has moved on since
@@ -105,8 +107,20 @@ final class OverlayWindowController: NSWindowController, NSWindowDelegate {
       "Overlay ordered front tiles=\(windowCoordinator.tiles.count) "
         + "fitting=\(Int(fittingSize.width))x\(Int(fittingSize.height)) "
         + "frame=\(Int(window.frame.width))x\(Int(window.frame.height)) "
-        + "visible=\(window.isVisible)"
+        + "visible=\(window.isVisible) "
+        + "selection=\(selection.index) (\(selectedApplicationName))"
     )
+  }
+
+  /// Names the tile the highlight starts on, so a log line can be checked against
+  /// what the user was actually looking at.
+  private var selectedApplicationName: String {
+    let tiles = windowCoordinator.tiles
+    guard tiles.indices.contains(selection.index) else {
+      return "none"
+    }
+
+    return tiles[selection.index].displayAppName
   }
 
   func hideOverlay() {

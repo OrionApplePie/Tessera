@@ -105,6 +105,30 @@ final class WindowCoordinator: ObservableObject {
     activator.requestAccessibilityPermission()
   }
 
+  /// Recomputes which window is in front, without touching the list or the
+  /// thumbnails.
+  ///
+  /// The mark is otherwise as old as the last background refresh — up to a refresh
+  /// interval — and the overlay opening is exactly the moment it must be right: it
+  /// says where you are, and it is where the keyboard highlight starts.
+  func refreshActiveWindow() {
+    let frontmostWindowID = FrontmostWindow.identify(
+      processID: frontmostApplicationProcessID(),
+      among: Set(tiles.map(\.id)),
+      frontToBack: FrontmostWindow.onScreenFrontToBack()
+    )
+
+    sections = sections.map { section in
+      var section = section
+      section.tiles = section.tiles.map { tile in
+        var tile = tile
+        tile.isActive = tile.id == frontmostWindowID
+        return tile
+      }
+      return section
+    }
+  }
+
   /// Freezes the list while the overlay is on screen.
   ///
   /// A refresh re-sorts, and a re-sort under an open overlay moves the tiles the

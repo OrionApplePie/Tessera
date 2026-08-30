@@ -31,7 +31,9 @@ struct WindowTileModel: Identifiable {
   let appName: String
   let title: String
   let processID: pid_t
-  let isActive: Bool
+  /// Recomputed when the overlay opens, not only on a background refresh: this is
+  /// the mark that says where you are, and it has to be right at that moment.
+  var isActive: Bool
   let isMinimized: Bool
   let displayID: CGDirectDisplayID
   /// Which Space of that display, as far as `SpaceTracker` has learned. `nil` for a
@@ -65,7 +67,7 @@ struct WindowTileSection: Identifiable {
   let id: WindowSectionID
   /// Empty when there is nothing worth saying: one display, one known Space.
   let title: String
-  let tiles: [WindowTileModel]
+  var tiles: [WindowTileModel]
 
   /// Splits an already ordered tile list into sections.
   ///
