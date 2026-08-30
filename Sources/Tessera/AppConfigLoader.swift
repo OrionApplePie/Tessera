@@ -111,6 +111,12 @@ struct AppConfigLoader {
     from values: [String: String]
   ) throws {
     config.hotkey = try hotkey(values["hotkey"], default: config.hotkey, key: "hotkey")
+    config.closeHotkey = try hotkey(
+      values["close_hotkey"],
+      default: config.closeHotkey,
+      key: "close_hotkey"
+    )
+    config.closeAction = try closeAction(values["close_action"], default: config.closeAction)
     config.ignoresMenuBarApplications = try bool(
       values["ignore_menu_bar_apps"],
       default: config.ignoresMenuBarApplications,
@@ -255,6 +261,22 @@ struct AppConfigLoader {
       .filter { !$0.isEmpty }
 
     return Set(names)
+  }
+
+  private func closeAction(
+    _ rawValue: String?,
+    default defaultValue: CloseAction
+  ) throws -> CloseAction {
+    guard let rawValue else {
+      return defaultValue
+    }
+
+    do {
+      return try CloseAction(parsing: unquoted(rawValue))
+    } catch {
+      logger.error("Invalid close_action in config: \(error)")
+      throw AppConfigError.invalidValue(key: "close_action")
+    }
   }
 
   private func windowOrder(

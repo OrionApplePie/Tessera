@@ -1,15 +1,25 @@
 import AppKit
 import SwiftUI
 
-/// The tile's fixed geometry, in one place: the thumbnail has to be told its
-/// width explicitly, and that width is the tile minus its padding.
-private enum TileMetrics {
+/// The overlay's fixed geometry, in one place: the thumbnail has to be told its
+/// width explicitly, and the window has to know how many tiles fit across a screen.
+enum TileMetrics {
   static let width: CGFloat = 190
   static let padding: CGFloat = 12
+  static let spacing: CGFloat = 14
+  static let surfacePadding: CGFloat = 28
   static let thumbnailHeight: CGFloat = 100
 
   static var contentWidth: CGFloat {
     width - padding * 2
+  }
+
+  /// How many tiles fit across a screen this wide, counting the gaps between them
+  /// and the surface around them. Never fewer than one: a single tile too wide for
+  /// the screen is still the only thing to draw.
+  static func columnsFitting(availableWidth: CGFloat) -> Int {
+    let usable = availableWidth - surfacePadding * 2 + spacing
+    return max(1, Int(usable / (width + spacing)))
   }
 }
 
@@ -36,7 +46,8 @@ struct OverlayView: View {
       maximum: columns
     )
     return Array(
-      repeating: GridItem(.fixed(TileMetrics.width), spacing: 14), count: count)
+      repeating: GridItem(.fixed(TileMetrics.width), spacing: TileMetrics.spacing),
+      count: count)
   }
 
   /// Sections paired with the flat index their first tile has, which is what the
@@ -67,7 +78,9 @@ struct OverlayView: View {
                 SectionHeading(title: entry.section.title)
               }
 
-              LazyVGrid(columns: gridColumns, alignment: .leading, spacing: 14) {
+              LazyVGrid(
+                columns: gridColumns, alignment: .leading, spacing: TileMetrics.spacing
+              ) {
                 ForEach(Array(entry.section.tiles.enumerated()), id: \.element.id) { index, tile in
                   WindowTileButton(
                     tile: tile,
@@ -85,7 +98,7 @@ struct OverlayView: View {
         }
       }
     }
-    .padding(28)
+    .padding(TileMetrics.surfacePadding)
     .background(
       RoundedRectangle(cornerRadius: 8, style: .continuous)
         .fill(Color(background))

@@ -54,6 +54,28 @@ Grouping still comes first in all three: a display's windows stay together. With
 `stable`, switching Spaces no longer reorders anything either, unless Spaces are
 what the overlay groups by.
 
+## Closing from the overlay
+
+The close shortcut can end the whole application or shut a single window:
+
+```toml
+close_hotkey = "cmd+w"   # "" turns the shortcut off
+close_action = "quit"    # or "window"
+```
+
+`quit` asks the application to quit, the way ⌘Q does — it still gets to prompt
+about unsaved work. It is the default because an application that keeps running
+with its window closed is how a leftover window is made, and those are the ones
+this switcher cannot tell from a window on another Space.
+
+`window` presses the window's own close button and leaves the application running.
+That needs Accessibility, and it cannot reach a window Accessibility does not
+list — Finder's, for one. Quitting has neither limitation.
+
+It acts on the highlighted tile, and the highlight is worked out as the overlay
+opens rather than taken from the last background refresh. That distinction is not
+academic: before it was fixed, this shortcut asked the wrong application to quit.
+
 ## Leaving applications out
 
 A tray application often keeps its window object alive after you close the
@@ -151,6 +173,7 @@ background keeps its contrast without further tuning.
 | `1`–`9` | Activate that tile directly |
 | A letter | Move to the next window whose name starts with it; press again to cycle |
 | `⇧` + arrows | Move the highlighted tile itself, within its group |
+| `⌘W` | Close the highlighted window — by default this quits its application |
 | `Esc` | Close the overlay without switching |
 
 A letter is read twice: as typed, and as the Latin letter that physical key
@@ -424,6 +447,8 @@ window_thumbnail_target_height = 160
 max_windows = 24
 
 hotkey = "ctrl+alt+space"
+close_hotkey = "cmd+w"
+close_action = "quit"
 
 ignored_apps = ""
 overlay_columns = 4

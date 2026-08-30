@@ -14,6 +14,8 @@ struct AppConfigLoaderTests {
     "window_thumbnail_target_height",
     "max_windows",
     "hotkey",
+    "close_hotkey",
+    "close_action",
     "ignore_menu_bar_apps",
     "ignored_apps",
     "dim_stale_thumbnails",
@@ -45,6 +47,8 @@ struct AppConfigLoaderTests {
       window_thumbnail_target_height = 200
       max_windows = 5
       hotkey = "cmd+shift+t"
+      close_hotkey = "ctrl+d"
+      close_action = "window"
       ignore_menu_bar_apps = false
       ignored_apps = "AmneziaVPN, Some Tray App"
       dim_stale_thumbnails = true
@@ -65,6 +69,8 @@ struct AppConfigLoaderTests {
       #expect(config.windowThumbnailTargetSize.height == 200)
       #expect(config.maxWindows == 5)
       #expect(config.hotkey?.displayName == "shift+cmd+t")
+      #expect(config.closeHotkey?.displayName == "ctrl+d")
+      #expect(config.closeAction == .closeWindow)
       #expect(config.ignoresMenuBarApplications == false)
       #expect(config.ignoredApplications == ["amneziavpn", "some tray app"])
       #expect(config.dimsStaleThumbnails == true)
@@ -154,6 +160,8 @@ struct AppConfigLoaderTests {
   func rejectsAnUnparsableHotkey() throws {
     let broken = [
       "hotkey = \"space\"", "hotkey = \"cmd+nope\"", "hotkey = \"hyper+a\"",
+      "close_hotkey = \"nope\"",
+      "close_action = \"kill\"",
     ]
     for contents in broken {
       try withConfigFile(contents) { loader in
@@ -333,6 +341,8 @@ extension AppConfigLoaderTests {
     #expect(config.showMenuBarIcon == defaults.showMenuBarIcon, sourceLocation: sourceLocation)
     #expect(config.debugMode == defaults.debugMode, sourceLocation: sourceLocation)
     #expect(config.hotkey == defaults.hotkey, sourceLocation: sourceLocation)
+    #expect(config.closeHotkey == defaults.closeHotkey, sourceLocation: sourceLocation)
+    #expect(config.closeAction == defaults.closeAction, sourceLocation: sourceLocation)
     #expect(
       config.ignoresMenuBarApplications == defaults.ignoresMenuBarApplications,
       sourceLocation: sourceLocation

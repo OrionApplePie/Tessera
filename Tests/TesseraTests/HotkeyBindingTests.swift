@@ -104,6 +104,29 @@ struct HotkeyBindingTests {
     #expect(HotkeyKey.latinLetter(forKeyCode: UInt16(kVK_ANSI_1)) == nil)
   }
 
+  @Test("A key press is recognised as the binding it is")
+  func matchesAKeyPress() throws {
+    let binding = try HotkeyBinding(parsing: "cmd+w")
+
+    #expect(binding.matches(keyCode: UInt16(kVK_ANSI_W), modifiers: [.command]))
+    #expect(binding.matches(keyCode: UInt16(kVK_ANSI_W), modifiers: [.command, .capsLock]))
+  }
+
+  @Test("A different key, or different modifiers, is not the binding")
+  func doesNotMatchAnythingElse() throws {
+    let binding = try HotkeyBinding(parsing: "cmd+w")
+
+    #expect(binding.matches(keyCode: UInt16(kVK_ANSI_Q), modifiers: [.command]) == false)
+    #expect(binding.matches(keyCode: UInt16(kVK_ANSI_W), modifiers: []) == false)
+    #expect(
+      binding.matches(keyCode: UInt16(kVK_ANSI_W), modifiers: [.command, .shift]) == false)
+  }
+
+  @Test("Closing is bound to the shortcut macOS uses for it")
+  func defaultCloseBinding() {
+    #expect(AppConfig.default.closeHotkey?.displayName == "cmd+w")
+  }
+
   @Test("The default binding is neither Spotlight's shortcut nor a launcher's")
   func defaultBindingAvoidsTakenShortcuts() throws {
     let hotkey = try #require(AppConfig.default.hotkey)

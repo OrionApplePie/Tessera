@@ -164,8 +164,8 @@ final class WindowCoordinator: ObservableObject {
     }
   }
 
-  func refreshNow() async {
-    guard !isListHeld else {
+  func refreshNow(force: Bool = false) async {
+    guard !isListHeld || force else {
       logger.debug("Skipping a refresh; the overlay is holding the list")
       return
     }
@@ -395,6 +395,46 @@ final class WindowCoordinator: ObservableObject {
         await self.refreshNow()
       }
     }
+  }
+}
+
+// MARK: - Closing
+
+extension WindowCoordinator {
+  /// Closes what the highlight is on, as the configuration understands closing.
+  ///
+  /// Quitting is the default because an application that keeps running with its
+  /// window closed is how a leftover window is made — one this switcher cannot
+  /// tell from a window on another Space.
+  func closeWindow(id windowID: CGWindowID) {
+    guard let tile = tiles.first(where: { $0.id == windowID }) else {
+      logger.warning("Close requested for a window that is no longer listed")
+      return
+    }
+
+    do {
+      switch config.closeAction {
+      case .quitApplication:
+        try activator.quitApplication(tile)
+        logger.info("Asked \(tile.displayAppName) to quit")
+      case .closeWindow:
+        try activator.close(tile)
+        logger.info("Closed a window of \(tile.displayAppName)")
+      }
+    } catch {
+      logger.error("Failed to close \(tile.displayAppName): \(error)")
+    }
+
+    // The window does not close the instant it is asked to — an application gets to
+    // finish what it was doing, and one that is quitting may take a second. Taking
+    // the tile away now is the honest reading of what was asked for; if the
+    // application refuses, the next refresh puts it back.
+    sections = sections.compactMap { section in
+      var section = section
+      section.tiles.removeAll { $0.id == windowID }
+      return section.tiles.isEmpty ? nil : section
+    }
+    logger.debug("Took the tile away at once; \(tiles.count) left")
   }
 }
 

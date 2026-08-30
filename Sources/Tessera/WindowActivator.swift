@@ -58,6 +58,70 @@ struct WindowActivator {
     return raiseWindow(processID: window.processID, title: window.title)
   }
 
+  /// Quits the owning application, the way ⌘Q would.
+  ///
+  /// Needs no Accessibility permission, and reaches applications whose windows
+  /// Accessibility does not list at all. The application is asked, not killed: it
+  /// still gets to prompt about unsaved work.
+  func quitApplication(_ window: WindowTileModel) throws {
+    guard let application = NSRunningApplication(processIdentifier: window.processID) else {
+      throw WindowActivationError.applicationGone(window.displayAppName)
+    }
+
+    guard application.terminate() else {
+      throw WindowActivationError.actionUnavailable(window.displayAppName, "quit")
+    }
+
+    logger.debug("Asked \(window.displayAppName) to quit")
+  }
+
+  /// Closes the window by pressing its own close button, the way a person would.
+  func close(_ window: WindowTileModel) throws {
+    let element = try accessibilityWindow(for: window)
+
+    var buttonValue: CFTypeRef?
+    guard
+      AXUIElementCopyAttributeValue(element, kAXCloseButtonAttribute as CFString, &buttonValue)
+        == .success,
+      let buttonValue,
+      CFGetTypeID(buttonValue) == AXUIElementGetTypeID()
+    else {
+      throw WindowActivationError.actionUnavailable(window.displayAppName, "close")
+    }
+
+    // Accessibility returns an untyped CFTypeRef. Swift rejects a conditional cast
+    // here — it would always succeed — and this project forbids a force cast, so
+    // the type is checked by its CFTypeID and then reinterpreted.
+    let button = unsafeDowncast(buttonValue, to: AXUIElement.self)
+    _ = AXUIElementPerformAction(button, kAXPressAction as CFString)
+    logger.debug("Pressed the close button of a window")
+  }
+
+  /// The Accessibility element for a tile, matched by title.
+  ///
+  /// Not every window is there to be found: Accessibility lists none of Finder's
+  /// browser windows, for one. Saying so is better than acting on whichever window
+  /// it does offer.
+  private func accessibilityWindow(for window: WindowTileModel) throws -> AXUIElement {
+    guard isAccessibilityTrusted else {
+      throw WindowActivationError.accessibilityNotTrusted
+    }
+
+    let application = AXUIElementCreateApplication(window.processID)
+
+    var windowsValue: CFTypeRef?
+    guard
+      AXUIElementCopyAttributeValue(application, kAXWindowsAttribute as CFString, &windowsValue)
+        == .success,
+      let windows = windowsValue as? [AXUIElement],
+      let match = windows.first(where: { matchesTitle(element: $0, title: window.title) })
+    else {
+      throw WindowActivationError.windowNotListed(window.displayAppName, window.displayTitle)
+    }
+
+    return match
+  }
+
   private func raiseWindow(processID: pid_t, title: String) -> Result {
     let applicationElement = AXUIElementCreateApplication(processID)
 
@@ -131,11 +195,19 @@ struct WindowActivator {
 enum WindowActivationError: Error, CustomStringConvertible {
   case applicationGone(String)
   case accessibilityNotTrusted
+  case windowNotListed(String, String)
+  case actionUnavailable(String, String)
 
   var description: String {
     switch self {
     case .applicationGone(let appName):
       return "\(appName) is no longer running"
+    case .windowNotListed(let appName, let title):
+      return
+        "Accessibility does not list \(appName)'s window \"\(title)\", so nothing can be done "
+        + "to it from here. Finder's windows are missing from it entirely."
+    case .actionUnavailable(let appName, let action):
+      return "\(appName)'s window does not offer \(action)"
     case .accessibilityNotTrusted:
       return
         "Accessibility permission is not granted, so only the application was activated. "

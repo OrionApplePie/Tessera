@@ -41,6 +41,12 @@ overlay_grouping = "displays"
 # show through, for example "#000000C2".
 overlay_background = "#2B2E33"
 
+# Closes the highlighted window from the overlay. "" turns the shortcut off.
+# close_action = "quit" ends the whole application, "window" closes just the window
+# and leaves it running.
+close_hotkey = "cmd+w"
+close_action = "quit"
+
 close_after_activation = true
 show_menu_bar_icon = true
 debug_mode = false

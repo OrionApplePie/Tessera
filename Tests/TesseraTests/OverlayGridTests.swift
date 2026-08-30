@@ -55,6 +55,20 @@ struct OverlayGridTests {
     #expect(OverlayGrid.rows(forSectionSizes: [], maximum: 6).isEmpty)
   }
 
+  @Test("A screen fits as many tiles across as there is room for")
+  func countsTheColumnsAScreenFits() {
+    // 190pt tiles, 14pt apart, inside 28pt of surface on each side.
+    #expect(TileMetrics.columnsFitting(availableWidth: 1512) == 7)
+    #expect(TileMetrics.columnsFitting(availableWidth: 2560) == 12)
+    #expect(TileMetrics.columnsFitting(availableWidth: 860) == 4)
+  }
+
+  @Test("A screen too narrow for one tile still gets one")
+  func neverFitsFewerThanOneColumn() {
+    #expect(TileMetrics.columnsFitting(availableWidth: 100) == 1)
+    #expect(TileMetrics.columnsFitting(availableWidth: 0) == 1)
+  }
+
   @Test("The highlight starts on the window you are in")
   func initialIndexIsTheActiveWindow() {
     let tiles = [makeTile(id: 1), makeTile(id: 2, isActive: true), makeTile(id: 3)]

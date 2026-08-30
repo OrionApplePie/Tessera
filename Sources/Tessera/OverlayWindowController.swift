@@ -8,6 +8,7 @@ final class OverlayWindowController: NSWindowController, NSWindowDelegate {
   private let background: OverlayColor
   private let columns: Int
   private let dimsStaleThumbnails: Bool
+  private let closeHotkey: HotkeyBinding?
   private let logger: AppLogger
   private let hostingView: NSHostingView<OverlayView>
   private let selection = OverlaySelection()
@@ -18,6 +19,7 @@ final class OverlayWindowController: NSWindowController, NSWindowDelegate {
     background: OverlayColor = AppConfig.default.overlayBackground,
     columns: Int = AppConfig.default.overlayColumns,
     dimsStaleThumbnails: Bool = AppConfig.default.dimsStaleThumbnails,
+    closeHotkey: HotkeyBinding? = AppConfig.default.closeHotkey,
     debugMode: Bool = false
   ) {
     self.windowCoordinator = windowCoordinator
@@ -25,6 +27,7 @@ final class OverlayWindowController: NSWindowController, NSWindowDelegate {
     self.background = background
     self.columns = columns
     self.dimsStaleThumbnails = dimsStaleThumbnails
+    self.closeHotkey = closeHotkey
     self.logger = AppLogger(debugMode: debugMode, category: .overlay)
     self.hostingView = NSHostingView(
       rootView: OverlayView(
@@ -65,6 +68,10 @@ final class OverlayWindowController: NSWindowController, NSWindowDelegate {
     }
     panel.onMoveTile = { [weak self] direction in
       self?.moveTile(direction)
+    }
+    panel.closeHotkey = closeHotkey
+    panel.onCloseWindow = { [weak self] in
+      self?.closeSelectedWindow()
     }
     panel.onJumpToName = { [weak self] typed, latin in
       self?.jumpToName(typed: typed, orLatin: latin)
@@ -219,6 +226,14 @@ final class OverlayWindowController: NSWindowController, NSWindowDelegate {
     logger.debug("Overlay selection jumped to index \(match) on \(typed)")
   }
 
+  private func closeSelectedWindow() {
+    guard windowCoordinator.tiles.indices.contains(selection.index) else {
+      return
+    }
+
+    windowCoordinator.closeWindow(id: windowCoordinator.tiles[selection.index].id)
+  }
+
   private func activateSelection() {
     selectWindow(at: selection.index)
   }
@@ -237,6 +252,8 @@ final class OverlayPanel: NSPanel {
   var onMoveSelection: ((OverlayGrid.Direction) -> Void)?
   var onMoveTile: ((OverlayGrid.Direction) -> Void)?
   var onJumpToName: ((Character, Character?) -> Void)?
+  var onCloseWindow: (() -> Void)?
+  var closeHotkey: HotkeyBinding?
   var onActivateSelection: (() -> Void)?
   var onDismiss: (() -> Void)?
 
@@ -257,6 +274,23 @@ final class OverlayPanel: NSPanel {
 
   override var canBecomeKey: Bool {
     true
+  }
+
+  /// A shortcut with a command or control key never reaches `keyDown`: AppKit
+  /// offers it to the responder chain as a key equivalent first, and beeps if
+  /// nobody claims it. Which is exactly what the first attempt at closing a window
+  /// from here did.
+  override func performKeyEquivalent(with event: NSEvent) -> Bool {
+    guard matchesCloseHotkey(event) else {
+      return super.performKeyEquivalent(with: event)
+    }
+
+    onCloseWindow?()
+    return true
+  }
+
+  private func matchesCloseHotkey(_ event: NSEvent) -> Bool {
+    closeHotkey?.matches(keyCode: event.keyCode, modifiers: event.modifierFlags) == true
   }
 
   /// A bare letter, if that is what this is.
@@ -308,6 +342,13 @@ final class OverlayPanel: NSPanel {
     let digit = event.charactersIgnoringModifiers.flatMap { Int($0) }
     if let digit, (1...9).contains(digit) {
       onSelectIndex?(digit - 1)
+      return
+    }
+
+    // A binding without a command or control key arrives here rather than as a key
+    // equivalent, so both doors are watched.
+    if matchesCloseHotkey(event) {
+      onCloseWindow?()
       return
     }
 

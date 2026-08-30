@@ -23,6 +23,11 @@ struct AppConfig: Equatable {
   /// screen — and no public API tells them apart. Naming the application is the
   /// honest way to leave it out.
   var ignoredApplications: Set<String>
+  /// The shortcut that closes the highlighted window from the overlay, or `nil`
+  /// when the config turns it off.
+  var closeHotkey: HotkeyBinding?
+  /// What that shortcut does.
+  var closeAction: CloseAction
   /// Whether a preview older than `windowThumbnailsStaleSeconds` is drawn faded.
   var dimsStaleThumbnails: Bool
   /// How many tiles a row may hold before the overlay wraps to the next one.
@@ -54,6 +59,10 @@ struct AppConfig: Equatable {
     // someone asks for them.
     ignoresMenuBarApplications: true,
     ignoredApplications: [],
+    closeHotkey: HotkeyBinding(modifiers: .command, key: .letterW),
+    // Quitting by default: a window closed on an application that stays running is
+    // how a leftover window is made, and this switcher has had enough of those.
+    closeAction: .quitApplication,
     // Off: a preview a few seconds old is still the window you are looking for,
     // and fading it says more about the switcher than about the window.
     dimsStaleThumbnails: false,

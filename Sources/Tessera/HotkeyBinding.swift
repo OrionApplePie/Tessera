@@ -1,3 +1,4 @@
+import AppKit
 import Carbon.HIToolbox
 import Foundation
 
@@ -25,6 +26,14 @@ struct HotkeyBinding: Equatable, Sendable {
   init(modifiers: HotkeyModifiers, key: HotkeyKey) {
     self.modifiers = modifiers
     self.key = key
+  }
+
+  /// Whether a key press is this binding.
+  ///
+  /// Used for the shortcuts the overlay handles itself, where the key press
+  /// arrives as an `NSEvent` rather than through Carbon's hot key dispatch.
+  func matches(keyCode: UInt16, modifiers eventModifiers: NSEvent.ModifierFlags) -> Bool {
+    UInt32(keyCode) == carbonKeyCode && HotkeyModifiers(eventModifiers) == modifiers
   }
 
   /// Parses a config spec such as `ctrl+alt+space`.
@@ -113,6 +122,27 @@ struct HotkeyModifiers: OptionSet, Sendable {
 
     self = modifier
   }
+
+  /// Only the four modifiers a binding can name. Caps lock and the function key
+  /// are not among them, and are ignored rather than treated as a mismatch.
+  init(_ eventModifiers: NSEvent.ModifierFlags) {
+    var modifiers: HotkeyModifiers = []
+
+    if eventModifiers.contains(.control) {
+      modifiers.insert(.control)
+    }
+    if eventModifiers.contains(.option) {
+      modifiers.insert(.option)
+    }
+    if eventModifiers.contains(.shift) {
+      modifiers.insert(.shift)
+    }
+    if eventModifiers.contains(.command) {
+      modifiers.insert(.command)
+    }
+
+    self = modifiers
+  }
 }
 
 /// A key Tessera can bind, paired with its Carbon virtual key code.
@@ -121,6 +151,7 @@ struct HotkeyKey: Equatable, Sendable {
   let carbonKeyCode: UInt32
 
   static let space = HotkeyKey(name: "space", carbonKeyCode: UInt32(kVK_Space))
+  static let letterW = HotkeyKey(name: "w", carbonKeyCode: UInt32(kVK_ANSI_W))
 
   init?(name: String) {
     let canonicalName = Self.canonicalNamesByAlias[name] ?? name
