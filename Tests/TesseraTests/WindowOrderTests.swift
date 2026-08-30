@@ -103,6 +103,31 @@ struct WindowOrderRegistryTests {
     #expect(places[1] == 2)
   }
 
+  @Test("An arrangement made by hand replaces every place")
+  func arrangeReplacesEveryPlace() {
+    var registry = WindowOrderRegistry()
+    _ = registry.sequence(for: [makeWindow(id: 1), makeWindow(id: 2), makeWindow(id: 3)])
+
+    registry.arrange([3, 1, 2])
+
+    let places = registry.sequence(for: [makeWindow(id: 1), makeWindow(id: 2), makeWindow(id: 3)])
+    #expect(places[3] == 0)
+    #expect(places[1] == 1)
+    #expect(places[2] == 2)
+  }
+
+  @Test("A window left out of an arrangement is placed after it")
+  func arrangeAppendsWhatItLeftOut() {
+    var registry = WindowOrderRegistry()
+    registry.arrange([2, 1])
+
+    let places = registry.sequence(for: [makeWindow(id: 1), makeWindow(id: 2), makeWindow(id: 9)])
+
+    #expect(places[2] == 0)
+    #expect(places[1] == 1)
+    #expect(places[9] == 2)
+  }
+
   private func makeWindow(
     id: CGWindowID,
     appName: String = "Finder",

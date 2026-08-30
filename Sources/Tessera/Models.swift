@@ -74,6 +74,38 @@ struct WindowTileSection: Identifiable {
   /// The order is taken as given: `WindowListService` keeps a display's Spaces
   /// together and a Space's windows together, so each heading covers one
   /// contiguous run and sections never interleave.
+  /// Swaps two tiles addressed by their place in the flat list.
+  ///
+  /// `nil` when the two do not sit in the same section. Sections are contiguous
+  /// runs of one display and one Space, so a swap across one would move a
+  /// thumbnail to a display it is not on — and an arrangement of thumbnails must
+  /// not claim a window is somewhere it is not.
+  static func swapping(
+    _ first: Int,
+    _ second: Int,
+    in sections: [WindowTileSection]
+  ) -> [WindowTileSection]? {
+    guard first != second else {
+      return nil
+    }
+
+    var offset = 0
+    for (index, section) in sections.enumerated() {
+      let range = offset..<(offset + section.tiles.count)
+      offset += section.tiles.count
+
+      guard range.contains(first), range.contains(second) else {
+        continue
+      }
+
+      var swapped = sections
+      swapped[index].tiles.swapAt(first - range.lowerBound, second - range.lowerBound)
+      return swapped
+    }
+
+    return nil
+  }
+
   static func sections(
     from tiles: [WindowTileModel],
     displayNames: [CGDirectDisplayID: String],

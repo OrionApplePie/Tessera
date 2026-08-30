@@ -27,6 +27,7 @@ struct OverlayView: View {
   let columns: Int
   let dimsStaleThumbnails: Bool
   let onSelect: (CGWindowID) -> Void
+  let onMove: (CGWindowID, CGWindowID) -> Void
   let onClose: () -> Void
 
   private var gridColumns: [GridItem] {
@@ -72,7 +73,8 @@ struct OverlayView: View {
                     tile: tile,
                     shortcutIndex: entry.offset + index,
                     isSelected: entry.offset + index == selectedIndex,
-                    dimsStaleThumbnails: dimsStaleThumbnails
+                    dimsStaleThumbnails: dimsStaleThumbnails,
+                    onMove: onMove
                   ) {
                     onSelect(tile.id)
                   }
@@ -136,6 +138,7 @@ private struct WindowTileButton: View {
   let shortcutIndex: Int
   let isSelected: Bool
   let dimsStaleThumbnails: Bool
+  let onMove: (CGWindowID, CGWindowID) -> Void
   let onSelect: () -> Void
 
   var body: some View {
@@ -188,6 +191,18 @@ private struct WindowTileButton: View {
     .overlay(tileBorder)
     .contentShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
     .onTapGesture(perform: onSelect)
+    // Dragging arranges the thumbnails and nothing else: the window stays where it
+    // is. The identifier travels as text because that is what a drop can carry
+    // without a type of its own.
+    .draggable(String(tile.id))
+    .dropDestination(for: String.self) { items, _ in
+      guard let text = items.first, let dragged = CGWindowID(text) else {
+        return false
+      }
+
+      onMove(dragged, tile.id)
+      return true
+    }
     .accessibilityElement(children: .combine)
     .accessibilityAddTraits(.isButton)
   }

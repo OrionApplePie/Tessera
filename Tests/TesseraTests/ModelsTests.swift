@@ -265,3 +265,68 @@ struct WindowTileSectionTests {
     )
   }
 }
+
+@Suite("Arranging tiles")
+struct WindowTileSectionSwapTests {
+  private let sections = [
+    WindowTileSection(
+      id: WindowSectionID(displayID: 1, spaceIndex: nil),
+      title: "Color LCD",
+      tiles: [makeTile(id: 1), makeTile(id: 2), makeTile(id: 3)]
+    ),
+    WindowTileSection(
+      id: WindowSectionID(displayID: 2, spaceIndex: nil),
+      title: "VG27AQL1A",
+      tiles: [makeTile(id: 4), makeTile(id: 5)]
+    ),
+  ]
+
+  @Test("Two tiles of one group change places")
+  func swapsWithinASection() throws {
+    let swapped = try #require(WindowTileSection.swapping(0, 2, in: sections))
+
+    #expect(swapped[0].tiles.map(\.id) == [3, 2, 1])
+    #expect(swapped[1].tiles.map(\.id) == [4, 5])
+  }
+
+  @Test("A swap is addressed by place in the whole list, not within a group")
+  func addressesTilesByTheirFlatPlace() throws {
+    let swapped = try #require(WindowTileSection.swapping(3, 4, in: sections))
+
+    #expect(swapped[1].tiles.map(\.id) == [5, 4])
+    #expect(swapped[0].tiles.map(\.id) == [1, 2, 3])
+  }
+
+  @Test("A swap across groups is refused, not silently relocated")
+  func refusesToCrossASection() {
+    #expect(WindowTileSection.swapping(2, 3, in: sections) == nil)
+    #expect(WindowTileSection.swapping(0, 4, in: sections) == nil)
+  }
+
+  @Test("A tile does not swap with itself")
+  func refusesToSwapATileWithItself() {
+    #expect(WindowTileSection.swapping(1, 1, in: sections) == nil)
+  }
+
+  @Test("A place nobody occupies is refused")
+  func refusesPlacesOutsideTheList() {
+    #expect(WindowTileSection.swapping(0, 99, in: sections) == nil)
+    #expect(WindowTileSection.swapping(0, 1, in: []) == nil)
+  }
+
+  private static func makeTile(id: CGWindowID) -> WindowTileModel {
+    WindowTileModel(
+      id: id,
+      appName: "Finder",
+      title: "Downloads",
+      processID: 100,
+      isActive: false,
+      isMinimized: false,
+      displayID: 1,
+      spaceIndex: nil,
+      icon: nil,
+      thumbnail: nil,
+      isThumbnailStale: false
+    )
+  }
+}

@@ -58,6 +58,20 @@ struct WindowOrderRegistry {
   private var sequenceByWindow: [CGWindowID: Int] = [:]
   private var nextSequence = 0
 
+  /// Replaces every place with the given order, for an arrangement made by hand.
+  ///
+  /// Windows left out keep no place at all and sort last until they are seen
+  /// again, which is what happens to a window closed while it was being dragged.
+  mutating func arrange(_ windowIDs: [CGWindowID]) {
+    sequenceByWindow = [:]
+    nextSequence = 0
+
+    for windowID in windowIDs {
+      sequenceByWindow[windowID] = nextSequence
+      nextSequence += 1
+    }
+  }
+
   mutating func sequence(for windows: [WindowInfo]) -> [CGWindowID: Int] {
     let newcomers =
       windows

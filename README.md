@@ -150,6 +150,7 @@ background keeps its contrast without further tuning.
 | `Return` `Space` | Activate the highlighted window |
 | `1`–`9` | Activate that tile directly |
 | A letter | Move to the next window whose name starts with it; press again to cycle |
+| `⇧` + arrows | Move the highlighted tile itself, within its group |
 | `Esc` | Close the overlay without switching |
 
 A letter is read twice: as typed, and as the Latin letter that physical key
@@ -160,6 +161,15 @@ Code either way.
 A letter matches the application name first — `c` walks Claude, then Code, then
 back. Only when no application starts with that letter do the window titles get a
 turn, which is what makes a letter useful among several Finder windows.
+
+Tiles can also be arranged by hand — with `⇧` and the arrow keys, or by dragging
+one onto another. That moves the thumbnail and nothing else: the window itself
+stays where it is, and an arrangement cannot cross into another display's group,
+which would put a thumbnail under a heading it does not belong to.
+
+The first such move outranks `window_order` for the rest of the session, since an
+order made by hand is not one a sort should undo. It is forgotten on restart:
+window identifiers change, so there is nothing to pin an arrangement to.
 
 The highlight starts on the window you are in — the one the accent fill marks — so
 the arrow keys move away from a known place rather than from wherever the list

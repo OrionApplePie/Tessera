@@ -27,6 +27,10 @@ final class WindowCoordinator: ObservableObject {
   private var spaceTracker = SpaceTracker()
   private var orderRegistry = WindowOrderRegistry()
   private var isListHeld = false
+  /// Set the first time a tile is dragged. The arrangement then outranks the
+  /// configured order for the rest of the session, because an order someone made
+  /// by hand is not one a sort should undo.
+  private var isArrangedByHand = false
   private var lastForeignFrontmostProcessID: pid_t?
   private var activationVerifier = ActivationVerifier()
   private let learnedWindows: LearnedWindowStore
@@ -184,14 +188,15 @@ final class WindowCoordinator: ObservableObject {
     // In a stable order a Space switch must not reshuffle anything — unless Spaces
     // are what the overlay groups by, where dropping the rank would let sections
     // interleave.
+    let effectiveOrder = isArrangedByHand ? WindowOrder.stable : config.windowOrder
     let ranksSort =
-      config.windowOrder != .stable || config.overlayGrouping.contains(.spaces)
+      effectiveOrder != .stable || config.overlayGrouping.contains(.spaces)
     let windows = WindowListService.ordered(
       snapshot.windows,
       displayOrder: snapshot.displayOrder,
       spaceRanks: ranksSort ? spaceRanks(for: snapshot.windows) : [:],
       sequence: orderRegistry.sequence(for: snapshot.windows),
-      order: config.windowOrder,
+      order: isArrangedByHand ? .stable : config.windowOrder,
       limit: config.maxWindows
     )
 
@@ -390,6 +395,61 @@ final class WindowCoordinator: ObservableObject {
         await self.refreshNow()
       }
     }
+  }
+}
+
+// MARK: - Arranging
+
+extension WindowCoordinator {
+  /// Swaps the tile at one place in the list with the tile at another.
+  ///
+  /// Refused across a group boundary, so a thumbnail never lands under another
+  /// display's heading. Returns whether anything moved, so the caller knows
+  /// whether to follow it with the highlight.
+  @discardableResult
+  func swapTiles(at index: Int, with target: Int) -> Bool {
+    guard let swapped = WindowTileSection.swapping(index, target, in: sections) else {
+      return false
+    }
+
+    sections = swapped
+    orderRegistry.arrange(tiles.map(\.id))
+    isArrangedByHand = true
+    logger.info("Arranged tiles by hand")
+    return true
+  }
+
+  /// Moves a tile in front of another, within the display they share.
+  ///
+  /// Purely visual: the window itself is not moved, and could not be moved between
+  /// displays without changing its frame, which is not what an arrangement of
+  /// thumbnails is for. A tile dropped on another display's tile is refused rather
+  /// than silently relocated.
+  func moveTile(_ windowID: CGWindowID, before targetID: CGWindowID) {
+    guard windowID != targetID,
+      let moving = tiles.first(where: { $0.id == windowID }),
+      let target = tiles.first(where: { $0.id == targetID }),
+      moving.displayID == target.displayID,
+      let sectionIndex = sections.firstIndex(where: { section in
+        section.tiles.contains { $0.id == windowID } && section.tiles.contains { $0.id == targetID }
+      })
+    else {
+      return
+    }
+
+    var arranged = sections[sectionIndex].tiles
+    guard let from = arranged.firstIndex(where: { $0.id == windowID }) else {
+      return
+    }
+
+    let tile = arranged.remove(at: from)
+    let to = arranged.firstIndex { $0.id == targetID } ?? arranged.count
+    arranged.insert(tile, at: to)
+    sections[sectionIndex].tiles = arranged
+
+    orderRegistry.arrange(tiles.map(\.id))
+    isArrangedByHand = true
+    logger.info("Arranged tiles by hand")
   }
 }
 

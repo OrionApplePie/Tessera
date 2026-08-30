@@ -34,6 +34,7 @@ final class OverlayWindowController: NSWindowController, NSWindowDelegate {
         columns: columns,
         dimsStaleThumbnails: dimsStaleThumbnails,
         onSelect: { _ in },
+        onMove: { _, _ in },
         onClose: {}
       ))
 
@@ -61,6 +62,9 @@ final class OverlayWindowController: NSWindowController, NSWindowDelegate {
     }
     panel.onMoveSelection = { [weak self] direction in
       self?.moveSelection(direction)
+    }
+    panel.onMoveTile = { [weak self] direction in
+      self?.moveTile(direction)
     }
     panel.onJumpToName = { [weak self] typed, latin in
       self?.jumpToName(typed: typed, orLatin: latin)
@@ -148,6 +152,9 @@ final class OverlayWindowController: NSWindowController, NSWindowDelegate {
       onSelect: { [weak self] windowID in
         self?.selectWindow(id: windowID)
       },
+      onMove: { [weak self] windowID, targetID in
+        self?.windowCoordinator.moveTile(windowID, before: targetID)
+      },
       onClose: { [weak self] in
         self?.hideOverlay()
       }
@@ -180,6 +187,24 @@ final class OverlayWindowController: NSWindowController, NSWindowDelegate {
   /// The typed character first, then the Latin letter the same physical key
   /// carries. On a Cyrillic layout those differ, and an application named in Latin
   /// would otherwise be unreachable by its own initial.
+  /// Moves the highlighted tile itself, and takes the highlight with it.
+  private func moveTile(_ direction: OverlayGrid.Direction) {
+    let target = OverlayGrid.index(
+      from: selection.index,
+      moving: direction,
+      rows: OverlayGrid.rows(
+        forSectionSizes: windowCoordinator.sections.map(\.tiles.count),
+        maximum: columns
+      )
+    )
+
+    guard windowCoordinator.swapTiles(at: selection.index, with: target) else {
+      return
+    }
+
+    selection.index = target
+  }
+
   private func jumpToName(typed: Character, orLatin latin: Character?) {
     let tiles = windowCoordinator.tiles
     let match =
@@ -210,6 +235,7 @@ final class OverlayWindowController: NSWindowController, NSWindowDelegate {
 final class OverlayPanel: NSPanel {
   var onSelectIndex: ((Int) -> Void)?
   var onMoveSelection: ((OverlayGrid.Direction) -> Void)?
+  var onMoveTile: ((OverlayGrid.Direction) -> Void)?
   var onJumpToName: ((Character, Character?) -> Void)?
   var onActivateSelection: (() -> Void)?
   var onDismiss: (() -> Void)?
@@ -259,7 +285,18 @@ final class OverlayPanel: NSPanel {
     }
 
     if let direction = Self.directionsByKeyCode[event.keyCode] {
-      onMoveSelection?(direction)
+      // Arrow keys always carry the function and numeric pad flags, so only shift
+      // distinguishes moving a tile from moving the highlight.
+      let modifiers = event.modifierFlags
+        .intersection(.deviceIndependentFlagsMask)
+        .subtracting([.capsLock, .function, .numericPad])
+
+      if modifiers == [.shift] {
+        onMoveTile?(direction)
+      } else {
+        onMoveSelection?(direction)
+      }
+
       return
     }
 
