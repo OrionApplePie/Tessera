@@ -117,6 +117,11 @@ struct AppConfigLoader {
       key: "close_hotkey"
     )
     config.closeAction = try closeAction(values["close_action"], default: config.closeAction)
+    config.usesAppleEvents = try bool(
+      values["use_apple_events"],
+      default: config.usesAppleEvents,
+      key: "use_apple_events"
+    )
     config.ignoresMenuBarApplications = try bool(
       values["ignore_menu_bar_apps"],
       default: config.ignoresMenuBarApplications,

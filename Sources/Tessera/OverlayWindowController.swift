@@ -190,7 +190,7 @@ final class OverlayWindowController: NSWindowController, NSWindowDelegate {
       return "none"
     }
 
-    return tiles[selection.index].displayAppName
+    return "\(tiles[selection.index].displayAppName): \(tiles[selection.index].displayTitle)"
   }
 
   func hideOverlay() {
@@ -376,7 +376,9 @@ final class OverlayWindowController: NSWindowController, NSWindowDelegate {
         }
 
         selection.index = match
-        logger.debug("Overlay selection jumped to index \(match) on \(character) in \(field)")
+        logger.debug(
+          "Overlay selection jumped to index \(match) (\(selectedApplicationName)) "
+            + "on \(character) in \(field)")
         return
       }
     }

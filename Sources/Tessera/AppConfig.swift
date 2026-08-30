@@ -9,6 +9,14 @@ struct AppConfig: Equatable {
   var closeAfterActivation: Bool
   var showMenuBarIcon: Bool
   var debugMode: Bool
+  /// Whether an application may be asked, through Apple Events, to raise a window
+  /// that Accessibility cannot reach.
+  ///
+  /// On by default: without it, Chrome and Finder can only be brought forward, and
+  /// which of their windows appears is their choice rather than yours. macOS asks
+  /// permission for each application the first time, and a refusal costs nothing —
+  /// the switch happens as it would have anyway.
+  var usesAppleEvents: Bool
   /// Whether to leave out applications with no Dock icon.
   ///
   /// An application whose activation policy is `.accessory` lives in the menu bar.
@@ -57,6 +65,7 @@ struct AppConfig: Equatable {
     debugMode: false,
     // Displays are worth telling apart out of the box; Spaces are not, until
     // someone asks for them.
+    usesAppleEvents: true,
     ignoresMenuBarApplications: true,
     ignoredApplications: [],
     closeHotkey: HotkeyBinding(modifiers: .command, key: .letterW),

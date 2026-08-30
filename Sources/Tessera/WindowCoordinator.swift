@@ -287,6 +287,7 @@ final class WindowCoordinator: ObservableObject {
       case .couldNotAimAtTheWindow:
         logger.info(
           "Accessibility could not aim at this window, so its outcome teaches nothing")
+        raiseOnceTheSpaceHasSwitched(tile)
       }
     } catch {
       logger.error("Failed to activate window: \(error)")
@@ -312,6 +313,63 @@ final class WindowCoordinator: ObservableObject {
       logger.error("Failed to raise \(tile.displayAppName): \(error)")
       return false
     }
+  }
+
+  /// Tries the raise again once the Space has had time to change.
+  ///
+  /// Accessibility lists no windows of an application whose windows are all on
+  /// another Space, so activating one of several — three Chrome windows, two Word
+  /// documents — could only bring the application forward and let it choose. Once
+  /// the switch has happened those windows are on this Space, Accessibility can see
+  /// them, and the one that was asked for can be raised after all.
+  private func raiseOnceTheSpaceHasSwitched(_ tile: WindowTileModel) {
+    Task { @MainActor [weak self] in
+      // How long an application takes to appear in Accessibility after coming
+      // forward varies — measured at under half a second for some and over a second
+      // for others — so this asks again until it works or the window plainly is not
+      // going to be listed.
+      for attempt in 1...10 {
+        try? await Task.sleep(for: .milliseconds(200))
+
+        guard let self,
+          NSWorkspace.shared.frontmostApplication?.processIdentifier == tile.processID
+        else {
+          return
+        }
+
+        if (try? self.activator.raiseWithoutActivating(tile)) == .raisedTheWindow {
+          self.logger.info("Raised the window on attempt \(attempt) after the switch")
+          return
+        }
+
+        // Once the switch has plainly happened and Accessibility still knows
+        // nothing — Chrome and Finder publish no windows to it at all — the
+        // application is asked directly.
+        if attempt == 3, await self.raiseThroughAppleEvents(tile) {
+          return
+        }
+      }
+
+      self?.logger.info("The window could not be raised by any means")
+    }
+  }
+
+  /// Asks the application itself to raise the window, when Accessibility cannot.
+  private func raiseThroughAppleEvents(_ tile: WindowTileModel) async -> Bool {
+    guard config.usesAppleEvents,
+      let bundleIdentifier = NSRunningApplication(processIdentifier: tile.processID)?
+        .bundleIdentifier
+    else {
+      return false
+    }
+
+    let raised = await ApplicationScripting.raiseWindow(
+      titled: tile.title,
+      bundleIdentifier: bundleIdentifier
+    )
+
+    logger.info("Asked \(tile.displayAppName) through Apple Events: raised=\(raised)")
+    return raised
   }
 
   /// Activation by position, for the overlay's number-key shortcuts.

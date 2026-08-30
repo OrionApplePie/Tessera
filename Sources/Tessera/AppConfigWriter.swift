@@ -68,6 +68,9 @@ enum AppConfigWriter {
     # Global hotkey that toggles the overlay. "" turns it off.
     hotkey = "\(config.hotkey?.displayName ?? "")"
 
+    # Ask an application through Apple Events to raise a window Accessibility cannot.
+    use_apple_events = \(config.usesAppleEvents)
+
     # Leave out applications with no Dock icon, the ones that live in the menu bar.
     ignore_menu_bar_apps = \(config.ignoresMenuBarApplications)
 

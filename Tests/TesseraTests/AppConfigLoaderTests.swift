@@ -16,6 +16,7 @@ struct AppConfigLoaderTests {
     "hotkey",
     "close_hotkey",
     "close_action",
+    "use_apple_events",
     "ignore_menu_bar_apps",
     "ignored_apps",
     "dim_stale_thumbnails",
@@ -49,6 +50,7 @@ struct AppConfigLoaderTests {
       hotkey = "cmd+shift+t"
       close_hotkey = "ctrl+d"
       close_action = "window"
+      use_apple_events = false
       ignore_menu_bar_apps = false
       ignored_apps = "AmneziaVPN, Some Tray App"
       dim_stale_thumbnails = true
@@ -71,6 +73,7 @@ struct AppConfigLoaderTests {
       #expect(config.hotkey?.displayName == "shift+cmd+t")
       #expect(config.closeHotkey?.displayName == "ctrl+d")
       #expect(config.closeAction == .closeWindow)
+      #expect(config.usesAppleEvents == false)
       #expect(config.ignoresMenuBarApplications == false)
       #expect(config.ignoredApplications == ["amneziavpn", "some tray app"])
       #expect(config.dimsStaleThumbnails == true)
@@ -343,6 +346,7 @@ extension AppConfigLoaderTests {
     #expect(config.hotkey == defaults.hotkey, sourceLocation: sourceLocation)
     #expect(config.closeHotkey == defaults.closeHotkey, sourceLocation: sourceLocation)
     #expect(config.closeAction == defaults.closeAction, sourceLocation: sourceLocation)
+    #expect(config.usesAppleEvents == defaults.usesAppleEvents, sourceLocation: sourceLocation)
     #expect(
       config.ignoresMenuBarApplications == defaults.ignoresMenuBarApplications,
       sourceLocation: sourceLocation
