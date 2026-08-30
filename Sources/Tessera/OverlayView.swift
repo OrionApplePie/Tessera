@@ -25,6 +25,7 @@ struct OverlayView: View {
   @ObservedObject var selection: OverlaySelection
   let background: OverlayColor
   let columns: Int
+  let dimsStaleThumbnails: Bool
   let onSelect: (CGWindowID) -> Void
   let onClose: () -> Void
 
@@ -70,7 +71,8 @@ struct OverlayView: View {
                   WindowTileButton(
                     tile: tile,
                     shortcutIndex: entry.offset + index,
-                    isSelected: entry.offset + index == selectedIndex
+                    isSelected: entry.offset + index == selectedIndex,
+                    dimsStaleThumbnails: dimsStaleThumbnails
                   ) {
                     onSelect(tile.id)
                   }
@@ -133,6 +135,7 @@ private struct WindowTileButton: View {
   let tile: WindowTileModel
   let shortcutIndex: Int
   let isSelected: Bool
+  let dimsStaleThumbnails: Bool
   let onSelect: () -> Void
 
   var body: some View {
@@ -149,7 +152,7 @@ private struct WindowTileButton: View {
   /// path, which is what a switcher needs.
   private var tileContent: some View {
     VStack(alignment: .leading, spacing: 10) {
-      WindowThumbnailContent(tile: tile)
+      WindowThumbnailContent(tile: tile, dimsStale: dimsStaleThumbnails)
 
       VStack(alignment: .leading, spacing: 3) {
         HStack(alignment: .firstTextBaseline, spacing: 6) {
@@ -233,6 +236,7 @@ private struct WindowTileButton: View {
 
 private struct WindowThumbnailContent: View {
   let tile: WindowTileModel
+  let dimsStale: Bool
 
   var body: some View {
     ZStack {
@@ -242,7 +246,7 @@ private struct WindowThumbnailContent: View {
           .interpolation(.high)
           .antialiased(true)
           .scaledToFill()
-          .opacity(tile.isThumbnailStale ? 0.72 : 1.0)
+          .opacity(dimsStale && tile.isThumbnailStale ? 0.72 : 1)
       } else {
         RoundedRectangle(cornerRadius: 6, style: .continuous)
           .fill(Color.white.opacity(0.06))

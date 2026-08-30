@@ -15,6 +15,7 @@ struct AppConfigLoaderTests {
     "max_windows",
     "hotkey",
     "ignored_apps",
+    "dim_stale_thumbnails",
     "overlay_columns",
     "window_order",
     "overlay_grouping",
@@ -44,6 +45,7 @@ struct AppConfigLoaderTests {
       max_windows = 5
       hotkey = "cmd+shift+t"
       ignored_apps = "AmneziaVPN, Some Tray App"
+      dim_stale_thumbnails = true
       overlay_columns = 3
       window_order = "stable"
       overlay_grouping = "displays+spaces"
@@ -62,6 +64,7 @@ struct AppConfigLoaderTests {
       #expect(config.maxWindows == 5)
       #expect(config.hotkey?.displayName == "shift+cmd+t")
       #expect(config.ignoredApplications == ["amneziavpn", "some tray app"])
+      #expect(config.dimsStaleThumbnails == true)
       #expect(config.overlayColumns == 3)
       #expect(config.windowOrder == .stable)
       #expect(config.overlayGrouping == [.displays, .spaces])
@@ -222,7 +225,7 @@ struct AppConfigLoaderTests {
 
   @Test("A flag that is not true or false is rejected")
   func rejectsNonBooleanFlags() throws {
-    for contents in ["debug_mode = yes", "debug_mode = 1"] {
+    for contents in ["debug_mode = yes", "debug_mode = 1", "dim_stale_thumbnails = 1"] {
       try withConfigFile(contents) { loader in
         expectDefaults(loader.load())
       }
@@ -324,6 +327,10 @@ struct AppConfigLoaderTests {
     #expect(config.hotkey == defaults.hotkey, sourceLocation: sourceLocation)
     #expect(
       config.ignoredApplications == defaults.ignoredApplications,
+      sourceLocation: sourceLocation
+    )
+    #expect(
+      config.dimsStaleThumbnails == defaults.dimsStaleThumbnails,
       sourceLocation: sourceLocation
     )
     #expect(config.overlayColumns == defaults.overlayColumns, sourceLocation: sourceLocation)

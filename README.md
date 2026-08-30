@@ -390,6 +390,7 @@ Useful settings:
 refresh_interval_seconds = 3
 window_thumbnails_stale_seconds = 30
 
+dim_stale_thumbnails = false
 window_thumbnail_target_width = 240
 window_thumbnail_target_height = 160
 max_windows = 24

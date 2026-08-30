@@ -7,6 +7,7 @@ final class OverlayWindowController: NSWindowController, NSWindowDelegate {
   private let closeAfterActivation: Bool
   private let background: OverlayColor
   private let columns: Int
+  private let dimsStaleThumbnails: Bool
   private let logger: AppLogger
   private let hostingView: NSHostingView<OverlayView>
   private let selection = OverlaySelection()
@@ -16,12 +17,14 @@ final class OverlayWindowController: NSWindowController, NSWindowDelegate {
     closeAfterActivation: Bool = true,
     background: OverlayColor = AppConfig.default.overlayBackground,
     columns: Int = AppConfig.default.overlayColumns,
+    dimsStaleThumbnails: Bool = AppConfig.default.dimsStaleThumbnails,
     debugMode: Bool = false
   ) {
     self.windowCoordinator = windowCoordinator
     self.closeAfterActivation = closeAfterActivation
     self.background = background
     self.columns = columns
+    self.dimsStaleThumbnails = dimsStaleThumbnails
     self.logger = AppLogger(debugMode: debugMode, category: .overlay)
     self.hostingView = NSHostingView(
       rootView: OverlayView(
@@ -29,6 +32,7 @@ final class OverlayWindowController: NSWindowController, NSWindowDelegate {
         selection: OverlaySelection(),
         background: background,
         columns: columns,
+        dimsStaleThumbnails: dimsStaleThumbnails,
         onSelect: { _ in },
         onClose: {}
       ))
@@ -126,6 +130,7 @@ final class OverlayWindowController: NSWindowController, NSWindowDelegate {
       selection: selection,
       background: background,
       columns: columns,
+      dimsStaleThumbnails: dimsStaleThumbnails,
       onSelect: { [weak self] windowID in
         self?.selectWindow(id: windowID)
       },

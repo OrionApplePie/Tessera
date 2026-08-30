@@ -16,6 +16,8 @@ struct AppConfig {
   /// screen — and no public API tells them apart. Naming the application is the
   /// honest way to leave it out.
   var ignoredApplications: Set<String>
+  /// Whether a preview older than `windowThumbnailsStaleSeconds` is drawn faded.
+  var dimsStaleThumbnails: Bool
   /// How many tiles a row may hold before the overlay wraps to the next one.
   var overlayColumns: Int
   /// What decides the order of the tiles inside a group.
@@ -44,6 +46,9 @@ struct AppConfig {
     // Displays are worth telling apart out of the box; Spaces are not, until
     // someone asks for them.
     ignoredApplications: [],
+    // Off: a preview a few seconds old is still the window you are looking for,
+    // and fading it says more about the switcher than about the window.
+    dimsStaleThumbnails: false,
     // Four keeps the panel well inside a laptop screen and the tiles close enough
     // together to take in at a glance.
     overlayColumns: 4,

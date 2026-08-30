@@ -28,6 +28,7 @@ final class AppCoordinator: NSObject, NSApplicationDelegate {
       closeAfterActivation: config.closeAfterActivation,
       background: config.overlayBackground,
       columns: config.overlayColumns,
+      dimsStaleThumbnails: config.dimsStaleThumbnails,
       debugMode: config.debugMode
     )
 

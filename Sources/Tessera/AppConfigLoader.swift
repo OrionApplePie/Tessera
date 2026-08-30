@@ -70,6 +70,11 @@ struct AppConfigLoader {
     )
     config.windowThumbnailTargetSize = CGSize(width: thumbnailWidth, height: thumbnailHeight)
 
+    config.dimsStaleThumbnails = try bool(
+      values["dim_stale_thumbnails"],
+      default: config.dimsStaleThumbnails,
+      key: "dim_stale_thumbnails"
+    )
     config.maxWindows = try positiveInt(
       values["max_windows"],
       default: config.maxWindows,
