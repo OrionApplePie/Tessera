@@ -1,17 +1,30 @@
-# AeroSpaceSwitcher example config
-# Copy to ~/.config/aerospace-switcher/config.toml and edit as needed.
+# Tessera example config
+# Copy to ~/.config/tessera/config.toml and edit as needed.
 
 refresh_interval_seconds = 3
-full_snapshot_stale_seconds = 15
 window_thumbnails_stale_seconds = 30
 
-full_snapshot_target_width = 480
-full_snapshot_target_height = 300
 window_thumbnail_target_width = 240
 window_thumbnail_target_height = 160
-max_window_thumbnails_per_workspace = 4
+max_windows = 24
 
-close_after_workspace_switch = true
+# Global hotkey that toggles the overlay. At least one modifier is required.
+# Set it to "" to disable it and trigger the overlay from the CLI instead.
+hotkey = "ctrl+alt+space"
+
+# Applications to leave out of the switcher, comma separated. Useful for a tray
+# application that keeps a hidden window around after you close it, which looks
+# from the outside exactly like a window on another Space.
+ignored_apps = ""
+
+# Tile grouping: "displays", "spaces", "displays+spaces" or "none". Each named
+# axis gets its own heading and its own row.
+overlay_grouping = "displays"
+
+# Overlay surface, #RRGGBB or #RRGGBBAA. Add an alpha channel to let the desktop
+# show through, for example "#000000C2".
+overlay_background = "#2B2E33"
+
+close_after_activation = true
 show_menu_bar_icon = true
-refresh_focused_workspace_only = true
 debug_mode = false

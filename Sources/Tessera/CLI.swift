@@ -1,0 +1,264 @@
+import CoreGraphics
+import Foundation
+
+enum CLI {
+  @MainActor
+  static func run(arguments: [String], config: AppConfig) throws {
+    guard !arguments.isEmpty else {
+      printUsageAndExit()
+    }
+
+    switch arguments[0] {
+    case "windows":
+      try runOnMainActor { try await listWindows(config: config) }
+
+    case "focus":
+      guard arguments.count >= 2, let windowID = CGWindowID(arguments[1]) else {
+        throw CLIError.invalidArguments("Missing or invalid window id. Usage: tessera focus <id>")
+      }
+      try runOnMainActor { try await focusWindow(windowID, config: config) }
+
+    case "permissions":
+      try runOnMainActor { printPermissions(config: config) }
+
+    case "show":
+      postExternalCommandNotification(
+        command: "show",
+        name: BackgroundAppNotifications.showSwitcher,
+        source: .externalShowCommand
+      )
+
+    case "toggle":
+      postExternalCommandNotification(
+        command: "toggle",
+        name: BackgroundAppNotifications.toggleSwitcher,
+        source: .externalToggleCommand
+      )
+
+    case "quit":
+      postExternalCommandNotification(
+        command: "quit",
+        name: BackgroundAppNotifications.quitApp,
+        source: .externalQuitCommand
+      )
+      try waitForBackgroundAppToStop(command: "quit")
+
+    case "restart":
+      postExternalCommandNotification(
+        command: "restart",
+        name: BackgroundAppNotifications.quitApp,
+        source: .externalRestartCommand
+      )
+      try waitForBackgroundAppToStop(command: "restart")
+      try launchBackgroundApp()
+
+    default:
+      throw CLIError.invalidArguments("Unknown command: \(arguments[0])")
+    }
+  }
+
+  // MARK: - Window commands
+
+  @MainActor
+  private static func listWindows(config: AppConfig) async throws {
+    let snapshot = try await WindowListService(config: config).snapshot()
+    // No Space grouping here: a one-shot command has watched nothing and learned
+    // nothing. Displays it can still tell apart.
+    let windows = WindowListService.ordered(
+      snapshot.windows,
+      displayOrder: snapshot.displayOrder,
+      limit: config.maxWindows
+    )
+
+    guard !windows.isEmpty else {
+      print("No switchable windows found.")
+      print("If this is unexpected, check Screen Recording permission: tessera permissions")
+      return
+    }
+
+    for window in windows {
+      let title = window.title.isEmpty ? "<untitled>" : window.title
+      let display = snapshot.displayNames[window.displayID] ?? "display \(window.displayID)"
+      // Reaching these costs a Space switch or an unminimize, so say which is which.
+      let location =
+        window.isMinimized ? ", minimized" : (window.isOnScreen ? "" : ", off-screen")
+      print("\(window.id)\t\(window.appName): \(title)\t(\(display)\(location))")
+    }
+  }
+
+  @MainActor
+  private static func focusWindow(_ windowID: CGWindowID, config: AppConfig) async throws {
+    let windows = try await WindowListService(config: config).snapshot().windows
+
+    guard let window = windows.first(where: { $0.id == windowID }) else {
+      throw CLIError.commandFailed("No switchable window with id \(windowID)")
+    }
+
+    let tile = WindowTileModel(
+      id: window.id,
+      appName: window.appName,
+      title: window.title,
+      processID: window.processID,
+      isActive: false,
+      isMinimized: window.isMinimized,
+      displayID: window.displayID,
+      spaceIndex: nil,
+      icon: nil,
+      thumbnail: nil,
+      isThumbnailStale: false
+    )
+
+    try WindowActivator(config: config).activate(tile)
+    print("Focused \(tile.displayAppName): \(tile.displayTitle)")
+  }
+
+  @MainActor
+  private static func printPermissions(config: AppConfig) {
+    let screenRecording = CGPreflightScreenCaptureAccess()
+    let accessibility = WindowActivator(config: config).isAccessibilityTrusted
+
+    print("Screen Recording : \(screenRecording ? "granted" : "NOT granted")")
+    print("Accessibility    : \(accessibility ? "granted" : "NOT granted")")
+
+    if !screenRecording {
+      print("")
+      print("Screen Recording is required to list windows and capture thumbnails.")
+      print("Grant it in System Settings > Privacy & Security > Screen Recording.")
+    }
+
+    if !accessibility {
+      print("")
+      print("Accessibility is required to raise a specific window.")
+      print("Without it Tessera can only bring the owning application forward.")
+      print("Grant it in System Settings > Privacy & Security > Accessibility.")
+    }
+  }
+
+  /// Runs an async main-actor command from the synchronous CLI entry point.
+  ///
+  /// `main()` stays synchronous because the background app hands control to
+  /// `NSApplication.run()`, so async commands are pumped on the main run loop here.
+  @MainActor
+  private static func runOnMainActor(
+    _ body: @escaping @MainActor () async throws -> Void
+  ) throws {
+    let box = CommandResultBox()
+
+    Task { @MainActor in
+      do {
+        try await body()
+        box.result = .success(())
+      } catch {
+        box.result = .failure(error)
+      }
+    }
+
+    while box.result == nil {
+      RunLoop.current.run(mode: .default, before: Date().addingTimeInterval(0.01))
+    }
+
+    try box.result?.get()
+  }
+
+  // MARK: - Background app control
+
+  private static func postExternalCommandNotification(
+    command: String,
+    name: Notification.Name,
+    source: AppCommandSource
+  ) {
+    let logger = AppLogger(debugMode: true, category: .trigger)
+    let userInfo = BackgroundAppNotifications.userInfo(source: source, command: command)
+
+    logger.info("CLI \(command) command started")
+    logger.info(
+      "Posting distributed notification name=\(name.rawValue) object=\(BackgroundAppNotifications.notificationObject)"
+    )
+    logger.debug("Distributed notification userInfo=\(userInfo)")
+
+    DistributedNotificationCenter.default().post(
+      name: name,
+      object: BackgroundAppNotifications.notificationObject,
+      userInfo: userInfo
+    )
+
+    logger.info("CLI \(command) command finished")
+  }
+
+  private static func waitForBackgroundAppToStop(command: String) throws {
+    let logger = AppLogger(debugMode: true, category: .app)
+    let deadline = Date().addingTimeInterval(5)
+
+    while Date() < deadline {
+      let lock = SingleInstanceLock(debugMode: true)
+      if try lock.tryAcquire() {
+        lock.release()
+        logger.info("Background app stopped after \(command) command")
+        return
+      }
+
+      Thread.sleep(forTimeInterval: 0.1)
+    }
+
+    throw CLIError.commandFailed(
+      "Timed out waiting for background app to stop after \(command)")
+  }
+
+  private static func launchBackgroundApp() throws {
+    guard let executableURL = Bundle.main.executableURL else {
+      throw CLIError.commandFailed("Unable to resolve executable URL for restart")
+    }
+
+    let logger = AppLogger(debugMode: true, category: .app)
+    let process = Process()
+    process.executableURL = executableURL
+    process.arguments = ["run"]
+    // Detach the child's stdio, otherwise the invoking shell keeps waiting on the
+    // inherited pipes and `tessera restart` never returns.
+    process.standardInput = FileHandle.nullDevice
+    process.standardOutput = FileHandle.nullDevice
+    process.standardError = FileHandle.nullDevice
+
+    logger.info("Launching background app path=\(executableURL.path)")
+    try process.run()
+  }
+
+  static func printUsageAndExit() -> Never {
+    let usage = """
+      Tessera - native macOS window switcher
+
+      Commands:
+        run                 Start the background menu bar utility if it is not already running
+        show                Show the window switcher overlay in the running background app
+        toggle              Toggle the window switcher overlay in the running background app
+        quit                Quit the running background app
+        restart             Quit the running background app, then start a fresh one
+
+      Debug / utility commands:
+        windows             List switchable windows as "<id> <app>: <title>"
+        focus <id>          Bring the window with the given id to the front
+        permissions         Report Screen Recording and Accessibility permission status
+      """
+    print(usage)
+    exit(0)
+  }
+}
+
+@MainActor
+private final class CommandResultBox {
+  var result: Result<Void, Error>?
+}
+
+enum CLIError: Error, CustomStringConvertible {
+  case invalidArguments(String)
+  case commandFailed(String)
+
+  var description: String {
+    switch self {
+    case .invalidArguments(let message):
+      return message
+    case .commandFailed(let message):
+      return message
+    }
+  }
+}
