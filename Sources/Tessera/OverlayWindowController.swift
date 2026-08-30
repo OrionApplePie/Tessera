@@ -9,6 +9,9 @@ final class OverlayWindowController: NSWindowController, NSWindowDelegate {
   private let columns: Int
   private let dimsStaleThumbnails: Bool
   private let closeHotkey: HotkeyBinding?
+  /// The configured column count, widened when the overlay would otherwise be
+  /// taller than the screen it opens on.
+  private var fittedColumns: Int
   private let logger: AppLogger
   private let hostingView: NSHostingView<OverlayView>
   private let selection = OverlaySelection()
@@ -28,6 +31,7 @@ final class OverlayWindowController: NSWindowController, NSWindowDelegate {
     self.columns = columns
     self.dimsStaleThumbnails = dimsStaleThumbnails
     self.closeHotkey = closeHotkey
+    self.fittedColumns = columns
     self.logger = AppLogger(debugMode: debugMode, category: .overlay)
     self.hostingView = NSHostingView(
       rootView: OverlayView(
@@ -104,21 +108,38 @@ final class OverlayWindowController: NSWindowController, NSWindowDelegate {
     // the overlay was last open, and a stale index would point at another window.
     selection.index = OverlayGrid.initialIndex(for: windowCoordinator.tiles)
 
-    // The grid wraps to a second row once there are more than six windows, so the
-    // panel is sized to its content at show time rather than pinned to a constant.
-    let fittingSize = hostingView.fittingSize
+    // The screen is chosen here rather than left to `center()`, which would use
+    // whichever screen the window was last on. Measuring against one screen and
+    // opening on another is how the fitting appeared to work only the second time.
+    let screen = NSScreen.main
+    let usable = screen?.visibleFrame ?? .zero
+
+    // The panel is sized to its content at show time rather than pinned to a
+    // constant, and the content is laid out to fit the screen it opens on.
+    let fittingSize = fitToScreen(within: usable.size)
     if fittingSize.width > 0, fittingSize.height > 0 {
+      // The hosting view is given the size outright: it lays out on its own
+      // schedule otherwise, and the first showing would use the previous layout.
+      hostingView.frame = NSRect(origin: .zero, size: fittingSize)
       window.setContentSize(fittingSize)
     }
 
-    window.center()
+    if usable.width > 0 {
+      window.setFrameOrigin(
+        NSPoint(
+          x: usable.midX - fittingSize.width / 2,
+          y: usable.midY - fittingSize.height / 2
+        ))
+    } else {
+      window.center()
+    }
     window.makeKeyAndOrderFront(nil)
     NSApp.activate(ignoringOtherApps: true)
     logger.debug(
       "Overlay ordered front tiles=\(windowCoordinator.tiles.count) "
         + "fitting=\(Int(fittingSize.width))x\(Int(fittingSize.height)) "
         + "frame=\(Int(window.frame.width))x\(Int(window.frame.height)) "
-        + "visible=\(window.isVisible) "
+        + "columns=\(fittedColumns) visible=\(window.isVisible) "
         + "selection=\(selection.index) (\(selectedApplicationName))"
     )
   }
@@ -149,12 +170,46 @@ final class OverlayWindowController: NSWindowController, NSWindowDelegate {
     return false
   }
 
-  private func makeOverlayView() -> OverlayView {
+  /// Widens the grid until it is no taller than the screen, or until no more tiles
+  /// fit across it.
+  ///
+  /// The configured column count is where this starts, not what it insists on: a
+  /// column count that reads well with six windows leaves sixteen taller than a
+  /// laptop screen, and a switcher nobody can see all of is not doing its job.
+  /// Measured rather than calculated — SwiftUI's own fitting size is the only
+  /// answer that accounts for the headings.
+  private func fitToScreen(within usable: CGSize) -> CGSize {
+    let widest = TileMetrics.columnsFitting(availableWidth: usable.width)
+
+    var chosen = columns
+    var size = measure(columns: chosen)
+
+    while size.height > usable.height, chosen < widest {
+      chosen += 1
+      size = measure(columns: chosen)
+    }
+
+    fittedColumns = chosen
+    hostingView.rootView = makeOverlayView()
+    return size
+  }
+
+  /// Measured on a throwaway view rather than on the one on screen: an
+  /// `NSHostingView` does not re-report its fitting size synchronously when its
+  /// root view is replaced, so asking the live view in a loop returns the first
+  /// answer every time — which is how the first version of this widened the grid
+  /// to the edge of the screen and then sized the window for the layout it had
+  /// rejected.
+  private func measure(columns count: Int) -> CGSize {
+    NSHostingView(rootView: makeOverlayView(columns: count)).fittingSize
+  }
+
+  private func makeOverlayView(columns count: Int? = nil) -> OverlayView {
     OverlayView(
       windowCoordinator: windowCoordinator,
       selection: selection,
       background: background,
-      columns: columns,
+      columns: count ?? fittedColumns,
       dimsStaleThumbnails: dimsStaleThumbnails,
       onSelect: { [weak self] windowID in
         self?.selectWindow(id: windowID)
@@ -186,7 +241,7 @@ final class OverlayWindowController: NSWindowController, NSWindowDelegate {
       moving: direction,
       rows: OverlayGrid.rows(
         forSectionSizes: windowCoordinator.sections.map(\.tiles.count),
-        maximum: columns
+        maximum: fittedColumns
       )
     )
   }
@@ -201,7 +256,7 @@ final class OverlayWindowController: NSWindowController, NSWindowDelegate {
       moving: direction,
       rows: OverlayGrid.rows(
         forSectionSizes: windowCoordinator.sections.map(\.tiles.count),
-        maximum: columns
+        maximum: fittedColumns
       )
     )
 
