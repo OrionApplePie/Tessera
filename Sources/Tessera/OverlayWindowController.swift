@@ -14,7 +14,7 @@ final class OverlayWindowController: NSWindowController, NSWindowDelegate {
   /// taller than the screen it opens on.
   private var fittedColumns: Int
   private let logger: AppLogger
-  private let hostingView: NSHostingView<OverlayView>
+  private let hostingView: TransparentHostingView<OverlayView>
   private let selection = OverlaySelection()
 
   init(
@@ -34,7 +34,7 @@ final class OverlayWindowController: NSWindowController, NSWindowDelegate {
     self.closeHotkey = closeHotkey
     self.fittedColumns = columns
     self.logger = AppLogger(debugMode: debugMode, category: .overlay)
-    self.hostingView = NSHostingView(
+    self.hostingView = TransparentHostingView(
       rootView: OverlayView(
         windowCoordinator: windowCoordinator,
         selection: OverlaySelection(),
@@ -63,6 +63,19 @@ final class OverlayWindowController: NSWindowController, NSWindowDelegate {
     panel.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary, .transient]
 
     hostingView.rootView = makeOverlayView()
+
+    // The content view follows the window instead of being positioned by hand: a
+    // frame set manually drifted from the window's own, and SwiftUI then drew its
+    // rounded surface to a size the window did not have — the corners fell outside
+    // and the panel looked square.
+    hostingView.autoresizingMask = [.width, .height]
+
+    // The shape is also cut at the layer, so the window is the rounded rectangle
+    // whatever the view inside believes its size to be.
+    hostingView.layer?.cornerRadius = TileMetrics.surfaceCornerRadius
+    hostingView.layer?.cornerCurve = .continuous
+    hostingView.layer?.masksToBounds = true
+
     panel.contentView = hostingView
 
     panel.onSelectIndex = { [weak self] index in
@@ -137,9 +150,6 @@ final class OverlayWindowController: NSWindowController, NSWindowDelegate {
     // constant, and the content is laid out to fit the screen it opens on.
     let fittingSize = fitToScreen(within: usable.size)
     if fittingSize.width > 0, fittingSize.height > 0 {
-      // The hosting view is given the size outright: it lays out on its own
-      // schedule otherwise, and the first showing would use the previous layout.
-      hostingView.frame = NSRect(origin: .zero, size: fittingSize)
       window.setContentSize(fittingSize)
     }
 
@@ -220,7 +230,7 @@ final class OverlayWindowController: NSWindowController, NSWindowDelegate {
   /// to the edge of the screen and then sized the window for the layout it had
   /// rejected.
   private func measure(columns count: Int) -> CGSize {
-    NSHostingView(rootView: makeOverlayView(columns: count)).fittingSize
+    TransparentHostingView(rootView: makeOverlayView(columns: count)).fittingSize
   }
 
   private func makeOverlayView(columns count: Int? = nil) -> OverlayView {
@@ -336,6 +346,30 @@ final class OverlayWindowController: NSWindowController, NSWindowDelegate {
     }
 
     selectWindow(id: windowCoordinator.tiles[index].id)
+  }
+}
+
+/// A hosting view that does not paint over the shape its content draws.
+///
+/// `NSHostingView` fills its own bounds with an opaque background, which squares
+/// off the rounded corners the overlay draws for itself — measured as a single
+/// anti-aliased pixel at the corner of an otherwise solid rectangle. No property
+/// turns that off, so the view declares itself transparent instead.
+final class TransparentHostingView<Content: View>: NSHostingView<Content> {
+  override var isOpaque: Bool {
+    false
+  }
+
+  override required init(rootView: Content) {
+    super.init(rootView: rootView)
+
+    wantsLayer = true
+    layer?.backgroundColor = .clear
+  }
+
+  @available(*, unavailable)
+  required init(coder: NSCoder) {
+    fatalError("init(coder:) has not been implemented")
   }
 }
 
