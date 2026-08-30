@@ -5,9 +5,6 @@ import Foundation
 /// Kept apart from the SwiftUI view so the movement rules can be tested without
 /// a window on screen.
 enum OverlayGrid {
-  /// Beyond this a row gets too wide for a laptop display, so tiles wrap.
-  static let maximumColumns = 6
-
   enum Direction {
     case left
     case right
@@ -16,16 +13,17 @@ enum OverlayGrid {
   }
 
   /// One column count for the whole overlay, so tiles line up down the sections
-  /// instead of every section picking its own width.
-  static func columnCount(forSectionSizes sizes: [Int]) -> Int {
-    max(1, min(sizes.max() ?? 0, maximumColumns))
+  /// instead of every section picking its own width. A row never holds more than
+  /// `maximum` tiles, which is what keeps the panel narrower than the screen.
+  static func columnCount(forSectionSizes sizes: [Int], maximum: Int) -> Int {
+    max(1, min(sizes.max() ?? 0, max(1, maximum)))
   }
 
   /// Flat tile indices laid out row by row, one section after another. A section
   /// always starts a new row, which is what makes a section boundary invisible to
   /// the movement rules below: it is simply the next row down.
-  static func rows(forSectionSizes sizes: [Int]) -> [[Int]] {
-    let columns = columnCount(forSectionSizes: sizes)
+  static func rows(forSectionSizes sizes: [Int], maximum: Int) -> [[Int]] {
+    let columns = columnCount(forSectionSizes: sizes, maximum: maximum)
     var rows: [[Int]] = []
     var next = 0
 

@@ -27,6 +27,7 @@ final class AppCoordinator: NSObject, NSApplicationDelegate {
       windowCoordinator: windowCoordinator,
       closeAfterActivation: config.closeAfterActivation,
       background: config.overlayBackground,
+      columns: config.overlayColumns,
       debugMode: config.debugMode
     )
 

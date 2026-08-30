@@ -80,6 +80,11 @@ struct AppConfigLoader {
     )
     config.hotkey = try hotkey(values["hotkey"], default: config.hotkey)
     config.ignoredApplications = applicationNames(values["ignored_apps"])
+    config.overlayColumns = try positiveInt(
+      values["overlay_columns"],
+      default: config.overlayColumns,
+      key: "overlay_columns"
+    )
     config.windowOrder = try windowOrder(values["window_order"], default: config.windowOrder)
     config.overlayGrouping = try grouping(
       values["overlay_grouping"],

@@ -16,6 +16,8 @@ struct AppConfig {
   /// screen — and no public API tells them apart. Naming the application is the
   /// honest way to leave it out.
   var ignoredApplications: Set<String>
+  /// How many tiles a row may hold before the overlay wraps to the next one.
+  var overlayColumns: Int
   /// What decides the order of the tiles inside a group.
   var windowOrder: WindowOrder
   /// Whether the overlay splits its tiles into per-Space groups.
@@ -42,6 +44,9 @@ struct AppConfig {
     // Displays are worth telling apart out of the box; Spaces are not, until
     // someone asks for them.
     ignoredApplications: [],
+    // Four keeps the panel well inside a laptop screen and the tiles close enough
+    // together to take in at a glance.
+    overlayColumns: 4,
     windowOrder: .title,
     overlayGrouping: .displays,
     // Matte graphite: dark enough for white tile text, light enough not to read as

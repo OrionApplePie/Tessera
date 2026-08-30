@@ -7,34 +7,52 @@ import Testing
 struct OverlayGridTests {
   @Test("A row holds up to six tiles and never fewer than one")
   func columnCountIsCappedAtSix() {
-    #expect(OverlayGrid.columnCount(forSectionSizes: []) == 1)
-    #expect(OverlayGrid.columnCount(forSectionSizes: [0]) == 1)
-    #expect(OverlayGrid.columnCount(forSectionSizes: [3]) == 3)
-    #expect(OverlayGrid.columnCount(forSectionSizes: [13]) == 6)
+    #expect(OverlayGrid.columnCount(forSectionSizes: [], maximum: 6) == 1)
+    #expect(OverlayGrid.columnCount(forSectionSizes: [0], maximum: 6) == 1)
+    #expect(OverlayGrid.columnCount(forSectionSizes: [3], maximum: 6) == 3)
+    #expect(OverlayGrid.columnCount(forSectionSizes: [13], maximum: 6) == 6)
+  }
+
+  @Test("The configured maximum caps the row, and one is the floor")
+  func maximumCapsTheRow() {
+    #expect(OverlayGrid.columnCount(forSectionSizes: [13], maximum: 4) == 4)
+    #expect(OverlayGrid.columnCount(forSectionSizes: [3], maximum: 4) == 3)
+    #expect(OverlayGrid.columnCount(forSectionSizes: [13], maximum: 0) == 1)
+    #expect(OverlayGrid.columnCount(forSectionSizes: [13], maximum: -2) == 1)
+  }
+
+  @Test("A narrower maximum wraps a section sooner")
+  func maximumWrapsSectionsSooner() {
+    #expect(
+      OverlayGrid.rows(forSectionSizes: [5], maximum: 4) == [[0, 1, 2, 3], [4]])
+    #expect(
+      OverlayGrid.rows(forSectionSizes: [5], maximum: 2) == [[0, 1], [2, 3], [4]])
   }
 
   @Test("Every section shares the widest section's column count")
   func columnCountIsSharedAcrossSections() {
-    #expect(OverlayGrid.columnCount(forSectionSizes: [2, 5]) == 5)
-    #expect(OverlayGrid.columnCount(forSectionSizes: [2, 9]) == 6)
+    #expect(OverlayGrid.columnCount(forSectionSizes: [2, 5], maximum: 6) == 5)
+    #expect(OverlayGrid.columnCount(forSectionSizes: [2, 9], maximum: 6) == 6)
   }
 
   @Test("A section always starts a new row")
   func sectionsStartNewRows() {
-    #expect(OverlayGrid.rows(forSectionSizes: [3, 2]) == [[0, 1, 2], [3, 4]])
+    #expect(OverlayGrid.rows(forSectionSizes: [3, 2], maximum: 6) == [[0, 1, 2], [3, 4]])
   }
 
   @Test("A section longer than a row wraps")
   func longSectionsWrap() {
     #expect(
-      OverlayGrid.rows(forSectionSizes: [8, 2]) == [[0, 1, 2, 3, 4, 5], [6, 7], [8, 9]]
+      OverlayGrid.rows(forSectionSizes: [8, 2], maximum: 6) == [
+        [0, 1, 2, 3, 4, 5], [6, 7], [8, 9],
+      ]
     )
   }
 
   @Test("Empty sections take up no rows")
   func emptySectionsAreSkipped() {
-    #expect(OverlayGrid.rows(forSectionSizes: [0, 2]) == [[0, 1]])
-    #expect(OverlayGrid.rows(forSectionSizes: []).isEmpty)
+    #expect(OverlayGrid.rows(forSectionSizes: [0, 2], maximum: 6) == [[0, 1]])
+    #expect(OverlayGrid.rows(forSectionSizes: [], maximum: 6).isEmpty)
   }
 
   @Test("The highlight starts on the window you are in")
@@ -52,7 +70,7 @@ struct OverlayGridTests {
 
   @Test("Left and right step through the tiles in reading order and wrap")
   func horizontalMovementWalksTheList() {
-    let rows = OverlayGrid.rows(forSectionSizes: [13])
+    let rows = OverlayGrid.rows(forSectionSizes: [13], maximum: 6)
 
     #expect(OverlayGrid.index(from: 0, moving: .right, rows: rows) == 1)
     #expect(OverlayGrid.index(from: 7, moving: .left, rows: rows) == 6)
@@ -62,7 +80,7 @@ struct OverlayGridTests {
 
   @Test("Left and right cross a section boundary without noticing it")
   func horizontalMovementCrossesSections() {
-    let rows = OverlayGrid.rows(forSectionSizes: [3, 2])
+    let rows = OverlayGrid.rows(forSectionSizes: [3, 2], maximum: 6)
 
     #expect(OverlayGrid.index(from: 2, moving: .right, rows: rows) == 3)
     #expect(OverlayGrid.index(from: 3, moving: .left, rows: rows) == 2)
@@ -70,7 +88,7 @@ struct OverlayGridTests {
 
   @Test("Up and down move a whole row")
   func verticalMovementMovesARow() {
-    let rows = OverlayGrid.rows(forSectionSizes: [13])
+    let rows = OverlayGrid.rows(forSectionSizes: [13], maximum: 6)
 
     #expect(OverlayGrid.index(from: 1, moving: .down, rows: rows) == 7)
     #expect(OverlayGrid.index(from: 7, moving: .up, rows: rows) == 1)
@@ -78,7 +96,7 @@ struct OverlayGridTests {
 
   @Test("Down from the last row of a section lands in the next section")
   func verticalMovementEntersTheNextSection() {
-    let rows = OverlayGrid.rows(forSectionSizes: [3, 3])
+    let rows = OverlayGrid.rows(forSectionSizes: [3, 3], maximum: 6)
 
     #expect(OverlayGrid.index(from: 1, moving: .down, rows: rows) == 4)
     #expect(OverlayGrid.index(from: 4, moving: .up, rows: rows) == 1)
@@ -86,7 +104,7 @@ struct OverlayGridTests {
 
   @Test("A shorter row keeps the highlight in its last column")
   func verticalMovementClampsToAShorterRow() {
-    let rows = OverlayGrid.rows(forSectionSizes: [4, 2])
+    let rows = OverlayGrid.rows(forSectionSizes: [4, 2], maximum: 6)
 
     // Column 3 has nothing under it, so the highlight lands on the row's last tile.
     #expect(OverlayGrid.index(from: 3, moving: .down, rows: rows) == 5)
@@ -94,7 +112,7 @@ struct OverlayGridTests {
 
   @Test("Coming back up returns to the column the highlight actually sits in")
   func verticalMovementHasNoColumnMemory() {
-    let rows = OverlayGrid.rows(forSectionSizes: [4, 2])
+    let rows = OverlayGrid.rows(forSectionSizes: [4, 2], maximum: 6)
 
     // Down from column 3 clamped to column 1, so up goes to column 1, not back to 3.
     #expect(OverlayGrid.index(from: 5, moving: .up, rows: rows) == 1)
@@ -102,7 +120,7 @@ struct OverlayGridTests {
 
   @Test("The top and bottom rows do not wrap around")
   func verticalMovementStopsAtTheEdges() {
-    let rows = OverlayGrid.rows(forSectionSizes: [3, 3])
+    let rows = OverlayGrid.rows(forSectionSizes: [3, 3], maximum: 6)
 
     #expect(OverlayGrid.index(from: 1, moving: .up, rows: rows) == 1)
     #expect(OverlayGrid.index(from: 4, moving: .down, rows: rows) == 4)
@@ -110,7 +128,7 @@ struct OverlayGridTests {
 
   @Test("An out-of-range starting index is brought back in bounds")
   func clampsAnOutOfRangeIndex() {
-    let rows = OverlayGrid.rows(forSectionSizes: [3])
+    let rows = OverlayGrid.rows(forSectionSizes: [3], maximum: 6)
 
     #expect(OverlayGrid.index(from: 99, moving: .right, rows: rows) == 0)
     #expect(OverlayGrid.index(from: -4, moving: .right, rows: rows) == 1)

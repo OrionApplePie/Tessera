@@ -24,12 +24,15 @@ struct OverlayView: View {
   @ObservedObject var windowCoordinator: WindowCoordinator
   @ObservedObject var selection: OverlaySelection
   let background: OverlayColor
+  let columns: Int
   let onSelect: (CGWindowID) -> Void
   let onClose: () -> Void
 
-  private var columns: [GridItem] {
+  private var gridColumns: [GridItem] {
     let count = OverlayGrid.columnCount(
-      forSectionSizes: windowCoordinator.sections.map(\.tiles.count))
+      forSectionSizes: windowCoordinator.sections.map(\.tiles.count),
+      maximum: columns
+    )
     return Array(
       repeating: GridItem(.fixed(TileMetrics.width), spacing: 14), count: count)
   }
@@ -62,7 +65,7 @@ struct OverlayView: View {
                 SectionHeading(title: entry.section.title)
               }
 
-              LazyVGrid(columns: columns, alignment: .leading, spacing: 14) {
+              LazyVGrid(columns: gridColumns, alignment: .leading, spacing: 14) {
                 ForEach(Array(entry.section.tiles.enumerated()), id: \.element.id) { index, tile in
                   WindowTileButton(
                     tile: tile,

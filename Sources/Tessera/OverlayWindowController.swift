@@ -6,6 +6,7 @@ final class OverlayWindowController: NSWindowController, NSWindowDelegate {
   private let windowCoordinator: WindowCoordinator
   private let closeAfterActivation: Bool
   private let background: OverlayColor
+  private let columns: Int
   private let logger: AppLogger
   private let hostingView: NSHostingView<OverlayView>
   private let selection = OverlaySelection()
@@ -14,17 +15,20 @@ final class OverlayWindowController: NSWindowController, NSWindowDelegate {
     windowCoordinator: WindowCoordinator,
     closeAfterActivation: Bool = true,
     background: OverlayColor = AppConfig.default.overlayBackground,
+    columns: Int = AppConfig.default.overlayColumns,
     debugMode: Bool = false
   ) {
     self.windowCoordinator = windowCoordinator
     self.closeAfterActivation = closeAfterActivation
     self.background = background
+    self.columns = columns
     self.logger = AppLogger(debugMode: debugMode, category: .overlay)
     self.hostingView = NSHostingView(
       rootView: OverlayView(
         windowCoordinator: windowCoordinator,
         selection: OverlaySelection(),
         background: background,
+        columns: columns,
         onSelect: { _ in },
         onClose: {}
       ))
@@ -118,6 +122,7 @@ final class OverlayWindowController: NSWindowController, NSWindowDelegate {
       windowCoordinator: windowCoordinator,
       selection: selection,
       background: background,
+      columns: columns,
       onSelect: { [weak self] windowID in
         self?.selectWindow(id: windowID)
       },
@@ -144,7 +149,9 @@ final class OverlayWindowController: NSWindowController, NSWindowDelegate {
       from: selection.index,
       moving: direction,
       rows: OverlayGrid.rows(
-        forSectionSizes: windowCoordinator.sections.map(\.tiles.count))
+        forSectionSizes: windowCoordinator.sections.map(\.tiles.count),
+        maximum: columns
+      )
     )
   }
 

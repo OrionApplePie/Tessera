@@ -102,11 +102,13 @@ getting its own heading and its own row:
 
 ```toml
 ignored_apps = ""
+overlay_columns = 4
 window_order = "title"
 overlay_grouping = "displays"         # the default: one group per monitor
 overlay_grouping = "displays+spaces"  # and one per Space within each monitor
 overlay_grouping = "spaces"           # split by Space, without naming the monitor
 ignored_apps = ""
+overlay_columns = 4
 window_order = "title"
 overlay_grouping = "displays"             # one grid, no headings
 ```
@@ -117,8 +119,15 @@ heading says.
 
 A heading appears only when it distinguishes something: a single monitor is not
 named, and a Space is not numbered unless that monitor contributes more than one
-group. A group of more than six windows wraps onto a second row, so the overlay
-keeps fitting a laptop screen.
+group. A group wider than `overlay_columns` wraps onto a second row, so the overlay keeps
+fitting the screen:
+
+```toml
+overlay_columns = 4   # the default
+```
+
+Every group shares one column count, so tiles line up down the overlay rather than
+each group choosing its own width.
 
 The overlay paints an opaque matte surface by default — dark enough for the white
 tile text, light enough that it does not read as a hole in the screen. It is one
@@ -378,6 +387,7 @@ max_windows = 24
 hotkey = "ctrl+alt+space"
 
 ignored_apps = ""
+overlay_columns = 4
 window_order = "title"
 overlay_grouping = "displays"
 overlay_background = "#2B2E33"

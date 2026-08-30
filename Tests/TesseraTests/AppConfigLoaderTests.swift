@@ -15,6 +15,7 @@ struct AppConfigLoaderTests {
     "max_windows",
     "hotkey",
     "ignored_apps",
+    "overlay_columns",
     "window_order",
     "overlay_grouping",
     "overlay_background",
@@ -43,6 +44,7 @@ struct AppConfigLoaderTests {
       max_windows = 5
       hotkey = "cmd+shift+t"
       ignored_apps = "AmneziaVPN, Some Tray App"
+      overlay_columns = 3
       window_order = "stable"
       overlay_grouping = "displays+spaces"
       overlay_background = "#10203040"
@@ -60,6 +62,7 @@ struct AppConfigLoaderTests {
       #expect(config.maxWindows == 5)
       #expect(config.hotkey?.displayName == "shift+cmd+t")
       #expect(config.ignoredApplications == ["amneziavpn", "some tray app"])
+      #expect(config.overlayColumns == 3)
       #expect(config.windowOrder == .stable)
       #expect(config.overlayGrouping == [.displays, .spaces])
       #expect(config.overlayBackground.hexDescription == "#10203040")
@@ -118,6 +121,8 @@ struct AppConfigLoaderTests {
       "refresh_interval_seconds = -1",
       "window_thumbnail_target_width = 0",
       "max_windows = 0",
+      "overlay_columns = 0",
+      "overlay_columns = -1",
       "max_windows = 2.5",
       "max_windows = many",
     ]
@@ -321,6 +326,7 @@ struct AppConfigLoaderTests {
       config.ignoredApplications == defaults.ignoredApplications,
       sourceLocation: sourceLocation
     )
+    #expect(config.overlayColumns == defaults.overlayColumns, sourceLocation: sourceLocation)
     #expect(config.windowOrder == defaults.windowOrder, sourceLocation: sourceLocation)
     #expect(
       config.overlayGrouping == defaults.overlayGrouping,

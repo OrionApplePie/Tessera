@@ -17,6 +17,9 @@ hotkey = "ctrl+alt+space"
 # from the outside exactly like a window on another Space.
 ignored_apps = ""
 
+# How many tiles a row may hold before the overlay wraps to the next row.
+overlay_columns = 4
+
 # Tile order inside a group: "title" sorts by application and window title,
 # "application" ignores the title so a browser tab switch does not move a tile,
 # "stable" keeps the order windows were first seen in and never moves anything.
