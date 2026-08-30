@@ -286,26 +286,44 @@ final class OverlayWindowController: NSWindowController, NSWindowDelegate {
     selection.index = target
   }
 
-  private func jumpToName(typed: Character, orLatin latin: Character?) {
-    let tiles = windowCoordinator.tiles
-    let match =
-      OverlayGrid.index(from: selection.index, matching: typed, in: tiles)
-      ?? latin.flatMap { OverlayGrid.index(from: selection.index, matching: $0, in: tiles) }
-
-    guard let match else {
-      return
-    }
-
-    selection.index = match
-    logger.debug("Overlay selection jumped to index \(match) on \(typed)")
-  }
-
   private func closeSelectedWindow() {
     guard windowCoordinator.tiles.indices.contains(selection.index) else {
       return
     }
 
     windowCoordinator.closeWindow(id: windowCoordinator.tiles[selection.index].id)
+  }
+
+  /// Finds the window a letter names, trying every reading of the key press.
+  ///
+  /// A key on a Cyrillic layout carries two letters: the one it prints and the
+  /// Latin one in that position. Trying the printed one first for everything meant
+  /// that pressing the key marked C on a Russian layout searched window titles for
+  /// "с" before it ever considered Code — and with Russian titles on screen it
+  /// often found one, which is what made the letters look like they were being
+  /// confused.
+  ///
+  /// So the field decides before the reading does: an application name matched by
+  /// either letter beats a window title matched by either.
+  private func jumpToName(typed: Character, orLatin latin: Character?) {
+    let tiles = windowCoordinator.tiles
+    let readings = [typed, latin].compactMap { $0 }
+    let fields: [OverlayGrid.MatchField] = [.applicationName, .windowTitle]
+
+    for field in fields {
+      for character in readings {
+        guard
+          let match = OverlayGrid.index(
+            from: selection.index, matching: character, in: tiles, field: field)
+        else {
+          continue
+        }
+
+        selection.index = match
+        logger.debug("Overlay selection jumped to index \(match) on \(character) in \(field)")
+        return
+      }
+    }
   }
 
   private func activateSelection() {
