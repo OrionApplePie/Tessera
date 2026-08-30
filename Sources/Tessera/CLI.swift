@@ -4,11 +4,29 @@ import Foundation
 enum CLI {
   @MainActor
   static func run(arguments: [String], config: AppConfig) throws {
-    guard !arguments.isEmpty else {
+    guard let command = arguments.first else {
       printUsageAndExit()
     }
 
-    switch arguments[0] {
+    if try runWindowCommand(command, arguments: arguments, config: config) {
+      return
+    }
+
+    if try runBackgroundAppCommand(command) {
+      return
+    }
+
+    throw CLIError.invalidArguments("Unknown command: \(command)")
+  }
+
+  /// Commands this process answers itself, by looking at the windows.
+  @MainActor
+  private static func runWindowCommand(
+    _ command: String,
+    arguments: [String],
+    config: AppConfig
+  ) throws -> Bool {
+    switch command {
     case "windows":
       try runOnMainActor { try await listWindows(config: config) }
 
@@ -21,6 +39,16 @@ enum CLI {
     case "permissions":
       try runOnMainActor { printPermissions(config: config) }
 
+    default:
+      return false
+    }
+
+    return true
+  }
+
+  /// Commands that are a message to the background app, not work done here.
+  private static func runBackgroundAppCommand(_ command: String) throws -> Bool {
+    switch command {
     case "show":
       postExternalCommandNotification(
         command: "show",
@@ -50,11 +78,13 @@ enum CLI {
         source: .externalRestartCommand
       )
       try waitForBackgroundAppToStop(command: "restart")
-      try launchBackgroundApp()
+      try BackgroundAppLauncher.launch(arguments: ["run"])
 
     default:
-      throw CLIError.invalidArguments("Unknown command: \(arguments[0])")
+      return false
     }
+
+    return true
   }
 
   // MARK: - Window commands
@@ -202,25 +232,6 @@ enum CLI {
 
     throw CLIError.commandFailed(
       "Timed out waiting for background app to stop after \(command)")
-  }
-
-  private static func launchBackgroundApp() throws {
-    guard let executableURL = Bundle.main.executableURL else {
-      throw CLIError.commandFailed("Unable to resolve executable URL for restart")
-    }
-
-    let logger = AppLogger(debugMode: true, category: .app)
-    let process = Process()
-    process.executableURL = executableURL
-    process.arguments = ["run"]
-    // Detach the child's stdio, otherwise the invoking shell keeps waiting on the
-    // inherited pipes and `tessera restart` never returns.
-    process.standardInput = FileHandle.nullDevice
-    process.standardOutput = FileHandle.nullDevice
-    process.standardError = FileHandle.nullDevice
-
-    logger.info("Launching background app path=\(executableURL.path)")
-    try process.run()
   }
 
   static func printUsageAndExit() -> Never {
