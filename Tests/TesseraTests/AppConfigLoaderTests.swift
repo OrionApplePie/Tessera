@@ -15,6 +15,7 @@ struct AppConfigLoaderTests {
     "max_windows",
     "hotkey",
     "ignored_apps",
+    "window_order",
     "overlay_grouping",
     "overlay_background",
     "close_after_activation",
@@ -42,6 +43,7 @@ struct AppConfigLoaderTests {
       max_windows = 5
       hotkey = "cmd+shift+t"
       ignored_apps = "AmneziaVPN, Some Tray App"
+      window_order = "stable"
       overlay_grouping = "displays+spaces"
       overlay_background = "#10203040"
       close_after_activation = false
@@ -58,6 +60,7 @@ struct AppConfigLoaderTests {
       #expect(config.maxWindows == 5)
       #expect(config.hotkey?.displayName == "shift+cmd+t")
       #expect(config.ignoredApplications == ["amneziavpn", "some tray app"])
+      #expect(config.windowOrder == .stable)
       #expect(config.overlayGrouping == [.displays, .spaces])
       #expect(config.overlayBackground.hexDescription == "#10203040")
       #expect(config.closeAfterActivation == false)
@@ -189,6 +192,13 @@ struct AppConfigLoaderTests {
     }
   }
 
+  @Test("A window order nobody offers is an error")
+  func rejectsAnUnknownWindowOrder() throws {
+    try withConfigFile("window_order = \"recent\"") { loader in
+      expectDefaults(loader.load())
+    }
+  }
+
   @Test("A grouping that is not one of the two is an error")
   func rejectsAnUnknownGrouping() throws {
     try withConfigFile("overlay_grouping = \"by-app\"") { loader in
@@ -311,6 +321,7 @@ struct AppConfigLoaderTests {
       config.ignoredApplications == defaults.ignoredApplications,
       sourceLocation: sourceLocation
     )
+    #expect(config.windowOrder == defaults.windowOrder, sourceLocation: sourceLocation)
     #expect(
       config.overlayGrouping == defaults.overlayGrouping,
       sourceLocation: sourceLocation

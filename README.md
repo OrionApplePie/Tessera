@@ -34,6 +34,26 @@ when a window fails to come forward.
 - macOS 14 or newer for window thumbnails (`SCScreenshotManager`); on macOS 13
   the switcher still lists windows and falls back to name-only tiles
 
+## Tile order
+
+What decides the order inside a group, and therefore what makes a tile move:
+
+```toml
+window_order = "title"        # the default: application, then window title
+window_order = "application"  # application only — a browser tab switch moves nothing
+window_order = "stable"       # the order windows were first seen in; nothing moves
+```
+
+`title` reads alphabetically but follows what happens inside a window: switch a
+browser tab and the title changes, so the tile moves. `application` keeps the
+windows of one application in a fixed order between themselves. `stable` hands
+each window a place when it first appears — alphabetically, so the first layout is
+still sensible — and then leaves it there; a new window is appended at the end.
+
+Grouping still comes first in all three: a display's windows stay together. With
+`stable`, switching Spaces no longer reorders anything either, unless Spaces are
+what the overlay groups by.
+
 ## Leaving applications out
 
 A tray application often keeps its window object alive after you close the
@@ -82,10 +102,12 @@ getting its own heading and its own row:
 
 ```toml
 ignored_apps = ""
+window_order = "title"
 overlay_grouping = "displays"         # the default: one group per monitor
 overlay_grouping = "displays+spaces"  # and one per Space within each monitor
 overlay_grouping = "spaces"           # split by Space, without naming the monitor
 ignored_apps = ""
+window_order = "title"
 overlay_grouping = "displays"             # one grid, no headings
 ```
 
@@ -356,6 +378,7 @@ max_windows = 24
 hotkey = "ctrl+alt+space"
 
 ignored_apps = ""
+window_order = "title"
 overlay_grouping = "displays"
 overlay_background = "#2B2E33"
 
@@ -415,6 +438,7 @@ Sources/Tessera/
   OverlayWindowController.swift      Native overlay window
   SingleInstanceLock.swift           Background app single-instance guard
   SpaceTracker.swift                 Learns which windows share a Space
+  WindowOrder.swift                  Tile order and the places it hands out
   WindowActivator.swift              Window focus via NSRunningApplication + Accessibility
   WindowCoordinator.swift            Window list and thumbnail refresh pipeline
   WindowListService.swift            ScreenCaptureKit window enumeration
@@ -435,6 +459,7 @@ Tests/TesseraTests/
   OverlayGroupingTests.swift             Grouping setting parsing
   SingleInstanceLockTests.swift          flock contention and release
   SpaceTrackerTests.swift                Learning, merging and forgetting Spaces
+  WindowOrderTests.swift                 Order parsing and place assignment
   WindowPreviewCacheTests.swift          Thumbnail storage, staleness, eviction
 ```
 

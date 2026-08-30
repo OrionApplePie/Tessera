@@ -146,13 +146,18 @@ struct WindowListService {
   /// display a Space's windows are kept together in `spaceRanks` order, so the
   /// overlay can slice the result into sections without re-sorting. Windows with no
   /// rank — a Space nobody has visited, or no learned Spaces at all — sort last.
-  /// Inside a Space, windows on screen come first: they are the common case, and
-  /// the number-key shortcuts should land on them. The rest of the order is stable,
-  /// so tiles do not reshuffle under the cursor between refreshes.
+  ///
+  /// What happens inside a group is up to `order`. `title` and `application` both
+  /// put the windows on screen first, since those are the common case and the
+  /// number keys should land on them, and differ only in whether a changing window
+  /// title may move a tile. `stable` ignores all of it and keeps the places handed
+  /// out by `sequence`.
   nonisolated static func ordered(
     _ windows: [WindowInfo],
     displayOrder: [CGDirectDisplayID],
     spaceRanks: [CGWindowID: Int] = [:],
+    sequence: [CGWindowID: Int] = [:],
+    order: WindowOrder = .title,
     limit: Int
   ) -> [WindowInfo] {
     let rankByDisplay = Dictionary(
@@ -177,6 +182,15 @@ struct WindowListService {
         return firstSpace < secondSpace
       }
 
+      // A stable order is the whole point of `stable`: not being on screen, not
+      // the title, nothing below the grouping keys may move a tile.
+      if order == .stable {
+        let firstPlace = sequence[first.id] ?? Int.max
+        let secondPlace = sequence[second.id] ?? Int.max
+
+        return firstPlace != secondPlace ? firstPlace < secondPlace : first.id < second.id
+      }
+
       if first.isOnScreen != second.isOnScreen {
         return first.isOnScreen
       }
@@ -185,7 +199,7 @@ struct WindowListService {
         return first.appName.localizedStandardCompare(second.appName) == .orderedAscending
       }
 
-      if first.title != second.title {
+      if order == .title, first.title != second.title {
         return first.title.localizedStandardCompare(second.title) == .orderedAscending
       }
 

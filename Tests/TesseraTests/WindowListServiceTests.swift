@@ -122,6 +122,73 @@ struct WindowListServiceTests {
     #expect(ordered.map(\.id) == [2, 1])
   }
 
+  @Test("Ordering by application ignores the title, so a tab switch moves nothing")
+  func applicationOrderIgnoresTheTitle() {
+    // Alphabetically the titles run the other way round from the window ids, so
+    // the two orders cannot agree by accident.
+    let windows = [
+      makeWindow(id: 1, appName: "Safari", title: "Zebra"),
+      makeWindow(id: 2, appName: "Safari", title: "Apple"),
+    ]
+
+    #expect(
+      WindowListService.ordered(
+        windows, displayOrder: [1], order: .application, limit: 10
+      ).map(\.id) == [1, 2])
+
+    // The same windows sorted by title come out the other way round.
+    #expect(
+      WindowListService.ordered(
+        windows, displayOrder: [1], order: .title, limit: 10
+      ).map(\.id) == [2, 1])
+  }
+
+  @Test("A stable order follows the places given, and nothing else")
+  func stableOrderFollowsTheGivenPlaces() {
+    let ordered = WindowListService.ordered(
+      [
+        makeWindow(id: 1, appName: "Arc", isOnScreen: true),
+        makeWindow(id: 2, appName: "Safari", isOnScreen: false),
+        makeWindow(id: 3, appName: "Finder", isOnScreen: false),
+      ],
+      displayOrder: [1],
+      sequence: [2: 0, 3: 1, 1: 2],
+      order: .stable,
+      limit: 10
+    )
+
+    #expect(ordered.map(\.id) == [2, 3, 1])
+  }
+
+  @Test("A stable order still keeps a display's windows together")
+  func stableOrderStillGroupsByDisplay() {
+    let ordered = WindowListService.ordered(
+      [
+        makeWindow(id: 1, displayID: 2),
+        makeWindow(id: 2, displayID: 1),
+      ],
+      displayOrder: [1, 2],
+      sequence: [1: 0, 2: 1],
+      order: .stable,
+      limit: 10
+    )
+
+    #expect(ordered.map(\.id) == [2, 1])
+  }
+
+  @Test("A window with no place yet sorts last rather than first")
+  func stableOrderPutsUnplacedWindowsLast() {
+    let ordered = WindowListService.ordered(
+      [makeWindow(id: 1), makeWindow(id: 2)],
+      displayOrder: [1],
+      sequence: [2: 0],
+      order: .stable,
+      limit: 10
+    )
+
+    #expect(ordered.map(\.id) == [2, 1])
+  }
+
   @Test("A limit of zero or less yields nothing instead of trapping")
   func nonPositiveLimitYieldsNothing() {
     let windows = [makeWindow(id: 1), makeWindow(id: 2)]

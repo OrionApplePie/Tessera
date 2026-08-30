@@ -25,6 +25,7 @@ final class WindowCoordinator: ObservableObject {
   private var isRunning = false
   private var refreshTask: Task<Void, Never>?
   private var spaceTracker = SpaceTracker()
+  private var orderRegistry = WindowOrderRegistry()
   private var lastForeignFrontmostProcessID: pid_t?
   private var activationVerifier = ActivationVerifier()
   private let learnedWindows: LearnedWindowStore
@@ -119,11 +120,17 @@ final class WindowCoordinator: ObservableObject {
     updateSpaceTracker(with: snapshot.windows)
     judgeRecentActivations(against: snapshot.windows)
 
-    let spaceRanks = spaceRanks(for: snapshot.windows)
+    // In a stable order a Space switch must not reshuffle anything — unless Spaces
+    // are what the overlay groups by, where dropping the rank would let sections
+    // interleave.
+    let ranksSort =
+      config.windowOrder != .stable || config.overlayGrouping.contains(.spaces)
     let windows = WindowListService.ordered(
       snapshot.windows,
       displayOrder: snapshot.displayOrder,
-      spaceRanks: spaceRanks,
+      spaceRanks: ranksSort ? spaceRanks(for: snapshot.windows) : [:],
+      sequence: orderRegistry.sequence(for: snapshot.windows),
+      order: config.windowOrder,
       limit: config.maxWindows
     )
 

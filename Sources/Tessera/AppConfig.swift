@@ -16,6 +16,8 @@ struct AppConfig {
   /// screen — and no public API tells them apart. Naming the application is the
   /// honest way to leave it out.
   var ignoredApplications: Set<String>
+  /// What decides the order of the tiles inside a group.
+  var windowOrder: WindowOrder
   /// Whether the overlay splits its tiles into per-Space groups.
   var overlayGrouping: OverlayGrouping
   /// The overlay's own surface. Opaque by default; give it an alpha channel to
@@ -40,6 +42,7 @@ struct AppConfig {
     // Displays are worth telling apart out of the box; Spaces are not, until
     // someone asks for them.
     ignoredApplications: [],
+    windowOrder: .title,
     overlayGrouping: .displays,
     // Matte graphite: dark enough for white tile text, light enough not to read as
     // a hole in the screen.

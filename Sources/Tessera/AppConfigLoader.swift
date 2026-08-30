@@ -80,6 +80,7 @@ struct AppConfigLoader {
     )
     config.hotkey = try hotkey(values["hotkey"], default: config.hotkey)
     config.ignoredApplications = applicationNames(values["ignored_apps"])
+    config.windowOrder = try windowOrder(values["window_order"], default: config.windowOrder)
     config.overlayGrouping = try grouping(
       values["overlay_grouping"],
       default: config.overlayGrouping
@@ -212,6 +213,22 @@ struct AppConfigLoader {
       .filter { !$0.isEmpty }
 
     return Set(names)
+  }
+
+  private func windowOrder(
+    _ rawValue: String?,
+    default defaultValue: WindowOrder
+  ) throws -> WindowOrder {
+    guard let rawValue else {
+      return defaultValue
+    }
+
+    do {
+      return try WindowOrder(parsing: unquoted(rawValue))
+    } catch {
+      logger.error("Invalid window_order in config: \(error)")
+      throw AppConfigError.invalidValue(key: "window_order")
+    }
   }
 
   private func grouping(
