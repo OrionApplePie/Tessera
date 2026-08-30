@@ -1,12 +1,14 @@
 import Foundation
 
 struct AppConfigLoader {
+  static let defaultURL = FileManager.default.homeDirectoryForCurrentUser
+    .appendingPathComponent(".config/tessera/config.toml")
+
   let configURL: URL
   private let logger: AppLogger
 
   init(
-    configURL: URL = FileManager.default.homeDirectoryForCurrentUser
-      .appendingPathComponent(".config/tessera/config.toml"),
+    configURL: URL = AppConfigLoader.defaultURL,
     logger: AppLogger = AppLogger(debugMode: true, category: .config)
   ) {
     self.configURL = configURL

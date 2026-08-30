@@ -5,6 +5,7 @@ enum BackgroundAppNotifications {
   static let showSwitcher = Notification.Name("com.tessera.show-switcher")
   static let toggleSwitcher = Notification.Name("com.tessera.toggle-switcher")
   static let quitApp = Notification.Name("com.tessera.quit-app")
+  static let openSettings = Notification.Name("com.tessera.open-settings")
 
   static let sourceUserInfoKey = "source"
   static let eventIDUserInfoKey = "event_id"
@@ -27,6 +28,7 @@ enum AppCommandSource: String {
   case externalShowCommand = "external_show_command"
   case externalToggleCommand = "external_toggle_command"
   case externalQuitCommand = "external_quit_command"
+  case externalSettingsCommand = "external_settings_command"
   case externalRestartCommand = "external_restart_command"
   case globalHotkey = "global_hotkey"
   case menuBarAction = "menu_bar_action"

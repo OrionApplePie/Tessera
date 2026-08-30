@@ -9,6 +9,7 @@ final class AppCoordinator: NSObject, NSApplicationDelegate {
   private var overlayWindowController: OverlayWindowController?
   private var menuBarController: MenuBarController?
   private var hotkeyController: HotkeyController?
+  private var settingsWindowController: SettingsWindowController?
   private var isStopped = false
 
   init(config: AppConfig) {
@@ -40,6 +41,7 @@ final class AppCoordinator: NSObject, NSApplicationDelegate {
         pauseRefresh: { [weak self] in self?.pauseRefresh() },
         resumeRefresh: { [weak self] in self?.resumeRefresh() },
         requestAccessibility: { [weak self] in self?.requestAccessibilityPermission() },
+        openSettings: { [weak self] in self?.openSettings() },
         quit: { [weak self] in self?.quit() }
       )
     } else {
@@ -135,6 +137,20 @@ final class AppCoordinator: NSObject, NSApplicationDelegate {
 
   /// A hotkey that cannot be registered is reported, not swallowed: the app still
   /// works through the CLI and the menu bar, and the log says why the key is dead.
+  func openSettings() {
+    logger.info("Opening settings")
+
+    if settingsWindowController == nil {
+      settingsWindowController = SettingsWindowController(
+        config: config,
+        configURL: AppConfigLoader.defaultURL,
+        debugMode: config.debugMode
+      )
+    }
+
+    settingsWindowController?.present()
+  }
+
   private func registerGlobalHotkey() {
     guard let binding = config.hotkey else {
       logger.info("Global hotkey disabled by config")
@@ -173,6 +189,13 @@ final class AppCoordinator: NSObject, NSApplicationDelegate {
     )
     DistributedNotificationCenter.default().addObserver(
       self,
+      selector: #selector(openSettingsNotification(_:)),
+      name: BackgroundAppNotifications.openSettings,
+      object: BackgroundAppNotifications.notificationObject,
+      suspensionBehavior: .deliverImmediately
+    )
+    DistributedNotificationCenter.default().addObserver(
+      self,
       selector: #selector(quitAppNotification(_:)),
       name: BackgroundAppNotifications.quitApp,
       object: BackgroundAppNotifications.notificationObject,
@@ -198,6 +221,16 @@ final class AppCoordinator: NSObject, NSApplicationDelegate {
     logExternalTriggerMetadata(metadata, action: "toggle")
 
     toggleOverlay(source: metadata.source)
+  }
+
+  @objc private func openSettingsNotification(_ notification: Notification) {
+    let metadata = externalTriggerMetadata(
+      from: notification,
+      expectedSources: [.externalSettingsCommand]
+    )
+    logExternalTriggerMetadata(metadata, action: "settings")
+
+    openSettings()
   }
 
   @objc private func quitAppNotification(_ notification: Notification) {

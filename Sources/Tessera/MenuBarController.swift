@@ -9,6 +9,7 @@ final class MenuBarController: NSObject {
   private let pauseRefresh: () -> Void
   private let resumeRefresh: () -> Void
   private let requestAccessibility: () -> Void
+  private let openSettings: () -> Void
   private let quit: () -> Void
 
   private let pauseItem = NSMenuItem(
@@ -25,6 +26,7 @@ final class MenuBarController: NSObject {
     pauseRefresh: @escaping () -> Void,
     resumeRefresh: @escaping () -> Void,
     requestAccessibility: @escaping () -> Void,
+    openSettings: @escaping () -> Void,
     quit: @escaping () -> Void
   ) {
     self.windowCoordinator = windowCoordinator
@@ -33,6 +35,7 @@ final class MenuBarController: NSObject {
     self.pauseRefresh = pauseRefresh
     self.resumeRefresh = resumeRefresh
     self.requestAccessibility = requestAccessibility
+    self.openSettings = openSettings
     self.quit = quit
     super.init()
 
@@ -70,6 +73,9 @@ final class MenuBarController: NSObject {
     menu.addItem(NSMenuItem.separator())
     menu.addItem(accessibilityItem)
     menu.addItem(NSMenuItem.separator())
+    menu.addItem(
+      NSMenuItem(title: "Settings…", action: #selector(openSettingsAction), keyEquivalent: ","))
+    menu.addItem(NSMenuItem.separator())
     menu.addItem(NSMenuItem(title: "Quit", action: #selector(quitAction), keyEquivalent: "q"))
 
     for item in menu.items where item.action != nil {
@@ -101,6 +107,10 @@ final class MenuBarController: NSObject {
   @objc private func requestAccessibilityAction() {
     requestAccessibility()
     updateRefreshItems()
+  }
+
+  @objc private func openSettingsAction() {
+    openSettings()
   }
 
   @objc private func quitAction() {

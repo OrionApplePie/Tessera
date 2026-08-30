@@ -13,6 +13,7 @@ struct BackgroundAppNotificationsTests {
     #expect(BackgroundAppNotifications.showSwitcher.rawValue == "com.tessera.show-switcher")
     #expect(BackgroundAppNotifications.toggleSwitcher.rawValue == "com.tessera.toggle-switcher")
     #expect(BackgroundAppNotifications.quitApp.rawValue == "com.tessera.quit-app")
+    #expect(BackgroundAppNotifications.openSettings.rawValue == "com.tessera.open-settings")
   }
 
   @Test("The payload carries the source, the command and the sending process")
@@ -48,6 +49,8 @@ struct BackgroundAppNotificationsTests {
     #expect(AppCommandSource.externalShowCommand.rawValue == "external_show_command")
     #expect(AppCommandSource.externalToggleCommand.rawValue == "external_toggle_command")
     #expect(AppCommandSource.externalQuitCommand.rawValue == "external_quit_command")
+    #expect(
+      AppCommandSource.externalSettingsCommand.rawValue == "external_settings_command")
     #expect(AppCommandSource.externalRestartCommand.rawValue == "external_restart_command")
     #expect(AppCommandSource.globalHotkey.rawValue == "global_hotkey")
     #expect(AppCommandSource.menuBarAction.rawValue == "menu_bar_action")

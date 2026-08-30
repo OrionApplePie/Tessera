@@ -297,6 +297,7 @@ process exits without creating a second menu bar item or a second preview servic
 tessera run
 tessera show
 tessera toggle
+tessera settings
 tessera quit
 tessera restart
 tessera windows
@@ -309,6 +310,7 @@ Primary lifecycle commands:
 - `run` starts the background app if it is not already running.
 - `show` shows the window switcher overlay in the running background app.
 - `toggle` toggles overlay visibility.
+- `settings` opens the settings window.
 - `quit` asks the running background app to stop cleanly.
 - `restart` asks the running background app to stop, then launches a fresh `run`.
 
@@ -373,6 +375,22 @@ hotkey = "cmd+shift+space"
 
 If another application already owns the combination, registration fails, the app
 logs the failure and keeps running — the menu bar item and the CLI still work.
+
+## Settings window
+
+`tessera settings`, or `Settings…` in the menu bar, opens a window with every
+setting in it. `Save and Restart` writes the file and replaces the running
+background app with one that has read it.
+
+Two things worth knowing before using it:
+
+- The file is **regenerated whole**. The parser here reads a subset of TOML and
+  has no notion of where a value sat or what was written around it, so comments
+  and ordering added by hand do not survive a save.
+- Changes take effect through a restart, not live. The configuration is read once
+  at launch and handed to the services as values; making it apply live would mean
+  turning it into a shared, observed source — a change to how the app is wired
+  rather than to this window.
 
 ## Config
 

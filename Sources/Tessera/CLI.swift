@@ -63,6 +63,13 @@ enum CLI {
         source: .externalToggleCommand
       )
 
+    case "settings":
+      postExternalCommandNotification(
+        command: "settings",
+        name: BackgroundAppNotifications.openSettings,
+        source: .externalSettingsCommand
+      )
+
     case "quit":
       postExternalCommandNotification(
         command: "quit",
@@ -242,6 +249,7 @@ enum CLI {
         run                 Start the background menu bar utility if it is not already running
         show                Show the window switcher overlay in the running background app
         toggle              Toggle the window switcher overlay in the running background app
+        settings            Open the settings window of the running background app
         quit                Quit the running background app
         restart             Quit the running background app, then start a fresh one
 

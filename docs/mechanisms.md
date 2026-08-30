@@ -251,6 +251,21 @@ Space cannot be brought forward by this route. The application comes forward, it
 frontmost window decides which Space you land on, and the window you asked for is
 not reachable through any public API.
 
+## Settings
+
+The configuration is read once at launch and handed to each service as values, so
+the settings window saves by writing the file and asking for the app to be
+replaced. The replacement is requested by a separate process — the one that posts
+the quit notification, waits for the single-instance lock to be free, and starts a
+fresh app — because doing that from inside the app that is quitting would mean
+waiting for itself.
+
+Writing regenerates the file rather than editing it: this is a subset parser with
+no memory of layout, so hand-written comments and ordering are lost. The writer is
+covered by round-trip tests — write a configuration, read it back, expect the same
+configuration — which is the property that matters when a person's settings pass
+through it.
+
 ## What a reader should not try again
 
 - Pairing `NSScreen` frames with ScreenCaptureKit frames without flipping Y.
