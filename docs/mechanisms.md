@@ -266,6 +266,39 @@ covered by round-trip tests — write a configuration, read it back, expect the 
 configuration — which is the property that matters when a person's settings pass
 through it.
 
+## Stepping through windows with the overlay open
+
+`⌃⇧` with an arrow moves the highlight and brings that window forward without
+closing the overlay. It raises the window through Accessibility and does not
+activate its application, which means it only reaches windows on the current
+Space — Accessibility lists no others.
+
+That limit is the residue of three attempts, each measured:
+
+| Approach | Result |
+|---|---|
+| Activate the application, reclaim focus at once | 1 step of 4; a miss in Accessibility raised the desktop instead |
+| Raise the window, never activate | 6 steps of 6, current Space only |
+| Activate, reclaim focus after 350 ms | 2 steps of 5 |
+
+The first and third fail for one reason: `NSApp.activate` is a request. An
+application that is not in front cannot simply take activation back, and the
+system is free to refuse — so after a step or two the overlay stops receiving keys
+and looks frozen. Waiting longer does not help, because the problem is not timing.
+
+The way out is not to need focus at all. A Carbon hot key is delivered to this
+process whatever is in front — that is how the global hotkey works from inside
+Safari. Registering `⌃⇧` with the arrows the same way, for as long as the overlay
+is open, would let a step activate the application, cross the Space, and still
+have the next press arrive here.
+
+What it costs: those four chords stop reaching other applications while the
+overlay is up, and in an editor `⇧⌃→` usually selects text. The overlay also has
+to stop hiding itself on deactivation, so it must be dismissed deliberately.
+Return and Escape cannot be taken this way — stealing Return system-wide, even
+briefly, is not worth it — so the main hotkey becomes the way to close. That is
+tolerable because a step is itself the switch: there is nothing left to confirm.
+
 ## What a reader should not try again
 
 - Pairing `NSScreen` frames with ScreenCaptureKit frames without flipping Y.
@@ -278,3 +311,5 @@ through it.
   windows, or a failed activation as proof about the window rather than about the
   attempt.
 - Reading Space membership from anything public.
+- Expecting `NSApp.activate` to bring an application that is not in front back to
+  the keyboard.

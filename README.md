@@ -559,6 +559,11 @@ concrete collaborators, so testing them means introducing protocols first.
 
 ## TODO
 
+- Make stepping reach windows on other Spaces, by registering `⌃⇧` with the arrow
+  keys as system-wide hotkeys for as long as the overlay is open. See
+  `docs/mechanisms.md` for why the three obvious approaches do not work and what
+  this one costs.
+
 - Let the menu bar item show the current hotkey and report a failed registration,
   which today only reaches the log.
 - Cover `WindowCoordinator` and the ScreenCaptureKit services; they take

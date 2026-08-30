@@ -296,6 +296,24 @@ final class WindowCoordinator: ObservableObject {
       await self?.refreshNow()
     }
   }
+  /// Brings a window forward without taking the keyboard from the overlay.
+  ///
+  /// Returns whether the window could be aimed at, so that stepping past a window
+  /// nothing can raise is a step and not a jump to somewhere unexpected.
+  @discardableResult
+  func raiseWindow(id windowID: CGWindowID) -> Bool {
+    guard let tile = tiles.first(where: { $0.id == windowID }) else {
+      return false
+    }
+
+    do {
+      return try activator.raiseWithoutActivating(tile) == .raisedTheWindow
+    } catch {
+      logger.error("Failed to raise \(tile.displayAppName): \(error)")
+      return false
+    }
+  }
+
   /// Activation by position, for the overlay's number-key shortcuts.
   func activateWindow(at index: Int) {
     guard tiles.indices.contains(index) else {

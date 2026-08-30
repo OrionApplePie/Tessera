@@ -122,6 +122,10 @@ final class AppCoordinator: NSObject, NSApplicationDelegate {
   }
 
   func toggleOverlay(source: AppCommandSource = .internalActivation) {
+    logger.debug(
+      "Toggle from \(source.rawValue); overlay visible="
+        + "\(overlayWindowController?.isOverlayVisible == true)")
+
     guard overlayWindowController?.isOverlayVisible == true else {
       showOverlay(source: source)
       return

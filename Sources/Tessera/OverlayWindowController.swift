@@ -291,25 +291,32 @@ final class OverlayWindowController: NSWindowController, NSWindowDelegate {
   /// carries. On a Cyrillic layout those differ, and an application named in Latin
   /// would otherwise be unreachable by its own initial.
   /// Moves the highlighted tile itself, and takes the highlight with it.
-  /// Moves the highlight and switches to that window, leaving the overlay up.
+  /// Moves the highlight and brings that window forward, leaving the overlay up.
   ///
-  /// Activating another application takes the key window away, and a panel hides
-  /// itself when its application is deactivated — both of which would end the
-  /// overlay after one step. So the panel is told not to hide, and the focus is
-  /// taken straight back: the window that was asked for is raised and its Space
-  /// switched to, while the keys keep arriving here for the next step.
+  /// The window is raised without its application being activated. Activating
+  /// takes the key window away, and taking it back afterwards proved unreliable:
+  /// after one step the overlay stopped receiving keys, which looked like it had
+  /// hung. Worse, when Accessibility cannot aim at the window, activating raises
+  /// whatever it can instead — stepping onto a Finder window landed on the desktop.
+  ///
+  /// Raising alone keeps the keyboard here and does nothing at all when it cannot
+  /// aim. It also does not cross Spaces: a window on another Space comes forward
+  /// within its own, which is as far as this can go without a switch that would
+  /// take the screen away from the overlay.
   private func stepAndActivate(_ direction: OverlayGrid.Direction) {
+    // Switching to a window on another Space runs a system animation of about half
+    // a second, and presses arriving faster than that queue up behind each other —
+    // which is what makes a held-down arrow look like the overlay has hung. A step
+    // that arrives too soon moves the highlight and lets the switch wait for the
+    // next one.
     moveSelection(direction)
 
     guard windowCoordinator.tiles.indices.contains(selection.index) else {
       return
     }
 
-    (window as? NSPanel)?.hidesOnDeactivate = false
-    windowCoordinator.activateWindow(id: windowCoordinator.tiles[selection.index].id)
-
-    window?.makeKeyAndOrderFront(nil)
-    NSApp.activate(ignoringOtherApps: true)
+    let raised = windowCoordinator.raiseWindow(id: windowCoordinator.tiles[selection.index].id)
+    logger.debug("Stepped to index \(selection.index); raised=\(raised)")
   }
 
   private func moveTile(_ direction: OverlayGrid.Direction) {

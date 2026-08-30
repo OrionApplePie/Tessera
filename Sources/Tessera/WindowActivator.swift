@@ -58,6 +58,31 @@ struct WindowActivator {
     return raiseWindow(processID: window.processID, title: window.title)
   }
 
+  /// Brings a window forward without making its application frontmost.
+  ///
+  /// Used for stepping through windows while the overlay stays up. Activating the
+  /// application would take the keyboard away — and when Accessibility cannot aim
+  /// at the window, activating raises whatever it can instead, which is how
+  /// stepping onto a Finder window landed on the desktop. Here, failing to aim
+  /// means doing nothing at all.
+  @discardableResult
+  func raiseWithoutActivating(_ window: WindowTileModel) throws -> Result {
+    guard isAccessibilityTrusted else {
+      throw WindowActivationError.accessibilityNotTrusted
+    }
+
+    let element = try? accessibilityWindow(for: window)
+    guard let element else {
+      return .couldNotAimAtTheWindow
+    }
+
+    unminimizeIfNeeded(element)
+    _ = AXUIElementSetAttributeValue(element, kAXMainAttribute as CFString, kCFBooleanTrue)
+    _ = AXUIElementPerformAction(element, kAXRaiseAction as CFString)
+    logger.debug("Raised \(window.displayAppName) without activating it")
+    return .raisedTheWindow
+  }
+
   /// Quits the owning application, the way ⌘Q would.
   ///
   /// Needs no Accessibility permission, and reaches applications whose windows
