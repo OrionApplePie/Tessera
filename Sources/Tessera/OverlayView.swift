@@ -9,6 +9,12 @@ enum TileMetrics {
   static let spacing: CGFloat = 14
   static let surfacePadding: CGFloat = 28
   static let thumbnailHeight: CGFloat = 100
+  /// The tile's own corner. Smaller than the panel's, so a tile reads as sitting
+  /// inside it rather than repeating it.
+  static let tileCornerRadius: CGFloat = 8
+  /// The panel's corner, in the register macOS uses for a floating surface of this
+  /// size — eight points read as barely rounded at all.
+  static let surfaceCornerRadius: CGFloat = 18
 
   static var contentWidth: CGFloat {
     width - padding * 2
@@ -100,11 +106,11 @@ struct OverlayView: View {
     }
     .padding(TileMetrics.surfacePadding)
     .background(
-      RoundedRectangle(cornerRadius: 8, style: .continuous)
+      RoundedRectangle(cornerRadius: TileMetrics.surfaceCornerRadius, style: .continuous)
         .fill(Color(background))
     )
     .overlay(
-      RoundedRectangle(cornerRadius: 8, style: .continuous)
+      RoundedRectangle(cornerRadius: TileMetrics.surfaceCornerRadius, style: .continuous)
         .stroke(Color.white.opacity(0.12), lineWidth: 1)
     )
     .onExitCommand(perform: onClose)
@@ -202,7 +208,9 @@ private struct WindowTileButton: View {
     .frame(width: TileMetrics.width, height: TileMetrics.width)
     .background(tileBackground)
     .overlay(tileBorder)
-    .contentShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+    .contentShape(
+      RoundedRectangle(cornerRadius: TileMetrics.tileCornerRadius, style: .continuous)
+    )
     .onTapGesture(perform: onSelect)
     // Dragging arranges the thumbnails and nothing else: the window stays where it
     // is. The identifier travels as text because that is what a drop can carry
@@ -232,7 +240,7 @@ private struct WindowTileButton: View {
   }
 
   private var tileBackground: some View {
-    RoundedRectangle(cornerRadius: 8, style: .continuous)
+    RoundedRectangle(cornerRadius: TileMetrics.tileCornerRadius, style: .continuous)
       .fill(backgroundOpacity)
   }
 
@@ -249,7 +257,7 @@ private struct WindowTileButton: View {
   /// rather than another accent, so it reads on the accent fill as well as on an
   /// ordinary tile.
   private var tileBorder: some View {
-    RoundedRectangle(cornerRadius: 8, style: .continuous)
+    RoundedRectangle(cornerRadius: TileMetrics.tileCornerRadius, style: .continuous)
       .stroke(borderColor, lineWidth: isSelected ? 2 : 1)
   }
 
