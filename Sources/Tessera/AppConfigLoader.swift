@@ -35,6 +35,18 @@ struct AppConfigLoader {
     var config = AppConfig.default
     let values = try parseKeyValues(text)
 
+    try applyPreviewSettings(to: &config, from: values)
+    try applyOverlaySettings(to: &config, from: values)
+    try applyBehaviourSettings(to: &config, from: values)
+
+    return config
+  }
+
+  /// What the switcher watches and how it renders a preview.
+  private func applyPreviewSettings(
+    to config: inout AppConfig,
+    from values: [String: String]
+  ) throws {
     config.refreshIntervalSeconds = try positiveDouble(
       values["refresh_interval_seconds"],
       default: config.refreshIntervalSeconds,
@@ -63,6 +75,36 @@ struct AppConfigLoader {
       default: config.maxWindows,
       key: "max_windows"
     )
+  }
+
+  /// How the overlay is laid out and painted.
+  private func applyOverlaySettings(
+    to config: inout AppConfig,
+    from values: [String: String]
+  ) throws {
+    config.overlayColumns = try positiveInt(
+      values["overlay_columns"],
+      default: config.overlayColumns,
+      key: "overlay_columns"
+    )
+    config.windowOrder = try windowOrder(values["window_order"], default: config.windowOrder)
+    config.overlayGrouping = try grouping(
+      values["overlay_grouping"],
+      default: config.overlayGrouping
+    )
+    config.overlayBackground = try color(
+      values["overlay_background"],
+      default: config.overlayBackground
+    )
+  }
+
+  /// What the app does, rather than what it shows.
+  private func applyBehaviourSettings(
+    to config: inout AppConfig,
+    from values: [String: String]
+  ) throws {
+    config.hotkey = try hotkey(values["hotkey"], default: config.hotkey)
+    config.ignoredApplications = applicationNames(values["ignored_apps"])
     config.closeAfterActivation = try bool(
       values["close_after_activation"],
       default: config.closeAfterActivation,
@@ -78,24 +120,6 @@ struct AppConfigLoader {
       default: config.debugMode,
       key: "debug_mode"
     )
-    config.hotkey = try hotkey(values["hotkey"], default: config.hotkey)
-    config.ignoredApplications = applicationNames(values["ignored_apps"])
-    config.overlayColumns = try positiveInt(
-      values["overlay_columns"],
-      default: config.overlayColumns,
-      key: "overlay_columns"
-    )
-    config.windowOrder = try windowOrder(values["window_order"], default: config.windowOrder)
-    config.overlayGrouping = try grouping(
-      values["overlay_grouping"],
-      default: config.overlayGrouping
-    )
-    config.overlayBackground = try color(
-      values["overlay_background"],
-      default: config.overlayBackground
-    )
-
-    return config
   }
 
   private func parseKeyValues(_ text: String) throws -> [String: String] {
