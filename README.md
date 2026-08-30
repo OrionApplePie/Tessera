@@ -142,9 +142,9 @@ background keeps its contrast without further tuning.
 | `1`–`9` | Activate that tile directly |
 | `Esc` | Close the overlay without switching |
 
-The highlight starts on the first window that is not already frontmost, so opening
-the overlay and pressing Return switches somewhere rather than re-activating the
-window you are looking at.
+The highlight starts on the window you are in — the one the accent fill marks — so
+the arrow keys move away from a known place rather than from wherever the list
+happens to begin.
 
 ## Displays and Spaces
 

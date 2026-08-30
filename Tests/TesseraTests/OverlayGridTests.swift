@@ -37,16 +37,16 @@ struct OverlayGridTests {
     #expect(OverlayGrid.rows(forSectionSizes: []).isEmpty)
   }
 
-  @Test("The highlight starts on the first window that is not already frontmost")
-  func initialIndexSkipsTheActiveWindow() {
-    let tiles = [makeTile(id: 1, isActive: true), makeTile(id: 2), makeTile(id: 3)]
+  @Test("The highlight starts on the window you are in")
+  func initialIndexIsTheActiveWindow() {
+    let tiles = [makeTile(id: 1), makeTile(id: 2, isActive: true), makeTile(id: 3)]
 
     #expect(OverlayGrid.initialIndex(for: tiles) == 1)
   }
 
-  @Test("With every window frontmost the highlight falls back to the first tile")
+  @Test("With no window frontmost the highlight falls back to the first tile")
   func initialIndexFallsBackToZero() {
-    #expect(OverlayGrid.initialIndex(for: [makeTile(id: 1, isActive: true)]) == 0)
+    #expect(OverlayGrid.initialIndex(for: [makeTile(id: 1), makeTile(id: 2)]) == 0)
     #expect(OverlayGrid.initialIndex(for: []) == 0)
   }
 

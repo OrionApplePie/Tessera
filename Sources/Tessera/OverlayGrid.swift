@@ -43,11 +43,14 @@ enum OverlayGrid {
     return rows
   }
 
-  /// Where the highlight sits when the overlay opens: the first window that is not
-  /// already frontmost, so pressing Return switches somewhere instead of
-  /// re-activating what you are looking at.
+  /// Where the highlight sits when the overlay opens: on the window you are in.
+  ///
+  /// The accent fill already says which one that is, so starting the highlight
+  /// there makes the two marks agree and gives the arrow keys an obvious origin —
+  /// you move away from where you are, rather than from wherever the list happens
+  /// to begin.
   static func initialIndex(for tiles: [WindowTileModel]) -> Int {
-    tiles.firstIndex { !$0.isActive } ?? 0
+    tiles.firstIndex(where: \.isActive) ?? 0
   }
 
   /// Left and right walk the tiles in reading order and wrap around the ends,
