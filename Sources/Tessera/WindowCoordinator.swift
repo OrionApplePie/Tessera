@@ -25,6 +25,7 @@ final class WindowCoordinator: ObservableObject {
   private var isRunning = false
   private var refreshTask: Task<Void, Never>?
   private var spaceTracker = SpaceTracker()
+  private var lastForeignFrontmostProcessID: pid_t?
   private var activationVerifier = ActivationVerifier()
   private let learnedWindows: LearnedWindowStore
   private var activeSpaceObserver: (any NSObjectProtocol)?
@@ -126,7 +127,7 @@ final class WindowCoordinator: ObservableObject {
       limit: config.maxWindows
     )
 
-    let frontmostProcessID = NSWorkspace.shared.frontmostApplication?.processIdentifier
+    let frontmostProcessID = frontmostApplicationProcessID()
     previewCache.retain(windowIDs: windows.map(\.id))
 
     let icons = applicationIcons(for: windows)
@@ -175,6 +176,22 @@ final class WindowCoordinator: ObservableObject {
       displayNames: displayNames,
       grouping: config.overlayGrouping
     )
+  }
+
+  /// The application in front, not counting this one.
+  ///
+  /// Showing the overlay activates Tessera, so a refresh while it is open finds
+  /// Tessera frontmost and would mark no window at all — the highlight on the
+  /// window the user came from would simply go out a second later. The last
+  /// application that was in front before that is the answer worth keeping.
+  private func frontmostApplicationProcessID() -> pid_t? {
+    let frontmost = NSWorkspace.shared.frontmostApplication?.processIdentifier
+
+    if let frontmost, frontmost != ProcessInfo.processInfo.processIdentifier {
+      lastForeignFrontmostProcessID = frontmost
+    }
+
+    return lastForeignFrontmostProcessID
   }
 
   /// One icon per application rather than per window, since every window of an
