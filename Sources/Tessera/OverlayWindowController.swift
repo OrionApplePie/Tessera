@@ -78,6 +78,12 @@ final class OverlayWindowController: NSWindowController, NSWindowDelegate {
 
     panel.contentView = hostingView
 
+    connect(panel)
+  }
+
+  /// The panel reports what was pressed; this is where each of those becomes an
+  /// action on the list.
+  private func connect(_ panel: OverlayPanel) {
     panel.onSelectIndex = { [weak self] index in
       self?.selectWindow(at: index)
     }
@@ -86,6 +92,9 @@ final class OverlayWindowController: NSWindowController, NSWindowDelegate {
     }
     panel.onMoveTile = { [weak self] direction in
       self?.moveTile(direction)
+    }
+    panel.onStepAndActivate = { [weak self] direction in
+      self?.stepAndActivate(direction)
     }
     panel.closeHotkey = closeHotkey
     panel.onCloseWindow = { [weak self] in
@@ -185,6 +194,9 @@ final class OverlayWindowController: NSWindowController, NSWindowDelegate {
   }
 
   func hideOverlay() {
+    // Restored so that the overlay is transient again once this round of stepping
+    // through windows is over.
+    (window as? NSPanel)?.hidesOnDeactivate = true
     window?.orderOut(nil)
     windowCoordinator.releaseList()
     logger.debug("Overlay window ordered out")
@@ -279,6 +291,27 @@ final class OverlayWindowController: NSWindowController, NSWindowDelegate {
   /// carries. On a Cyrillic layout those differ, and an application named in Latin
   /// would otherwise be unreachable by its own initial.
   /// Moves the highlighted tile itself, and takes the highlight with it.
+  /// Moves the highlight and switches to that window, leaving the overlay up.
+  ///
+  /// Activating another application takes the key window away, and a panel hides
+  /// itself when its application is deactivated — both of which would end the
+  /// overlay after one step. So the panel is told not to hide, and the focus is
+  /// taken straight back: the window that was asked for is raised and its Space
+  /// switched to, while the keys keep arriving here for the next step.
+  private func stepAndActivate(_ direction: OverlayGrid.Direction) {
+    moveSelection(direction)
+
+    guard windowCoordinator.tiles.indices.contains(selection.index) else {
+      return
+    }
+
+    (window as? NSPanel)?.hidesOnDeactivate = false
+    windowCoordinator.activateWindow(id: windowCoordinator.tiles[selection.index].id)
+
+    window?.makeKeyAndOrderFront(nil)
+    NSApp.activate(ignoringOtherApps: true)
+  }
+
   private func moveTile(_ direction: OverlayGrid.Direction) {
     let target = OverlayGrid.index(
       from: selection.index,
@@ -377,6 +410,7 @@ final class OverlayPanel: NSPanel {
   var onSelectIndex: ((Int) -> Void)?
   var onMoveSelection: ((OverlayGrid.Direction) -> Void)?
   var onMoveTile: ((OverlayGrid.Direction) -> Void)?
+  var onStepAndActivate: ((OverlayGrid.Direction) -> Void)?
   var onJumpToName: ((Character, Character?) -> Void)?
   var onCloseWindow: (() -> Void)?
   var closeHotkey: HotkeyBinding?
@@ -451,9 +485,12 @@ final class OverlayPanel: NSPanel {
         .intersection(.deviceIndependentFlagsMask)
         .subtracting([.capsLock, .function, .numericPad])
 
-      if modifiers == [.shift] {
+      switch modifiers {
+      case [.shift]:
         onMoveTile?(direction)
-      } else {
+      case [.control, .shift]:
+        onStepAndActivate?(direction)
+      default:
         onMoveSelection?(direction)
       }
 

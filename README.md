@@ -173,6 +173,7 @@ background keeps its contrast without further tuning.
 | `1`–`9` | Activate that tile directly |
 | A letter | Move to the next window whose name starts with it; press again to cycle |
 | `⇧` + arrows | Move the highlighted tile itself, within its group |
+| `⌃⇧` + arrows | Switch to the next window without closing the overlay |
 | `⌘W` | Close the highlighted window — by default this quits its application |
 | `Esc` | Close the overlay without switching |
 
@@ -184,6 +185,11 @@ Code either way.
 A letter matches the application name first — `c` walks Claude, then Code, then
 back. Only when no application starts with that letter do the window titles get a
 turn, which is what makes a letter useful among several Finder windows.
+
+`⌃⇧` with an arrow steps through the windows and switches to each one as it goes,
+leaving the overlay up — for finding a window by looking at it rather than at its
+thumbnail. The overlay stops hiding itself for the duration and takes the keyboard
+straight back after each switch, so the next step still reaches it.
 
 Tiles can also be arranged by hand — with `⇧` and the arrow keys, or by dragging
 one onto another. That moves the thumbnail and nothing else: the window itself
