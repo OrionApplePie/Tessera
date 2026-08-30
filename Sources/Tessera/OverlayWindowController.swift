@@ -9,6 +9,7 @@ final class OverlayWindowController: NSWindowController, NSWindowDelegate {
   private let columns: Int
   private let dimsStaleThumbnails: Bool
   private let closeHotkey: HotkeyBinding?
+  private var isPresenting = false
   /// The configured column count, widened when the overlay would otherwise be
   /// taller than the screen it opens on.
   private var fittedColumns: Int
@@ -94,6 +95,24 @@ final class OverlayWindowController: NSWindowController, NSWindowDelegate {
   }
 
   func showOverlay() {
+    guard !isPresenting else {
+      return
+    }
+
+    isPresenting = true
+
+    // The list is rebuilt before the overlay appears rather than after, so a window
+    // opened a moment ago is in it. Thumbnails are not recaptured — that is the
+    // slow half — so the cost is one enumeration, and the previews already in the
+    // cache carry the tiles until a later refresh replaces them.
+    Task { @MainActor [weak self] in
+      await self?.windowCoordinator.refreshNow(force: true, capturingThumbnails: false)
+      self?.isPresenting = false
+      self?.present()
+    }
+  }
+
+  private func present() {
     guard let window else {
       return
     }

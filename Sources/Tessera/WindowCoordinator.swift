@@ -34,7 +34,7 @@ final class WindowCoordinator: ObservableObject {
   private var lastForeignFrontmostProcessID: pid_t?
   private var activationVerifier = ActivationVerifier()
   private let learnedWindows: LearnedWindowStore
-  private var activeSpaceObserver: (any NSObjectProtocol)?
+  private var workspaceObservers: [any NSObjectProtocol] = []
 
   init(
     config: AppConfig = .default,
@@ -79,10 +79,10 @@ final class WindowCoordinator: ObservableObject {
     refreshTask?.cancel()
     refreshTask = nil
 
-    if let activeSpaceObserver {
-      NSWorkspace.shared.notificationCenter.removeObserver(activeSpaceObserver)
-      self.activeSpaceObserver = nil
+    for observer in workspaceObservers {
+      NSWorkspace.shared.notificationCenter.removeObserver(observer)
     }
+    workspaceObservers = []
     previewCache.clear()
     sections = []
     logger.info("Stopped window coordinator and cleared in-memory preview cache")
@@ -164,7 +164,13 @@ final class WindowCoordinator: ObservableObject {
     }
   }
 
-  func refreshNow(force: Bool = false) async {
+  /// - Parameters:
+  ///   - force: Refresh even while the overlay is holding the list, for a change
+  ///     the user made themselves and must see.
+  ///   - capturingThumbnails: Off for a refresh that has to be quick — the list is
+  ///     what is wrong, and the previews already in the cache are good enough to
+  ///     show while a later refresh replaces them.
+  func refreshNow(force: Bool = false, capturingThumbnails: Bool = true) async {
     guard !isListHeld || force else {
       logger.debug("Skipping a refresh; the overlay is holding the list")
       return
@@ -228,10 +234,24 @@ final class WindowCoordinator: ObservableObject {
     applyCache(to: &model)
     publish(model, displayNames: snapshot.displayNames)
 
-    // A minimized window has no surface: the capture would not fail, it would
-    // never answer. Whatever was cached before it went to the Dock is kept.
+    guard capturingThumbnails else {
+      return
+    }
+
+    await captureThumbnails(for: windows, into: model, displayNames: snapshot.displayNames)
+  }
+
+  /// A minimized window has no surface: the capture would not fail, it would never
+  /// answer. Whatever was cached before it went to the Dock is kept.
+  private func captureThumbnails(
+    for windows: [WindowInfo],
+    into model: [WindowTileModel],
+    displayNames: [CGDirectDisplayID: String]
+  ) async {
+    var model = model
     let capturable = windows.filter { !$0.isMinimized }.map(\.id)
     let thumbnails = await thumbnailService.thumbnails(for: capturable)
+
     guard !thumbnails.isEmpty else {
       if !windows.isEmpty {
         logger.warning("No window thumbnails available; UI will use fallback previews")
@@ -241,94 +261,10 @@ final class WindowCoordinator: ObservableObject {
 
     previewCache.storeThumbnails(thumbnails)
     applyCache(to: &model)
-    publish(model, displayNames: snapshot.displayNames)
+    publish(model, displayNames: displayNames)
   }
 
   /// Every window on screen on one display shares that display's active Space.
-  private func updateSpaceTracker(with windows: [WindowInfo]) {
-    for displayID in Set(windows.map(\.displayID)) {
-      let onScreen = windows.filter { $0.displayID == displayID && $0.isOnScreen }
-      spaceTracker.observe(onScreen: Set(onScreen.map(\.id)), on: displayID)
-    }
-
-    spaceTracker.retain(windowIDs: Set(windows.map(\.id)))
-
-    let learned = Set(windows.map(\.displayID))
-      .sorted()
-      .map { "\($0):\(spaceTracker.knownSpaceCount(on: $0))" }
-      .joined(separator: " ")
-    logger.debug("Spaces learned so far (display:count) \(learned)")
-  }
-
-  /// A window that was asked to come forward and did not is a leftover of an
-  /// application that keeps its window object after closing it. Nothing about the
-  /// window says so; only the outcome does.
-  private func judgeRecentActivations(against windows: [WindowInfo]) {
-    let outcomes = activationVerifier.evaluate(
-      onScreen: Set(windows.filter(\.isOnScreen).map(\.id)),
-      existing: Set(windows.map(\.id))
-    )
-
-    for outcome in outcomes {
-      if outcome.cameForward {
-        learnedWindows.forget(outcome.signature)
-      } else {
-        learnedWindows.learn(outcome.signature)
-      }
-    }
-  }
-
-  /// Sort rank per window: the Space being looked at first, then the rest in the
-  /// order they were learned. Windows on an unknown Space get no rank and sort last.
-  private func spaceRanks(for windows: [WindowInfo]) -> [CGWindowID: Int] {
-    var ranks: [CGWindowID: Int] = [:]
-
-    for displayID in Set(windows.map(\.displayID)) {
-      let onDisplay = windows.filter { $0.displayID == displayID }
-      let activeSpace =
-        onDisplay
-        .first { $0.isOnScreen }
-        .flatMap { spaceTracker.spaceIndex(of: $0.id, on: displayID) }
-
-      for window in onDisplay {
-        guard let index = spaceTracker.spaceIndex(of: window.id, on: displayID) else {
-          continue
-        }
-
-        ranks[window.id] = index == activeSpace ? -1 : index
-      }
-    }
-
-    return ranks
-  }
-
-  /// Switching Spaces is the moment the window list changes most, and the moment
-  /// there is something new to learn about which windows live together.
-  private func observeActiveSpaceChanges() {
-    guard activeSpaceObserver == nil else {
-      return
-    }
-
-    activeSpaceObserver = NSWorkspace.shared.notificationCenter.addObserver(
-      forName: NSWorkspace.activeSpaceDidChangeNotification,
-      object: nil,
-      queue: .main
-    ) { [weak self] _ in
-      // Registered against the main queue, so the hop is a formality rather than a
-      // thread change.
-      MainActor.assumeIsolated {
-        guard let self, self.isRunning else {
-          return
-        }
-
-        self.logger.debug("Active Space changed; refreshing")
-        Task { @MainActor [weak self] in
-          await self?.refreshNow()
-        }
-      }
-    }
-  }
-
   func activateWindow(id windowID: CGWindowID) {
     guard let tile = tiles.first(where: { $0.id == windowID }) else {
       logger.warning("Activation requested for a window that is no longer listed")
@@ -360,7 +296,6 @@ final class WindowCoordinator: ObservableObject {
       await self?.refreshNow()
     }
   }
-
   /// Activation by position, for the overlay's number-key shortcuts.
   func activateWindow(at index: Int) {
     guard tiles.indices.contains(index) else {
@@ -369,7 +304,6 @@ final class WindowCoordinator: ObservableObject {
 
     activateWindow(id: tiles[index].id)
   }
-
   private func startRefreshLoop() {
     guard refreshTask == nil else {
       return
@@ -393,6 +327,105 @@ final class WindowCoordinator: ObservableObject {
         }
 
         await self.refreshNow()
+      }
+    }
+  }
+
+  /// A window that was asked to come forward and did not is a leftover of an
+  /// application that keeps its window object after closing it. Nothing about the
+  /// window says so; only the outcome does.
+  private func judgeRecentActivations(against windows: [WindowInfo]) {
+    let outcomes = activationVerifier.evaluate(
+      onScreen: Set(windows.filter(\.isOnScreen).map(\.id)),
+      existing: Set(windows.map(\.id))
+    )
+
+    for outcome in outcomes {
+      if outcome.cameForward {
+        learnedWindows.forget(outcome.signature)
+      } else {
+        learnedWindows.learn(outcome.signature)
+      }
+    }
+  }
+
+}
+
+// MARK: - Spaces
+
+extension WindowCoordinator {
+  private func updateSpaceTracker(with windows: [WindowInfo]) {
+    for displayID in Set(windows.map(\.displayID)) {
+      let onScreen = windows.filter { $0.displayID == displayID && $0.isOnScreen }
+      spaceTracker.observe(onScreen: Set(onScreen.map(\.id)), on: displayID)
+    }
+
+    spaceTracker.retain(windowIDs: Set(windows.map(\.id)))
+
+    let learned = Set(windows.map(\.displayID))
+      .sorted()
+      .map { "\($0):\(spaceTracker.knownSpaceCount(on: $0))" }
+      .joined(separator: " ")
+    logger.debug("Spaces learned so far (display:count) \(learned)")
+  }
+  /// Sort rank per window: the Space being looked at first, then the rest in the
+  /// order they were learned. Windows on an unknown Space get no rank and sort last.
+  private func spaceRanks(for windows: [WindowInfo]) -> [CGWindowID: Int] {
+    var ranks: [CGWindowID: Int] = [:]
+
+    for displayID in Set(windows.map(\.displayID)) {
+      let onDisplay = windows.filter { $0.displayID == displayID }
+      let activeSpace =
+        onDisplay
+        .first { $0.isOnScreen }
+        .flatMap { spaceTracker.spaceIndex(of: $0.id, on: displayID) }
+
+      for window in onDisplay {
+        guard let index = spaceTracker.spaceIndex(of: window.id, on: displayID) else {
+          continue
+        }
+
+        ranks[window.id] = index == activeSpace ? -1 : index
+      }
+    }
+
+    return ranks
+  }
+  /// The moments the window list changes most, and the moment there is something
+  /// new to learn about which windows live together.
+  ///
+  /// There is no public notification for a window opening — only for an
+  /// application launching, quitting or coming forward — so this catches the
+  /// common cases and the periodic refresh catches the rest.
+  private func observeActiveSpaceChanges() {
+    guard workspaceObservers.isEmpty else {
+      return
+    }
+
+    let names: [Notification.Name] = [
+      NSWorkspace.activeSpaceDidChangeNotification,
+      NSWorkspace.didLaunchApplicationNotification,
+      NSWorkspace.didTerminateApplicationNotification,
+    ]
+
+    workspaceObservers = names.map { name in
+      NSWorkspace.shared.notificationCenter.addObserver(
+        forName: name,
+        object: nil,
+        queue: .main
+      ) { [weak self] _ in
+        // Registered against the main queue, so the hop is a formality rather than
+        // a thread change.
+        MainActor.assumeIsolated {
+          guard let self, self.isRunning else {
+            return
+          }
+
+          self.logger.debug("Workspace changed; refreshing")
+          Task { @MainActor [weak self] in
+            await self?.refreshNow()
+          }
+        }
       }
     }
   }
