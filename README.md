@@ -76,6 +76,29 @@ It acts on the highlighted tile, and the highlight is worked out as the overlay
 opens rather than taken from the last background refresh. That distinction is not
 academic: before it was fixed, this shortcut asked the wrong application to quit.
 
+## Reaching a particular window
+
+Choosing a tile brings its application forward, which is enough to cross Spaces.
+Landing on the *right* window of several takes more, because Accessibility lists
+only the windows on the Space that is active — so at the moment you choose, the
+window usually cannot be named yet.
+
+Tessera asks Accessibility, waits for the switch and asks again, and finally asks
+the application itself:
+
+```toml
+use_apple_events = true
+```
+
+Apple Events are how Chrome and Finder are reached at all: they publish no windows
+to Accessibility. macOS asks permission for each application the first time, and
+refusing costs nothing — the switch still happens, the application just picks the
+window.
+
+An application with no scripting dictionary that keeps the window you want on
+another Space cannot be reached precisely by any public means. Obsidian is the
+example. `docs/mechanisms.md` has the measurements.
+
 ## Leaving applications out
 
 A tray application often keeps its window object alive after you close the
@@ -559,6 +582,11 @@ concrete collaborators, so testing them means introducing protocols first.
 
 ## TODO
 
+- Use Apple Events to drop windows an application no longer owns. It already
+  reports them correctly for Finder and Chrome, and nothing public distinguishes
+  such a window otherwise — see `docs/mechanisms.md`.
+- Try `⌘\`` as a last resort for reaching a window of an application that has no
+  scripting dictionary.
 - Make stepping reach windows on other Spaces, by registering `⌃⇧` with the arrow
   keys as system-wide hotkeys for as long as the overlay is open. See
   `docs/mechanisms.md` for why the three obvious approaches do not work and what

@@ -182,6 +182,69 @@ that exits before the verdict is due; and a window is recognised by application
 and title, so a Finder window reopened on the same folder starts out hidden until
 it is seen on screen once.
 
+## Reaching a particular window
+
+Activating an application is easy and always works: `NSRunningApplication.activate()`
+needs no permission, crosses Spaces, and macOS switches to the Space of whatever
+window that application had in front. Reaching *one* window of several is the hard
+part, and there is one rule behind every difficulty in it:
+
+> **Accessibility lists only the windows on the Space that is active.**
+
+Measured across seven applications. Word before activation reported no windows and
+both documents two seconds after. Obsidian, brought forward, showed one of its two
+— the other was on another Space. Chrome, Finder, Telegram, Todoist and Claude all
+reported nothing while their windows were elsewhere.
+
+That is why selecting one of three Chrome windows used to land on whichever the
+application preferred: at the moment of choosing there was nothing to aim at.
+
+Three ways to reach the window, tried in turn:
+
+1. **Accessibility, immediately.** Works when the window is already on this Space.
+2. **Accessibility again, after the switch.** Retried every 200 ms for two
+   seconds, stopping the moment it works or the user goes elsewhere. This is what
+   makes a second Word document reachable.
+3. **The application's own scripting interface**, through Apple Events, behind
+   `use_apple_events`. Chrome and Finder publish no windows to Accessibility at
+   all; `set index of window to 1` followed by `activate` is the only public way to
+   name one of theirs. macOS asks permission per application, a refusal costs
+   nothing, and the script runs off the main actor under a three-second timeout —
+   an application that does not answer must not hold up a window switch.
+
+What none of them reaches: a particular window of an application with no scripting
+dictionary that keeps that window on another Space. Obsidian is the example —
+Electron, no `.sdef`, no `NSAppleScriptEnabled`.
+
+`⌘\`` remains untried as a last resort. It cycles an application's windows with no
+permission at all, but measured on Chrome it visited two of four windows, so it is
+bounded by the active Space like everything else.
+
+## Windows the application does not own any more
+
+A window can outlive what it showed. Finder reported one window through Apple
+Events while the window server listed two; Chrome, Discord, Notion and Linear do
+the same, which is [a known and unsolved problem in AeroSpace](https://github.com/nikitabobko/AeroSpace/discussions/1506)
+— and that project reads the private APIs freely.
+
+Everything public was checked and none of it separates a ghost from a real window:
+
+| Signal | Ghost | Real |
+|---|---|---|
+| `kCGWindowMemoryUsage`, `StoreType`, `SharingState`, alpha | identical | identical |
+| A thumbnail capture | succeeds, 74 ms | succeeds, 108 ms |
+| Accessibility | absent | absent (Finder publishes neither) |
+
+Two things do know. The private `CGSCopySpacesForWindows` reports no Space at all
+for a ghost — exact, one call, and rejected here for the same reason as elsewhere.
+And the application itself, asked through Apple Events, does not list it. The
+second is public and already available behind `use_apple_events`; using it to
+filter the window list, rather than only to raise a window, is the obvious next
+step and is not done yet.
+
+Note that a minimized window also belongs to no Space, so neither signal can tell
+a ghost from something in the Dock without asking Accessibility as well.
+
 ## Fullscreen windows
 
 Whether a window is fullscreen cannot be told reliably in public API either.
@@ -313,3 +376,6 @@ tolerable because a step is itself the switch: there is nothing left to confirm.
 - Reading Space membership from anything public.
 - Expecting `NSApp.activate` to bring an application that is not in front back to
   the keyboard.
+- Expecting Accessibility to list a window that is on another Space, whichever
+  application owns it.
+- Looking for a public field that marks a window its application has forgotten.
