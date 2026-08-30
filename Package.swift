@@ -31,6 +31,11 @@ let package = Package(
     .executableTarget(
       name: "Tessera",
       swiftSettings: strictConcurrency
-    )
+    ),
+    .testTarget(
+      name: "TesseraTests",
+      dependencies: ["Tessera"],
+      swiftSettings: strictConcurrency
+    ),
   ]
 )
