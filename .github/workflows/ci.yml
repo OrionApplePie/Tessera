@@ -1,0 +1,38 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    # macos-26 — Apple Silicon, Xcode 26.x по умолчанию. Шаг xcode-select не нужен.
+    # Если нужен более свежий тулчейн, есть образ с меткой xcode-27.
+    runs-on: macos-26
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Toolchain versions
+        run: swift --version && xcodebuild -version
+
+      - name: Cache SPM
+        uses: actions/cache@v4
+        with:
+          path: .build
+          key: spm-${{ runner.os }}-${{ hashFiles('Package.resolved') }}
+          restore-keys: spm-${{ runner.os }}-
+
+      - name: Install tools
+        run: brew install swiftlint xcbeautify
+
+      # Те же цели, что и локально. Расхождение между CI и make check
+      # означает, что агент чинит одно, а падает другое.
+      - run: make format-check
+      - run: make lint
+      - run: make build
+      - run: make test

@@ -1,0 +1,27 @@
+pre-commit:
+  parallel: true
+  commands:
+    format:
+      glob: "*.swift"
+      run: swift format lint --strict {staged_files}
+      fail_text: "Форматирование не проходит. Запусти: make format"
+    lint:
+      glob: "*.swift"
+      run: swiftlint lint --strict --force-exclude {staged_files}
+    secrets:
+      # Настоящий сканер вместо самодельного grep. Если gitleaks не стоит — шаг пропускается.
+      run: |
+        command -v gitleaks >/dev/null 2>&1 || { echo "gitleaks не установлен, проверка пропущена"; exit 0; }
+        gitleaks protect --staged --redact --no-banner
+
+commit-msg:
+  commands:
+    conventional:
+      run: |
+        head -1 "{1}" | grep -qE '^(feat|fix|refactor|test|docs|chore|perf|build|ci)(\([a-z0-9 -]+\))?!?: .{1,72}$' \
+          || { echo "Формат: type(scope): описание в императиве, до 72 символов"; exit 1; }
+
+pre-push:
+  commands:
+    tests:
+      run: swift test

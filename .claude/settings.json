@@ -1,0 +1,57 @@
+{
+  "permissions": {
+    "defaultMode": "default",
+    "allow": [
+      "Bash(make:*)",
+      "Bash(swift build:*)",
+      "Bash(swift test:*)",
+      "Bash(swift run:*)",
+      "Bash(swift format:*)",
+      "Bash(swift package describe:*)",
+      "Bash(swiftlint:*)",
+      "Bash(xcbeautify:*)",
+      "Bash(xcrun xcresulttool:*)",
+      "Bash(git status:*)",
+      "Bash(git diff:*)",
+      "Bash(git log:*)",
+      "Bash(git show:*)",
+      "Bash(git branch:*)",
+      "Bash(git switch:*)",
+      "Bash(git add:*)",
+      "Bash(git stash:*)",
+      "Bash(ls:*)",
+      "Bash(rg:*)",
+      "Bash(fd:*)"
+    ],
+    "ask": [
+      "Bash(git commit:*)",
+      "Bash(git push:*)",
+      "Bash(git checkout:*)",
+      "Bash(gh pr:*)",
+      "Bash(mv:*)",
+      "Bash(rm:*)"
+    ],
+    "deny": [
+      "Bash(git reset --hard:*)",
+      "Bash(git clean:*)",
+      "Bash(git rebase:*)",
+      "Bash(git merge:*)",
+      "Bash(git commit --amend:*)",
+      "Bash(git push --force:*)",
+      "Bash(rm -rf:*)",
+      "Bash(swift package update:*)",
+      "Bash(sudo:*)",
+      "Bash(curl:*)",
+      "Bash(security:*)",
+      "Bash(codesign:*)",
+      "Read(./.env)",
+      "Read(./.env.*)",
+      "Read(.env)",
+      "Read(./**/*.p12)",
+      "Read(./**/*.mobileprovision)",
+      "Edit(./.github/workflows/**)",
+      "Edit(./Package.resolved)",
+      "Edit(./**/*.entitlements)"
+    ]
+  }
+}

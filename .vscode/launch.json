@@ -1,0 +1,44 @@
+{
+    "configurations": [
+        {
+            "type": "swift",
+            "request": "launch",
+            "args": [],
+            "cwd": "${workspaceFolder:macos_cli_example}",
+            "name": "Debug Tessera",
+            "target": "Tessera",
+            "configuration": "debug",
+            "preLaunchTask": "swift: Build Debug Tessera"
+        },
+        {
+            "type": "swift",
+            "request": "launch",
+            "args": [],
+            "cwd": "${workspaceFolder:macos_cli_example}",
+            "name": "Release Tessera",
+            "target": "Tessera",
+            "configuration": "release",
+            "preLaunchTask": "swift: Build Release Tessera"
+        },
+        {
+            "type": "swift",
+            "request": "launch",
+            "args": [],
+            "cwd": "${workspaceFolder:macos_cli_example}",
+            "name": "Debug Tessera",
+            "target": "Tessera",
+            "configuration": "debug",
+            "preLaunchTask": "swift: Build Debug Tessera"
+        },
+        {
+            "type": "swift",
+            "request": "launch",
+            "args": [],
+            "cwd": "${workspaceFolder:macos_cli_example}",
+            "name": "Release Tessera",
+            "target": "Tessera",
+            "configuration": "release",
+            "preLaunchTask": "swift: Build Release Tessera"
+        }
+    ]
+}
