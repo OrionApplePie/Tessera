@@ -106,21 +106,6 @@ extension Color {
   }
 }
 
-extension View {
-  /// AppKit draws its own focus ring around a focused button, which competes with
-  /// the overlay's highlight and does not follow the arrow keys. Suppressing it
-  /// needs macOS 14; below that the ring stays and the overlay's own marks still
-  /// read, they simply have company.
-  @ViewBuilder
-  func withoutSystemFocusRing() -> some View {
-    if #available(macOS 14.0, *) {
-      focusEffectDisabled()
-    } else {
-      self
-    }
-  }
-}
-
 private struct SectionLayout: Identifiable {
   let section: WindowTileSection
   let offset: Int
@@ -151,45 +136,57 @@ private struct WindowTileButton: View {
   let onSelect: () -> Void
 
   var body: some View {
-    Button(action: onSelect) {
-      VStack(alignment: .leading, spacing: 10) {
-        WindowThumbnailContent(tile: tile)
+    tileContent
+  }
 
-        VStack(alignment: .leading, spacing: 3) {
-          HStack(alignment: .firstTextBaseline, spacing: 6) {
-            Text(tile.displayAppName)
-              .font(.system(size: 13, weight: .semibold))
-              .foregroundStyle(tile.isActive ? Self.textOnAccent : Color.white)
-              .lineLimit(1)
+  /// Deliberately not a `Button`.
+  ///
+  /// A button joins the keyboard focus chain, and with Full Keyboard Access on
+  /// that gives the overlay a second, invisible cursor: Tab moves it, and a
+  /// focused button answers Return and Space itself — activating a window other
+  /// than the highlighted one. Hiding the focus ring only hid the evidence. A
+  /// plain view with a tap gesture leaves the panel's key handling as the single
+  /// path, which is what a switcher needs.
+  private var tileContent: some View {
+    VStack(alignment: .leading, spacing: 10) {
+      WindowThumbnailContent(tile: tile)
 
-            Spacer(minLength: 0)
+      VStack(alignment: .leading, spacing: 3) {
+        HStack(alignment: .firstTextBaseline, spacing: 6) {
+          Text(tile.displayAppName)
+            .font(.system(size: 13, weight: .semibold))
+            .foregroundStyle(tile.isActive ? Self.textOnAccent : Color.white)
+            .lineLimit(1)
 
-            if let shortcut = shortcutLabel {
-              Text(shortcut)
-                .font(.system(size: 11, weight: .medium, design: .rounded))
-                .foregroundStyle(
-                  tile.isActive
-                    ? Self.textOnAccent.opacity(0.7) : Color.white.opacity(0.5))
-            }
+          Spacer(minLength: 0)
+
+          if let shortcut = shortcutLabel {
+            Text(shortcut)
+              .font(.system(size: 11, weight: .medium, design: .rounded))
+              .foregroundStyle(
+                tile.isActive
+                  ? Self.textOnAccent.opacity(0.7) : Color.white.opacity(0.5))
           }
-
-          Text(tile.displayTitle)
-            .font(.system(size: 11))
-            .foregroundStyle(
-              tile.isActive ? Self.textOnAccent.opacity(0.8) : Color.white.opacity(0.62)
-            )
-            .lineLimit(2)
-            .frame(maxWidth: .infinity, alignment: .leading)
         }
-        .frame(height: 34, alignment: .top)
+
+        Text(tile.displayTitle)
+          .font(.system(size: 11))
+          .foregroundStyle(
+            tile.isActive ? Self.textOnAccent.opacity(0.8) : Color.white.opacity(0.62)
+          )
+          .lineLimit(2)
+          .frame(maxWidth: .infinity, alignment: .leading)
       }
-      .padding(TileMetrics.padding)
-      .frame(width: TileMetrics.width, height: TileMetrics.width)
-      .background(tileBackground)
-      .overlay(tileBorder)
+      .frame(height: 34, alignment: .top)
     }
-    .buttonStyle(.plain)
-    .withoutSystemFocusRing()
+    .padding(TileMetrics.padding)
+    .frame(width: TileMetrics.width, height: TileMetrics.width)
+    .background(tileBackground)
+    .overlay(tileBorder)
+    .contentShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+    .onTapGesture(perform: onSelect)
+    .accessibilityElement(children: .combine)
+    .accessibilityAddTraits(.isButton)
   }
 
   /// The system accent, so the frontmost window is marked the way macOS marks a
