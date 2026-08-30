@@ -202,8 +202,14 @@ final class OverlayWindowController: NSWindowController, NSWindowDelegate {
     logger.debug("Overlay window ordered out")
   }
 
+  /// Whether the overlay is actually in front of the user.
+  ///
+  /// A panel hides itself when its application is deactivated, and `isVisible`
+  /// keeps saying `true` through that. Believing it made the hotkey close an
+  /// overlay that was already gone, so the next press had to open it again — the
+  /// overlay appeared to open only every second time.
   var isOverlayVisible: Bool {
-    window?.isVisible == true
+    window?.isVisible == true && NSApp.isActive
   }
 
   func windowShouldClose(_ sender: NSWindow) -> Bool {
