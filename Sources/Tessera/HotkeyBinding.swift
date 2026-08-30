@@ -137,6 +137,27 @@ struct HotkeyKey: Equatable, Sendable {
     self.carbonKeyCode = carbonKeyCode
   }
 
+  /// The Latin letter a key carries, whatever the active input source prints on
+  /// it. Typing on a Cyrillic layout produces Cyrillic characters, and an
+  /// application named in Latin would otherwise be unreachable by its own initial.
+  static func latinLetter(forKeyCode keyCode: UInt16) -> Character? {
+    lettersByKeyCode[keyCode]
+  }
+
+  private static let lettersByKeyCode: [UInt16: Character] = {
+    var letters: [UInt16: Character] = [:]
+
+    for letter in "abcdefghijklmnopqrstuvwxyz" {
+      guard let code = carbonKeyCodesByName[String(letter)] else {
+        continue
+      }
+
+      letters[UInt16(code)] = letter
+    }
+
+    return letters
+  }()
+
   /// Spelling a key two ways must produce one binding, so aliases resolve to a
   /// canonical name before lookup.
   private static let canonicalNamesByAlias: [String: String] = [

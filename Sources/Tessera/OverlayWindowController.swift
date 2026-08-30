@@ -58,6 +58,9 @@ final class OverlayWindowController: NSWindowController, NSWindowDelegate {
     panel.onMoveSelection = { [weak self] direction in
       self?.moveSelection(direction)
     }
+    panel.onJumpToName = { [weak self] typed, latin in
+      self?.jumpToName(typed: typed, orLatin: latin)
+    }
     panel.onActivateSelection = { [weak self] in
       self?.activateSelection()
     }
@@ -155,6 +158,23 @@ final class OverlayWindowController: NSWindowController, NSWindowDelegate {
     )
   }
 
+  /// The typed character first, then the Latin letter the same physical key
+  /// carries. On a Cyrillic layout those differ, and an application named in Latin
+  /// would otherwise be unreachable by its own initial.
+  private func jumpToName(typed: Character, orLatin latin: Character?) {
+    let tiles = windowCoordinator.tiles
+    let match =
+      OverlayGrid.index(from: selection.index, matching: typed, in: tiles)
+      ?? latin.flatMap { OverlayGrid.index(from: selection.index, matching: $0, in: tiles) }
+
+    guard let match else {
+      return
+    }
+
+    selection.index = match
+    logger.debug("Overlay selection jumped to index \(match) on \(typed)")
+  }
+
   private func activateSelection() {
     selectWindow(at: selection.index)
   }
@@ -171,6 +191,7 @@ final class OverlayWindowController: NSWindowController, NSWindowDelegate {
 final class OverlayPanel: NSPanel {
   var onSelectIndex: ((Int) -> Void)?
   var onMoveSelection: ((OverlayGrid.Direction) -> Void)?
+  var onJumpToName: ((Character, Character?) -> Void)?
   var onActivateSelection: (() -> Void)?
   var onDismiss: (() -> Void)?
 
@@ -193,6 +214,25 @@ final class OverlayPanel: NSPanel {
     true
   }
 
+  /// A bare letter, if that is what this is.
+  ///
+  /// Shift and caps lock are ignored rather than excluded: they change the letter,
+  /// not the intent. Any other modifier means the key belongs to somebody else.
+  private static func jumpCharacter(for event: NSEvent) -> Character? {
+    let modifiers = event.modifierFlags
+      .intersection(.deviceIndependentFlagsMask)
+      .subtracting([.shift, .capsLock])
+
+    guard modifiers.isEmpty,
+      let character = event.charactersIgnoringModifiers?.first,
+      character.isLetter
+    else {
+      return nil
+    }
+
+    return character
+  }
+
   override func keyDown(with event: NSEvent) {
     if event.keyCode == UInt16(kVK_Escape) || event.charactersIgnoringModifiers == "\u{1b}" {
       onDismiss?()
@@ -212,6 +252,11 @@ final class OverlayPanel: NSPanel {
     let digit = event.charactersIgnoringModifiers.flatMap { Int($0) }
     if let digit, (1...9).contains(digit) {
       onSelectIndex?(digit - 1)
+      return
+    }
+
+    if let character = Self.jumpCharacter(for: event) {
+      onJumpToName?(character, HotkeyKey.latinLetter(forKeyCode: event.keyCode))
       return
     }
 

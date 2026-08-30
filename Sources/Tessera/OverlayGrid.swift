@@ -51,6 +51,45 @@ enum OverlayGrid {
     tiles.firstIndex(where: \.isActive) ?? 0
   }
 
+  /// The next tile whose name starts with `character`, wrapping around the list.
+  ///
+  /// Pressing the same letter again moves on to the next match, so a letter walks
+  /// its own windows rather than always landing on the first of them. The search
+  /// starts after the current tile for that reason.
+  ///
+  /// The application name is tried first, because that is the name a tile is
+  /// recognised by. Only when no application matches does the window title get a
+  /// turn, which is what makes a letter useful for several Finder windows of the
+  /// same application.
+  /// `nil` when no window carries that letter, so the caller can try another
+  /// reading of the same key press.
+  static func index(
+    from index: Int,
+    matching character: Character,
+    in tiles: [WindowTileModel]
+  ) -> Int? {
+    guard !tiles.isEmpty else {
+      return nil
+    }
+
+    let current = min(max(index, 0), tiles.count - 1)
+    let prefix = String(character).lowercased()
+
+    var matches = tiles.indices.filter {
+      tiles[$0].displayAppName.lowercased().hasPrefix(prefix)
+    }
+
+    if matches.isEmpty {
+      matches = tiles.indices.filter { tiles[$0].displayTitle.lowercased().hasPrefix(prefix) }
+    }
+
+    guard !matches.isEmpty else {
+      return nil
+    }
+
+    return matches.first { $0 > current } ?? matches[0]
+  }
+
   /// Left and right walk the tiles in reading order and wrap around the ends,
   /// crossing section boundaries as if the list were flat. Up and down move one
   /// row — into the neighbouring section when that is what is above or below — and

@@ -149,7 +149,17 @@ background keeps its contrast without further tuning.
 | `↑` `↓` | Move the highlight one row, crossing into the next group; stops at the top and bottom |
 | `Return` `Space` | Activate the highlighted window |
 | `1`–`9` | Activate that tile directly |
+| A letter | Move to the next window whose name starts with it; press again to cycle |
 | `Esc` | Close the overlay without switching |
+
+A letter is read twice: as typed, and as the Latin letter that physical key
+carries. On a Cyrillic layout those differ, and an application named in Latin
+would otherwise be unreachable by its own initial — pressing the `C` key finds
+Code either way.
+
+A letter matches the application name first — `c` walks Claude, then Code, then
+back. Only when no application starts with that letter do the window titles get a
+turn, which is what makes a letter useful among several Finder windows.
 
 The highlight starts on the window you are in — the one the accent fill marks — so
 the arrow keys move away from a known place rather than from wherever the list

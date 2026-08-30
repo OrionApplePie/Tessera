@@ -91,6 +91,19 @@ struct HotkeyBindingTests {
     }
   }
 
+  @Test("A key carries its Latin letter whatever the layout prints on it")
+  func keysCarryTheirLatinLetter() {
+    #expect(HotkeyKey.latinLetter(forKeyCode: UInt16(kVK_ANSI_C)) == "c")
+    #expect(HotkeyKey.latinLetter(forKeyCode: UInt16(kVK_ANSI_A)) == "a")
+    #expect(HotkeyKey.latinLetter(forKeyCode: UInt16(kVK_ANSI_Z)) == "z")
+  }
+
+  @Test("A key that carries no letter carries none")
+  func nonLetterKeysCarryNothing() {
+    #expect(HotkeyKey.latinLetter(forKeyCode: UInt16(kVK_Space)) == nil)
+    #expect(HotkeyKey.latinLetter(forKeyCode: UInt16(kVK_ANSI_1)) == nil)
+  }
+
   @Test("The default binding is neither Spotlight's shortcut nor a launcher's")
   func defaultBindingAvoidsTakenShortcuts() throws {
     let hotkey = try #require(AppConfig.default.hotkey)

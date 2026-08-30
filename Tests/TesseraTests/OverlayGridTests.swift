@@ -141,11 +141,97 @@ struct OverlayGridTests {
     }
   }
 
-  private func makeTile(id: CGWindowID, isActive: Bool = false) -> WindowTileModel {
+  @Test("A letter jumps to the window of that name")
+  func jumpsToTheMatchingApplication() {
+    let tiles = [
+      makeTile(id: 1, appName: "Arc"),
+      makeTile(id: 2, appName: "Code"),
+      makeTile(id: 3, appName: "Safari"),
+    ]
+
+    #expect(OverlayGrid.index(from: 0, matching: "c", in: tiles) == 1)
+    #expect(OverlayGrid.index(from: 0, matching: "s", in: tiles) == 2)
+  }
+
+  @Test("The same letter again moves on to the next window of that name")
+  func repeatedLetterCycles() {
+    let tiles = [
+      makeTile(id: 1, appName: "Claude"),
+      makeTile(id: 2, appName: "Code"),
+      makeTile(id: 3, appName: "Safari"),
+    ]
+
+    #expect(OverlayGrid.index(from: 0, matching: "c", in: tiles) == 1)
+    #expect(OverlayGrid.index(from: 1, matching: "c", in: tiles) == 0)
+  }
+
+  @Test("Case does not matter, in the key or in the name")
+  func matchingIgnoresCase() {
+    let tiles = [makeTile(id: 1, appName: "Arc"), makeTile(id: 2, appName: "code")]
+
+    #expect(OverlayGrid.index(from: 0, matching: "C", in: tiles) == 1)
+  }
+
+  @Test("The only window of that name keeps the highlight where it is")
+  func aSingleMatchStaysPut() {
+    let tiles = [makeTile(id: 1, appName: "Arc"), makeTile(id: 2, appName: "Code")]
+
+    #expect(OverlayGrid.index(from: 1, matching: "c", in: tiles) == 1)
+  }
+
+  @Test("A letter nothing starts with matches nothing at all")
+  func noMatchIsReportedAsSuch() {
+    let tiles = [makeTile(id: 1, appName: "Arc"), makeTile(id: 2, appName: "Code")]
+
+    // Not the current index: the caller has to tell "no window of that name" from
+    // "the only one is already here", so that another reading of the key can run.
+    #expect(OverlayGrid.index(from: 1, matching: "z", in: tiles) == nil)
+    #expect(OverlayGrid.index(from: 0, matching: "z", in: [] as [WindowTileModel]) == nil)
+  }
+
+  @Test("With no application matching, the window titles get a turn")
+  func fallsBackToTheWindowTitle() {
+    let tiles = [
+      makeTile(id: 1, appName: "Finder", title: "Downloads"),
+      makeTile(id: 2, appName: "Finder", title: "Тезисы"),
+      makeTile(id: 3, appName: "Finder", title: "Documents"),
+    ]
+
+    // No application starts with "d", so the titles decide, and the search still
+    // starts after the current tile.
+    #expect(OverlayGrid.index(from: 0, matching: "d", in: tiles) == 2)
+    #expect(OverlayGrid.index(from: 2, matching: "d", in: tiles) == 0)
+    #expect(OverlayGrid.index(from: 0, matching: "т", in: tiles) == 1)
+  }
+
+  @Test("An application match wins over a title match")
+  func applicationBeatsTitle() {
+    let tiles = [
+      makeTile(id: 1, appName: "Finder", title: "Code review"),
+      makeTile(id: 2, appName: "Code", title: "Something"),
+    ]
+
+    #expect(OverlayGrid.index(from: 0, matching: "c", in: tiles) == 1)
+    #expect(OverlayGrid.index(from: 1, matching: "c", in: tiles) == 1)
+  }
+
+  @Test("An out-of-range index does not stop a jump")
+  func jumpClampsTheStartingIndex() {
+    let tiles = [makeTile(id: 1, appName: "Arc"), makeTile(id: 2, appName: "Code")]
+
+    #expect(OverlayGrid.index(from: 99, matching: "a", in: tiles) == 0)
+  }
+
+  private func makeTile(
+    id: CGWindowID,
+    isActive: Bool = false,
+    appName: String = "Finder",
+    title: String = "Downloads"
+  ) -> WindowTileModel {
     WindowTileModel(
       id: id,
-      appName: "Finder",
-      title: "Downloads",
+      appName: appName,
+      title: title,
       processID: 100,
       isActive: isActive,
       isMinimized: false,
