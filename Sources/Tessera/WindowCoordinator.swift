@@ -171,7 +171,11 @@ final class WindowCoordinator: ObservableObject {
       limit: config.maxWindows
     )
 
-    let frontmostProcessID = frontmostApplicationProcessID()
+    let frontmostWindowID = FrontmostWindow.identify(
+      processID: frontmostApplicationProcessID(),
+      among: Set(windows.map(\.id)),
+      frontToBack: FrontmostWindow.onScreenFrontToBack()
+    )
     previewCache.retain(windowIDs: windows.map(\.id))
 
     let icons = applicationIcons(for: windows)
@@ -182,7 +186,7 @@ final class WindowCoordinator: ObservableObject {
         appName: window.appName,
         title: window.title,
         processID: window.processID,
-        isActive: window.processID == frontmostProcessID,
+        isActive: window.id == frontmostWindowID,
         isMinimized: window.isMinimized,
         displayID: window.displayID,
         spaceIndex: spaceTracker.spaceIndex(of: window.id, on: window.displayID),
@@ -209,43 +213,6 @@ final class WindowCoordinator: ObservableObject {
     previewCache.storeThumbnails(thumbnails)
     applyCache(to: &model)
     publish(model, displayNames: snapshot.displayNames)
-  }
-
-  private func publish(
-    _ tiles: [WindowTileModel],
-    displayNames: [CGDirectDisplayID: String]
-  ) {
-    sections = WindowTileSection.sections(
-      from: tiles,
-      displayNames: displayNames,
-      grouping: config.overlayGrouping
-    )
-  }
-
-  /// The application in front, not counting this one.
-  ///
-  /// Showing the overlay activates Tessera, so a refresh while it is open finds
-  /// Tessera frontmost and would mark no window at all — the highlight on the
-  /// window the user came from would simply go out a second later. The last
-  /// application that was in front before that is the answer worth keeping.
-  private func frontmostApplicationProcessID() -> pid_t? {
-    let frontmost = NSWorkspace.shared.frontmostApplication?.processIdentifier
-
-    if let frontmost, frontmost != ProcessInfo.processInfo.processIdentifier {
-      lastForeignFrontmostProcessID = frontmost
-    }
-
-    return lastForeignFrontmostProcessID
-  }
-
-  /// One icon per application rather than per window, since every window of an
-  /// application shows the same one.
-  private func applicationIcons(for windows: [WindowInfo]) -> [pid_t: NSImage] {
-    let entries = Set(windows.map(\.processID)).compactMap { processID in
-      NSRunningApplication(processIdentifier: processID)?.icon.map { (processID, $0) }
-    }
-
-    return Dictionary(uniqueKeysWithValues: entries)
   }
 
   /// Every window on screen on one display shares that display's active Space.
@@ -399,6 +366,47 @@ final class WindowCoordinator: ObservableObject {
         await self.refreshNow()
       }
     }
+  }
+}
+
+// MARK: - Tiles
+
+extension WindowCoordinator {
+  private func publish(
+    _ tiles: [WindowTileModel],
+    displayNames: [CGDirectDisplayID: String]
+  ) {
+    sections = WindowTileSection.sections(
+      from: tiles,
+      displayNames: displayNames,
+      grouping: config.overlayGrouping
+    )
+  }
+
+  /// The application in front, not counting this one.
+  ///
+  /// Showing the overlay activates Tessera, so a refresh while it is open finds
+  /// Tessera frontmost and would mark no window at all — the highlight on the
+  /// window the user came from would simply go out a second later. The last
+  /// application that was in front before that is the answer worth keeping.
+  private func frontmostApplicationProcessID() -> pid_t? {
+    let frontmost = NSWorkspace.shared.frontmostApplication?.processIdentifier
+
+    if let frontmost, frontmost != ProcessInfo.processInfo.processIdentifier {
+      lastForeignFrontmostProcessID = frontmost
+    }
+
+    return lastForeignFrontmostProcessID
+  }
+
+  /// One icon per application rather than per window, since every window of an
+  /// application shows the same one.
+  private func applicationIcons(for windows: [WindowInfo]) -> [pid_t: NSImage] {
+    let entries = Set(windows.map(\.processID)).compactMap { processID in
+      NSRunningApplication(processIdentifier: processID)?.icon.map { (processID, $0) }
+    }
+
+    return Dictionary(uniqueKeysWithValues: entries)
   }
 
   private func applyCache(to tiles: inout [WindowTileModel]) {
