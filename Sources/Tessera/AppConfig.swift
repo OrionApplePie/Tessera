@@ -1,7 +1,7 @@
 import CoreGraphics
 import Foundation
 
-struct AppConfig {
+struct AppConfig: Equatable {
   var refreshIntervalSeconds: TimeInterval
   var windowThumbnailsStaleSeconds: TimeInterval
   var windowThumbnailTargetSize: CGSize
