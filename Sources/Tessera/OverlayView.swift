@@ -1,3 +1,4 @@
+import AppKit
 import SwiftUI
 
 /// The tile's fixed geometry, in one place: the thumbnail has to be told its
@@ -102,6 +103,21 @@ extension Color {
   }
 }
 
+extension View {
+  /// AppKit draws its own focus ring around a focused button, which competes with
+  /// the overlay's highlight and does not follow the arrow keys. Suppressing it
+  /// needs macOS 14; below that the ring stays and the overlay's own marks still
+  /// read, they simply have company.
+  @ViewBuilder
+  func withoutSystemFocusRing() -> some View {
+    if #available(macOS 14.0, *) {
+      focusEffectDisabled()
+    } else {
+      self
+    }
+  }
+}
+
 private struct SectionLayout: Identifiable {
   let section: WindowTileSection
   let offset: Int
@@ -140,7 +156,7 @@ private struct WindowTileButton: View {
           HStack(alignment: .firstTextBaseline, spacing: 6) {
             Text(tile.displayAppName)
               .font(.system(size: 13, weight: .semibold))
-              .foregroundStyle(tile.isActive ? Color.black : Color.white)
+              .foregroundStyle(tile.isActive ? Self.textOnAccent : Color.white)
               .lineLimit(1)
 
             Spacer(minLength: 0)
@@ -149,13 +165,16 @@ private struct WindowTileButton: View {
               Text(shortcut)
                 .font(.system(size: 11, weight: .medium, design: .rounded))
                 .foregroundStyle(
-                  tile.isActive ? Color.black.opacity(0.6) : Color.white.opacity(0.5))
+                  tile.isActive
+                    ? Self.textOnAccent.opacity(0.7) : Color.white.opacity(0.5))
             }
           }
 
           Text(tile.displayTitle)
             .font(.system(size: 11))
-            .foregroundStyle(tile.isActive ? Color.black.opacity(0.7) : Color.white.opacity(0.62))
+            .foregroundStyle(
+              tile.isActive ? Self.textOnAccent.opacity(0.8) : Color.white.opacity(0.62)
+            )
             .lineLimit(2)
             .frame(maxWidth: .infinity, alignment: .leading)
         }
@@ -167,7 +186,14 @@ private struct WindowTileButton: View {
       .overlay(tileBorder)
     }
     .buttonStyle(.plain)
+    .withoutSystemFocusRing()
   }
+
+  /// The system accent, so the frontmost window is marked the way macOS marks a
+  /// selection everywhere else, and in whatever colour the user chose.
+  private static let accent = Color(nsColor: .controlAccentColor)
+  /// What AppKit puts on top of an accent fill, which is not always white.
+  private static let textOnAccent = Color(nsColor: .alternateSelectedControlTextColor)
 
   /// Only the first nine tiles get a number key.
   private var shortcutLabel: String? {
@@ -181,15 +207,16 @@ private struct WindowTileButton: View {
 
   private var backgroundOpacity: Color {
     if tile.isActive {
-      return Color.white.opacity(0.9)
+      return Self.accent
     }
 
     return Color.white.opacity(isSelected ? 0.22 : 0.1)
   }
 
-  /// The keyboard highlight has to read against the frontmost window's white fill
-  /// as well as against an ordinary tile, so it is a heavier ring rather than
-  /// another shade of background.
+  /// Two marks that must not be confused: the accent fill says which window is
+  /// frontmost, the ring says which one Return will activate. The ring is white
+  /// rather than another accent, so it reads on the accent fill as well as on an
+  /// ordinary tile.
   private var tileBorder: some View {
     RoundedRectangle(cornerRadius: 8, style: .continuous)
       .stroke(borderColor, lineWidth: isSelected ? 2 : 1)
@@ -197,10 +224,10 @@ private struct WindowTileButton: View {
 
   private var borderColor: Color {
     if isSelected {
-      return tile.isActive ? Color.black.opacity(0.55) : Color.white.opacity(0.95)
+      return Color.white.opacity(0.95)
     }
 
-    return tile.isActive ? Color.white.opacity(0.88) : Color.white.opacity(0.16)
+    return tile.isActive ? Self.accent : Color.white.opacity(0.16)
   }
 }
 
