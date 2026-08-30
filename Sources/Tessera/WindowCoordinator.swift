@@ -26,6 +26,7 @@ final class WindowCoordinator: ObservableObject {
   private var refreshTask: Task<Void, Never>?
   private var spaceTracker = SpaceTracker()
   private var orderRegistry = WindowOrderRegistry()
+  private var isListHeld = false
   private var lastForeignFrontmostProcessID: pid_t?
   private var activationVerifier = ActivationVerifier()
   private let learnedWindows: LearnedWindowStore
@@ -104,7 +105,43 @@ final class WindowCoordinator: ObservableObject {
     activator.requestAccessibilityPermission()
   }
 
+  /// Freezes the list while the overlay is on screen.
+  ///
+  /// A refresh re-sorts, and a re-sort under an open overlay moves the tiles the
+  /// user is looking at — a window whose title changed, a Space that just became
+  /// active, a thumbnail that arrived late. The switcher should show a snapshot.
+  /// It also stops the captures, which are pure waste for those few seconds.
+  ///
+  /// Kept apart from `pauseRefresh()`, which is the user's own choice from the
+  /// menu bar and must survive the overlay opening and closing.
+  func holdList() {
+    isListHeld = true
+    logger.debug("Holding the window list while the overlay is open")
+  }
+
+  func releaseList() {
+    guard isListHeld else {
+      return
+    }
+
+    isListHeld = false
+    logger.debug("Released the window list")
+
+    guard isRunning else {
+      return
+    }
+
+    Task { @MainActor [weak self] in
+      await self?.refreshNow()
+    }
+  }
+
   func refreshNow() async {
+    guard !isListHeld else {
+      logger.debug("Skipping a refresh; the overlay is holding the list")
+      return
+    }
+
     logger.debug("Refreshing window model now")
 
     let snapshot: WindowSnapshot
@@ -355,7 +392,7 @@ final class WindowCoordinator: ObservableObject {
           return
         }
 
-        guard !self.isRefreshPaused else {
+        guard !self.isRefreshPaused, !self.isListHeld else {
           continue
         }
 

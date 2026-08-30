@@ -72,6 +72,10 @@ final class OverlayWindowController: NSWindowController, NSWindowDelegate {
       return
     }
 
+    // The list must not move while it is being read, so it is frozen for as long
+    // as the overlay is up.
+    windowCoordinator.holdList()
+
     // The highlight is placed fresh every time: the window list has moved on since
     // the overlay was last open, and a stale index would point at another window.
     selection.index = OverlayGrid.initialIndex(for: windowCoordinator.tiles)
@@ -96,6 +100,7 @@ final class OverlayWindowController: NSWindowController, NSWindowDelegate {
 
   func hideOverlay() {
     window?.orderOut(nil)
+    windowCoordinator.releaseList()
     logger.debug("Overlay window ordered out")
   }
 
