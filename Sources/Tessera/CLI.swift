@@ -2,6 +2,14 @@ import CoreGraphics
 import Foundation
 
 enum CLI {
+  /// How long `quit` and `restart` wait for the background app to let go of the
+  /// single-instance lock, and how often they look.
+  private static let stopDeadline: TimeInterval = 5
+  private static let stopPollInterval: TimeInterval = 0.1
+  /// How far the run loop is pumped at a time while an async command finishes.
+  /// Short enough that the command returns promptly, long enough not to spin.
+  private static let runLoopStep: TimeInterval = 0.01
+
   @MainActor
   static func run(arguments: [String], config: AppConfig) throws {
     guard let command = arguments.first else {
@@ -191,7 +199,7 @@ enum CLI {
     }
 
     while box.result == nil {
-      RunLoop.current.run(mode: .default, before: Date().addingTimeInterval(0.01))
+      RunLoop.current.run(mode: .default, before: Date().addingTimeInterval(Self.runLoopStep))
     }
 
     try box.result?.get()
@@ -224,7 +232,7 @@ enum CLI {
 
   private static func waitForBackgroundAppToStop(command: String) throws {
     let logger = AppLogger(debugMode: true, category: .app)
-    let deadline = Date().addingTimeInterval(5)
+    let deadline = Date().addingTimeInterval(Self.stopDeadline)
 
     while Date() < deadline {
       let lock = SingleInstanceLock(debugMode: true)
@@ -234,7 +242,7 @@ enum CLI {
         return
       }
 
-      Thread.sleep(forTimeInterval: 0.1)
+      Thread.sleep(forTimeInterval: Self.stopPollInterval)
     }
 
     throw CLIError.commandFailed(

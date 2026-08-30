@@ -27,6 +27,12 @@ final class WindowCoordinator: ObservableObject {
   private var spaceTracker = SpaceTracker()
   private var orderRegistry = WindowOrderRegistry()
   private var isListHeld = false
+  /// How long to keep asking Accessibility for a window after the Space switch.
+  /// Measured: nothing before activation, both Word documents two seconds after,
+  /// so ten attempts two hundred milliseconds apart cover the slow answers without
+  /// leaving a window switch hanging on an application that never answers.
+  private static let raiseAttempts = 10
+  private static let raiseRetryInterval = Duration.milliseconds(200)
   /// Set the first time a tile is dragged. The arrangement then outranks the
   /// configured order for the rest of the session, because an order someone made
   /// by hand is not one a sort should undo.
@@ -328,8 +334,8 @@ final class WindowCoordinator: ObservableObject {
       // forward varies — measured at under half a second for some and over a second
       // for others — so this asks again until it works or the window plainly is not
       // going to be listed.
-      for attempt in 1...10 {
-        try? await Task.sleep(for: .milliseconds(200))
+      for attempt in 1...Self.raiseAttempts {
+        try? await Task.sleep(for: Self.raiseRetryInterval)
 
         guard let self,
           NSWorkspace.shared.frontmostApplication?.processIdentifier == tile.processID
@@ -407,6 +413,11 @@ final class WindowCoordinator: ObservableObject {
     }
   }
 
+}
+
+// MARK: - Learning
+
+extension WindowCoordinator {
   /// A window that was asked to come forward and did not is a leftover of an
   /// application that keeps its window object after closing it. Nothing about the
   /// window says so; only the outcome does.
@@ -424,7 +435,6 @@ final class WindowCoordinator: ObservableObject {
       }
     }
   }
-
 }
 
 // MARK: - Spaces
