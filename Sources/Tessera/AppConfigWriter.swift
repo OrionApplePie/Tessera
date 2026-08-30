@@ -68,6 +68,9 @@ enum AppConfigWriter {
     # Global hotkey that toggles the overlay. "" turns it off.
     hotkey = "\(config.hotkey?.displayName ?? "")"
 
+    # Leave out applications with no Dock icon, the ones that live in the menu bar.
+    ignore_menu_bar_apps = \(config.ignoresMenuBarApplications)
+
     # Applications to leave out of the switcher, comma separated.
     ignored_apps = "\(config.ignoredApplications.sorted().joined(separator: ", "))"
 

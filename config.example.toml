@@ -15,6 +15,11 @@ max_windows = 24
 # Set it to "" to disable it and trigger the overlay from the CLI instead.
 hotkey = "ctrl+alt+space"
 
+# Leave out applications with no Dock icon — the ones that live in the menu bar.
+# Their windows are panels they show themselves, and Accessibility often does not
+# list them, so a tile for one could not be raised anyway.
+ignore_menu_bar_apps = true
+
 # Applications to leave out of the switcher, comma separated. Useful for a tray
 # application that keeps a hidden window around after you close it, which looks
 # from the outside exactly like a window on another Space.

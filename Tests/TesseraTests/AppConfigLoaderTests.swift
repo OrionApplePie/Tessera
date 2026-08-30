@@ -14,6 +14,7 @@ struct AppConfigLoaderTests {
     "window_thumbnail_target_height",
     "max_windows",
     "hotkey",
+    "ignore_menu_bar_apps",
     "ignored_apps",
     "dim_stale_thumbnails",
     "overlay_columns",
@@ -44,6 +45,7 @@ struct AppConfigLoaderTests {
       window_thumbnail_target_height = 200
       max_windows = 5
       hotkey = "cmd+shift+t"
+      ignore_menu_bar_apps = false
       ignored_apps = "AmneziaVPN, Some Tray App"
       dim_stale_thumbnails = true
       overlay_columns = 3
@@ -63,6 +65,7 @@ struct AppConfigLoaderTests {
       #expect(config.windowThumbnailTargetSize.height == 200)
       #expect(config.maxWindows == 5)
       #expect(config.hotkey?.displayName == "shift+cmd+t")
+      #expect(config.ignoresMenuBarApplications == false)
       #expect(config.ignoredApplications == ["amneziavpn", "some tray app"])
       #expect(config.dimsStaleThumbnails == true)
       #expect(config.overlayColumns == 3)
@@ -149,7 +152,10 @@ struct AppConfigLoaderTests {
 
   @Test("An unparsable hotkey is an error, not a silently ignored line")
   func rejectsAnUnparsableHotkey() throws {
-    for contents in ["hotkey = \"space\"", "hotkey = \"cmd+nope\"", "hotkey = \"hyper+a\""] {
+    let broken = [
+      "hotkey = \"space\"", "hotkey = \"cmd+nope\"", "hotkey = \"hyper+a\"",
+    ]
+    for contents in broken {
       try withConfigFile(contents) { loader in
         expectDefaults(loader.load())
       }
@@ -272,7 +278,9 @@ struct AppConfigLoaderTests {
 
     expectDefaults(config)
   }
+}
 
+extension AppConfigLoaderTests {
   // MARK: - Helpers
 
   private static let repositoryRoot = URL(filePath: #filePath)
@@ -325,6 +333,10 @@ struct AppConfigLoaderTests {
     #expect(config.showMenuBarIcon == defaults.showMenuBarIcon, sourceLocation: sourceLocation)
     #expect(config.debugMode == defaults.debugMode, sourceLocation: sourceLocation)
     #expect(config.hotkey == defaults.hotkey, sourceLocation: sourceLocation)
+    #expect(
+      config.ignoresMenuBarApplications == defaults.ignoresMenuBarApplications,
+      sourceLocation: sourceLocation
+    )
     #expect(
       config.ignoredApplications == defaults.ignoredApplications,
       sourceLocation: sourceLocation

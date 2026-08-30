@@ -9,6 +9,13 @@ struct AppConfig: Equatable {
   var closeAfterActivation: Bool
   var showMenuBarIcon: Bool
   var debugMode: Bool
+  /// Whether to leave out applications with no Dock icon.
+  ///
+  /// An application whose activation policy is `.accessory` lives in the menu bar.
+  /// Its windows are panels it shows itself, not places to switch to, and
+  /// Accessibility often does not list them at all — so a tile for one cannot even
+  /// be raised.
+  var ignoresMenuBarApplications: Bool
   /// Applications whose windows never appear in the switcher, lowercased.
   ///
   /// A tray application that keeps its window object alive after you close it
@@ -45,6 +52,7 @@ struct AppConfig: Equatable {
     debugMode: false,
     // Displays are worth telling apart out of the box; Spaces are not, until
     // someone asks for them.
+    ignoresMenuBarApplications: true,
     ignoredApplications: [],
     // Off: a preview a few seconds old is still the window you are looking for,
     // and fading it says more about the switcher than about the window.

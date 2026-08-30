@@ -76,6 +76,7 @@ struct WindowListService {
         return window.windowLayer == 0
           && !(window.title ?? "").isEmpty
           && !config.ignores(applicationNamed: owner.applicationName)
+          && !isMenuBarApplication(processID: owner.processID)
           && !isLearnedAbsent(window, applicationName: owner.applicationName)
           && window.frame.width >= Self.minimumWindowEdge
           && window.frame.height >= Self.minimumWindowEdge
@@ -115,6 +116,19 @@ struct WindowListService {
       displayNames: Dictionary(uniqueKeysWithValues: displays.map { ($0.id, $0.name) }),
       displayOrder: displayOrder
     )
+  }
+
+  /// Whether the owning application lives only in the menu bar.
+  ///
+  /// `.accessory` is what "no Dock icon" means to AppKit. Such an application's
+  /// windows are its own panels rather than places to switch to, and Accessibility
+  /// commonly does not list them, which leaves a tile that cannot be raised at all.
+  private func isMenuBarApplication(processID: pid_t) -> Bool {
+    guard config.ignoresMenuBarApplications else {
+      return false
+    }
+
+    return NSRunningApplication(processIdentifier: processID)?.activationPolicy == .accessory
   }
 
   /// Whether a window was learned not to come forward when activated.

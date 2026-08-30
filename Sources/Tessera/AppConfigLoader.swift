@@ -110,7 +110,12 @@ struct AppConfigLoader {
     to config: inout AppConfig,
     from values: [String: String]
   ) throws {
-    config.hotkey = try hotkey(values["hotkey"], default: config.hotkey)
+    config.hotkey = try hotkey(values["hotkey"], default: config.hotkey, key: "hotkey")
+    config.ignoresMenuBarApplications = try bool(
+      values["ignore_menu_bar_apps"],
+      default: config.ignoresMenuBarApplications,
+      key: "ignore_menu_bar_apps"
+    )
     config.ignoredApplications = applicationNames(values["ignored_apps"])
     config.closeAfterActivation = try bool(
       values["close_after_activation"],
@@ -216,7 +221,8 @@ struct AppConfigLoader {
   /// than a silent fallback, so a typo cannot leave the app with no hotkey at all.
   private func hotkey(
     _ rawValue: String?,
-    default defaultValue: HotkeyBinding?
+    default defaultValue: HotkeyBinding?,
+    key: String
   ) throws -> HotkeyBinding? {
     guard let rawValue else {
       return defaultValue
@@ -230,8 +236,8 @@ struct AppConfigLoader {
     do {
       return try HotkeyBinding(parsing: spec)
     } catch {
-      logger.error("Invalid hotkey in config: \(error)")
-      throw AppConfigError.invalidValue(key: "hotkey")
+      logger.error("Invalid \(key) in config: \(error)")
+      throw AppConfigError.invalidValue(key: key)
     }
   }
 
