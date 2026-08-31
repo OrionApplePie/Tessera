@@ -75,3 +75,29 @@ close_action = "quit"
 close_after_activation = true
 show_menu_bar_icon = true
 debug_mode = false
+
+# --- Timing -----------------------------------------------------------------
+# How long the switcher waits for the rest of the system. Every one of these is a
+# compromise measured on a real desktop, not a value with a right answer.
+
+# How many times a window is asked to come forward after its application has been
+# activated, and how long to wait between the attempts. Ten times two hundred
+# milliseconds is two seconds: measured, Accessibility knew nothing of a window
+# before the activation and both Word documents two seconds after.
+activation_retry_attempts = 10
+activation_retry_interval_seconds = 0.2
+
+# How long to wait after an activation before deciding whether the window came.
+# Shorter than a Space switch and its animation would condemn a slow window.
+activation_grace_seconds = 1.5
+
+# How long an application has to answer an Apple Event, and an Accessibility
+# question, before it is treated as wedged rather than busy.
+apple_events_timeout_seconds = 3
+accessibility_timeout_seconds = 2
+
+# How long a window has to answer a thumbnail capture, and how long one that did
+# not answer is left out of the next ones. A minimized window has no surface to
+# capture and never answers at all.
+thumbnail_capture_timeout_seconds = 2
+unresponsive_window_cooldown_seconds = 300

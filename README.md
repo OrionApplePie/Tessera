@@ -60,6 +60,31 @@ a large window costs no more than a small one. A window smaller than the piece
 asked for is taken whole. `window_thumbnail_target_width` and `..._height` apply
 to `fit` only.
 
+## Timing
+
+Everything the switcher waits for is a setting, because every one of these numbers
+is a compromise measured on one desktop rather than a value with a right answer:
+
+```toml
+activation_retry_attempts = 10            # how many times a window is asked again
+activation_retry_interval_seconds = 0.2   # how long between those attempts
+activation_grace_seconds = 1.5            # before judging whether the window came
+apple_events_timeout_seconds = 3          # before an application counts as wedged
+accessibility_timeout_seconds = 2         # the same, for an Accessibility question
+thumbnail_capture_timeout_seconds = 2     # before a capture is abandoned
+unresponsive_window_cooldown_seconds = 300  # how long that window is left alone
+```
+
+The two activation numbers multiply into a budget: ten attempts two hundred
+milliseconds apart give a window two seconds to appear in Accessibility after its
+application comes forward. That is what was measured — nothing before the
+activation, both Word documents two seconds after — so raise the interval if your
+machine is slower, and the count if you want to wait longer.
+
+`activation_grace_seconds` is shorter than a Space switch and its animation at your
+peril: a window judged before it lands is recorded as one that refused to come, and
+gets left out of the switcher.
+
 ## Tile order
 
 What decides the order inside a group, and therefore what makes a tile move:

@@ -16,11 +16,12 @@ struct MinimizedWindowService {
   /// having no minimized windows at all. Measured against a normal desktop, half a
   /// second was not enough; two seconds is, and an application that needs more than
   /// that is wedged rather than slow.
-  private static let messagingTimeout: Float = 2
+  private let messagingTimeout: Float
 
   private let logger: AppLogger
 
   init(config: AppConfig = .default) {
+    self.messagingTimeout = Float(config.accessibilityTimeoutSeconds)
     self.logger = AppLogger(debugMode: config.debugMode, category: .capture)
   }
 
@@ -48,7 +49,7 @@ struct MinimizedWindowService {
 
   private func minimizedTitles(processID: pid_t) -> Set<String> {
     let application = AXUIElementCreateApplication(processID)
-    AXUIElementSetMessagingTimeout(application, Self.messagingTimeout)
+    AXUIElementSetMessagingTimeout(application, messagingTimeout)
 
     var windowsValue: CFTypeRef?
     let status = AXUIElementCopyAttributeValue(

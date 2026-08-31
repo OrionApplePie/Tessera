@@ -15,6 +15,7 @@ enum AppConfigWriter {
       previewSection(config),
       overlaySection(config),
       behaviourSection(config),
+      timingSection(config),
     ]
 
     return sections.joined(separator: "\n\n") + "\n"
@@ -89,6 +90,31 @@ enum AppConfigWriter {
   }
 
   /// Whole numbers are written without a decimal point, the way a person would.
+  /// How long the switcher waits for the rest of the system. Every one of these is
+  /// a compromise measured on a real desktop, not a value with a right answer.
+  private static func timingSection(_ config: AppConfig) -> String {
+    """
+    # How many times a window is asked to come forward after its application has
+    # been activated, and how long to wait between the attempts.
+    activation_retry_attempts = \(config.activationRetryAttempts)
+    activation_retry_interval_seconds = \(number(config.activationRetryIntervalSeconds))
+
+    # How long to wait after an activation before deciding whether the window came.
+    # Shorter than a Space switch and its animation would condemn a slow window.
+    activation_grace_seconds = \(number(config.activationGraceSeconds))
+
+    # How long an application has to answer an Apple Event, and an Accessibility
+    # question, before it is treated as wedged rather than busy.
+    apple_events_timeout_seconds = \(number(config.appleEventsTimeoutSeconds))
+    accessibility_timeout_seconds = \(number(config.accessibilityTimeoutSeconds))
+
+    # How long a window has to answer a thumbnail capture, and how long one that
+    # did not answer is left out of the next ones.
+    thumbnail_capture_timeout_seconds = \(number(config.thumbnailCaptureTimeoutSeconds))
+    unresponsive_window_cooldown_seconds = \(number(config.unresponsiveWindowCooldownSeconds))
+    """
+  }
+
   private static func number(_ value: Double) -> String {
     value == value.rounded() && abs(value) < 1e15
       ? String(Int(value)) : String(value)

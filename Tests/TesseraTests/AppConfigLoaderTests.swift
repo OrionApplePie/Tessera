@@ -28,6 +28,13 @@ struct AppConfigLoaderTests {
     "close_after_activation",
     "show_menu_bar_icon",
     "debug_mode",
+    "activation_retry_attempts",
+    "activation_retry_interval_seconds",
+    "activation_grace_seconds",
+    "apple_events_timeout_seconds",
+    "accessibility_timeout_seconds",
+    "thumbnail_capture_timeout_seconds",
+    "unresponsive_window_cooldown_seconds",
   ]
 
   @Test("A missing config file leaves every default in place")
@@ -63,6 +70,13 @@ struct AppConfigLoaderTests {
       close_after_activation = false
       show_menu_bar_icon = false
       debug_mode = true
+      activation_retry_attempts = 4
+      activation_retry_interval_seconds = 0.35
+      activation_grace_seconds = 2.5
+      apple_events_timeout_seconds = 6
+      accessibility_timeout_seconds = 4
+      thumbnail_capture_timeout_seconds = 8
+      unresponsive_window_cooldown_seconds = 60
       """
     ) { loader in
       let config = loader.load()
@@ -87,6 +101,13 @@ struct AppConfigLoaderTests {
       #expect(config.closeAfterActivation == false)
       #expect(config.showMenuBarIcon == false)
       #expect(config.debugMode == true)
+      #expect(config.activationRetryAttempts == 4)
+      #expect(config.activationRetryIntervalSeconds == 0.35)
+      #expect(config.activationGraceSeconds == 2.5)
+      #expect(config.appleEventsTimeoutSeconds == 6)
+      #expect(config.accessibilityTimeoutSeconds == 4)
+      #expect(config.thumbnailCaptureTimeoutSeconds == 8)
+      #expect(config.unresponsiveWindowCooldownSeconds == 60)
     }
   }
 

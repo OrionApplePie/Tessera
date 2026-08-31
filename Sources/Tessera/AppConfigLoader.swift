@@ -99,6 +99,7 @@ struct AppConfigLoader {
       values["window_thumbnail_mode"],
       default: config.windowThumbnailMode
     )
+    try applyTimingSettings(values, into: &config)
     config.overlayGrouping = try grouping(
       values["overlay_grouping"],
       default: config.overlayGrouping
@@ -146,6 +147,50 @@ struct AppConfigLoader {
       values["debug_mode"],
       default: config.debugMode,
       key: "debug_mode"
+    )
+  }
+
+  /// The timings that decide how long the switcher waits for the rest of the
+  /// system. Every one of them is a compromise measured on a real desktop rather
+  /// than a value with a right answer, which is why they are all here to be changed.
+  private func applyTimingSettings(
+    _ values: [String: String],
+    into config: inout AppConfig
+  ) throws {
+    config.activationRetryAttempts = try positiveInt(
+      values["activation_retry_attempts"],
+      default: config.activationRetryAttempts,
+      key: "activation_retry_attempts"
+    )
+    config.activationRetryIntervalSeconds = try positiveDouble(
+      values["activation_retry_interval_seconds"],
+      default: config.activationRetryIntervalSeconds,
+      key: "activation_retry_interval_seconds"
+    )
+    config.activationGraceSeconds = try positiveDouble(
+      values["activation_grace_seconds"],
+      default: config.activationGraceSeconds,
+      key: "activation_grace_seconds"
+    )
+    config.appleEventsTimeoutSeconds = try positiveDouble(
+      values["apple_events_timeout_seconds"],
+      default: config.appleEventsTimeoutSeconds,
+      key: "apple_events_timeout_seconds"
+    )
+    config.thumbnailCaptureTimeoutSeconds = try positiveDouble(
+      values["thumbnail_capture_timeout_seconds"],
+      default: config.thumbnailCaptureTimeoutSeconds,
+      key: "thumbnail_capture_timeout_seconds"
+    )
+    config.unresponsiveWindowCooldownSeconds = try positiveDouble(
+      values["unresponsive_window_cooldown_seconds"],
+      default: config.unresponsiveWindowCooldownSeconds,
+      key: "unresponsive_window_cooldown_seconds"
+    )
+    config.accessibilityTimeoutSeconds = try positiveDouble(
+      values["accessibility_timeout_seconds"],
+      default: config.accessibilityTimeoutSeconds,
+      key: "accessibility_timeout_seconds"
     )
   }
 

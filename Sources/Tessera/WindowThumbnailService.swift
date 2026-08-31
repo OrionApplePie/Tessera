@@ -12,7 +12,7 @@ final class WindowThumbnailService {
   /// A capture normally answers in well under 200ms. Some windows never answer at
   /// all — a minimized window of an app that has stopped rendering, for instance —
   /// and ScreenCaptureKit neither returns nor errors for those.
-  private static let captureTimeout = Duration.seconds(2)
+  private let captureTimeout: Duration
 
   private let targetThumbnailSize: CGSize
   private let mode: WindowThumbnailMode
@@ -22,6 +22,9 @@ final class WindowThumbnailService {
   init(config: AppConfig = .default) {
     self.targetThumbnailSize = config.windowThumbnailTargetSize
     self.mode = config.windowThumbnailMode
+    self.captureTimeout = .seconds(config.thumbnailCaptureTimeoutSeconds)
+    self.unresponsiveWindows = UnresponsiveWindowTracker(
+      cooldown: config.unresponsiveWindowCooldownSeconds)
     self.logger = AppLogger(debugMode: config.debugMode, category: .capture)
   }
 
@@ -91,8 +94,9 @@ final class WindowThumbnailService {
         }
       }
 
+      let timeout = captureTimeout
       Task { @MainActor in
-        try? await Task.sleep(for: Self.captureTimeout)
+        try? await Task.sleep(for: timeout)
         capture.cancel()
         resume(.timedOut)
       }
@@ -223,9 +227,13 @@ final class WindowThumbnailService {
 struct UnresponsiveWindowTracker {
   /// Long enough that a wedged window stops costing anything, short enough that a
   /// window which merely was not rendering yet gets another chance.
-  static let cooldown: TimeInterval = 300
+  let cooldown: TimeInterval
 
   private var markedAt: [CGWindowID: Date] = [:]
+
+  init(cooldown: TimeInterval = AppConfig.default.unresponsiveWindowCooldownSeconds) {
+    self.cooldown = cooldown
+  }
 
   var skippedCount: Int {
     markedAt.count
@@ -240,7 +248,7 @@ struct UnresponsiveWindowTracker {
       return false
     }
 
-    guard now.timeIntervalSince(markedAt) < Self.cooldown else {
+    guard now.timeIntervalSince(markedAt) < cooldown else {
       self.markedAt[windowID] = nil
       return false
     }

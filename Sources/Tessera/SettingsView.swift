@@ -5,6 +5,7 @@ enum SettingsSection: String, CaseIterable, Identifiable {
   case overlay
   case previews
   case behaviour
+  case timing
 
   var id: String {
     rawValue
@@ -18,6 +19,8 @@ enum SettingsSection: String, CaseIterable, Identifiable {
       return "Previews"
     case .behaviour:
       return "Behaviour"
+    case .timing:
+      return "Timing"
     }
   }
 
@@ -29,6 +32,8 @@ enum SettingsSection: String, CaseIterable, Identifiable {
       return "photo"
     case .behaviour:
       return "gearshape"
+    case .timing:
+      return "timer"
     }
   }
 }
@@ -80,6 +85,8 @@ struct SettingsView: View {
       previewsPage
     case .behaviour:
       behaviourPage
+    case .timing:
+      timingPage
     }
   }
 
@@ -155,6 +162,62 @@ struct SettingsView: View {
         .disabled(model.thumbnailMode != .fit)
 
         Stepper("At most \(model.maxWindows) windows", value: $model.maxWindows, in: 1...96)
+      }
+    }
+  }
+
+  /// Everything the switcher waits for. Each of these is a compromise measured on
+  /// a real desktop rather than a value with a right answer, so each is here.
+  private var timingPage: some View {
+    Form {
+      Section("Reaching a window") {
+        Stepper(
+          "Ask again \(model.activationRetryAttempts) times",
+          value: $model.activationRetryAttempts,
+          in: 1...50
+        )
+        Stepper(
+          "Every \(seconds(model.activationRetryIntervalSeconds))",
+          value: $model.activationRetryIntervalSeconds,
+          in: 0.05...2,
+          step: 0.05
+        )
+        Stepper(
+          "Judge the outcome after \(seconds(model.activationGraceSeconds))",
+          value: $model.activationGraceSeconds,
+          in: 0.5...10,
+          step: 0.5
+        )
+      }
+
+      Section("Waiting for an application") {
+        Stepper(
+          "Apple Events: \(seconds(model.appleEventsTimeoutSeconds))",
+          value: $model.appleEventsTimeoutSeconds,
+          in: 0.5...30,
+          step: 0.5
+        )
+        Stepper(
+          "Accessibility: \(seconds(model.accessibilityTimeoutSeconds))",
+          value: $model.accessibilityTimeoutSeconds,
+          in: 0.5...30,
+          step: 0.5
+        )
+      }
+
+      Section("Waiting for a preview") {
+        Stepper(
+          "Give up after \(seconds(model.thumbnailCaptureTimeoutSeconds))",
+          value: $model.thumbnailCaptureTimeoutSeconds,
+          in: 0.5...30,
+          step: 0.5
+        )
+        Stepper(
+          "Then leave it alone for \(seconds(model.unresponsiveWindowCooldownSeconds))",
+          value: $model.unresponsiveWindowCooldownSeconds,
+          in: 5...3600,
+          step: 30
+        )
       }
     }
   }

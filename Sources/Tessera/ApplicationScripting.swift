@@ -14,12 +14,16 @@ import Foundation
 /// Every call therefore reports failure rather than throwing, and the caller
 /// carries on as it would have without it.
 enum ApplicationScripting {
-  /// Long enough for a busy application to answer, short enough that a wedged one
-  /// does not hold up a window switch.
-  private static let timeout = Duration.seconds(3)
-
   /// Brings the named window of an application to the front.
-  static func raiseWindow(titled title: String, bundleIdentifier: String) async -> Bool {
+  ///
+  /// `timeout` is how long a busy application is given to answer before the script
+  /// is abandoned — long enough to be worth asking, short enough that a wedged
+  /// application does not hold up a window switch.
+  static func raiseWindow(
+    titled title: String,
+    bundleIdentifier: String,
+    timeout: Duration
+  ) async -> Bool {
     guard !title.isEmpty else {
       return false
     }
@@ -45,14 +49,14 @@ enum ApplicationScripting {
       return false
       """
 
-    return await run(source)
+    return await run(source, timeout: timeout)
   }
 
   /// Runs a script off the main actor, and gives up on it rather than waiting for
   /// an application that is not answering. An abandoned script is left to finish on
   /// its own — the alternative is a switcher that stops responding because some
   /// application did.
-  private static func run(_ source: String) async -> Bool {
+  private static func run(_ source: String, timeout: Duration) async -> Bool {
     await withCheckedContinuation { continuation in
       let result = ScriptResult(continuation)
 

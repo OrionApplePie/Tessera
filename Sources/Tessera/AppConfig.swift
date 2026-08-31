@@ -44,6 +44,21 @@ struct AppConfig: Equatable {
   var windowOrder: WindowOrder
   /// What a tile shows of a window: the whole of it, or its corner at full size.
   var windowThumbnailMode: WindowThumbnailMode
+  /// How many times a window is asked to come forward after its application has
+  /// been activated and the Space has had a chance to switch.
+  var activationRetryAttempts: Int
+  /// How long to wait between those attempts.
+  var activationRetryIntervalSeconds: Double
+  /// How long to wait after an activation before judging whether the window came.
+  var activationGraceSeconds: Double
+  /// How long an application has to answer an Apple Event before it is abandoned.
+  var appleEventsTimeoutSeconds: Double
+  /// How long a window has to answer a thumbnail capture before it is abandoned.
+  var thumbnailCaptureTimeoutSeconds: Double
+  /// How long a window that ignored a capture is left out of the next ones.
+  var unresponsiveWindowCooldownSeconds: Double
+  /// How long an application has to answer an Accessibility question.
+  var accessibilityTimeoutSeconds: Double
   /// Whether the overlay splits its tiles into per-Space groups.
   var overlayGrouping: OverlayGrouping
   /// The overlay's own surface. Opaque by default; give it an alpha channel to
@@ -84,6 +99,26 @@ struct AppConfig: Equatable {
     // The whole window. A corner reads better for text, but only once someone has
     // decided that is what they want to see.
     windowThumbnailMode: .fit,
+    // Ten attempts two hundred milliseconds apart. Measured: Accessibility knew
+    // nothing of the window before the activation and both Word documents two
+    // seconds after, so the budget is two seconds and the step is fine enough that
+    // an application which answers sooner is not kept waiting.
+    activationRetryAttempts: 10,
+    activationRetryIntervalSeconds: 0.2,
+    // Long enough for a Space switch and its animation to finish, so a window is
+    // not condemned for being slow.
+    activationGraceSeconds: 1.5,
+    // Long enough for a busy application to answer, short enough that a wedged one
+    // does not hold up a window switch.
+    appleEventsTimeoutSeconds: 3,
+    // A capture normally answers in well under 200ms; one that has not answered in
+    // two seconds is a window with no surface to capture.
+    thumbnailCaptureTimeoutSeconds: 2,
+    // Long enough that a wedged window stops costing anything, short enough that a
+    // window which merely was not rendering yet gets another chance.
+    unresponsiveWindowCooldownSeconds: 300,
+    // Measured against a normal desktop: half a second was not enough, two is.
+    accessibilityTimeoutSeconds: 2,
     overlayGrouping: .displays,
     // Matte graphite: dark enough for white tile text, light enough not to read as
     // a hole in the screen.

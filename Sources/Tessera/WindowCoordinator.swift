@@ -28,18 +28,12 @@ final class WindowCoordinator: ObservableObject {
   private var spaceTracker = SpaceTracker()
   private var orderRegistry = WindowOrderRegistry()
   private var isListHeld = false
-  /// How long to keep asking Accessibility for a window after the Space switch.
-  /// Measured: nothing before activation, both Word documents two seconds after,
-  /// so ten attempts two hundred milliseconds apart cover the slow answers without
-  /// leaving a window switch hanging on an application that never answers.
-  private static let raiseAttempts = 10
-  private static let raiseRetryInterval = Duration.milliseconds(200)
   /// Set the first time a tile is dragged. The arrangement then outranks the
   /// configured order for the rest of the session, because an order someone made
   /// by hand is not one a sort should undo.
   private var isArrangedByHand = false
   private var lastForeignFrontmostProcessID: pid_t?
-  private var activationVerifier = ActivationVerifier()
+  private var activationVerifier: ActivationVerifier
   private let learnedWindows: LearnedWindowStore
   private var workspaceObservers: [any NSObjectProtocol] = []
 
@@ -60,6 +54,7 @@ final class WindowCoordinator: ObservableObject {
     self.thumbnailService = thumbnailService ?? WindowThumbnailService(config: config)
     self.activator = activator ?? WindowActivator(config: config)
     self.menuActivator = WindowMenuActivator(debugMode: config.debugMode)
+    self.activationVerifier = ActivationVerifier(grace: config.activationGraceSeconds)
     self.previewCache = previewCache ?? WindowPreviewCache(config: config)
   }
 
@@ -305,6 +300,52 @@ final class WindowCoordinator: ObservableObject {
       await self?.refreshNow()
     }
   }
+  /// Activation by position, for the overlay's number-key shortcuts.
+  func activateWindow(at index: Int) {
+    guard tiles.indices.contains(index) else {
+      return
+    }
+
+    activateWindow(id: tiles[index].id)
+  }
+  private func startRefreshLoop() {
+    guard refreshTask == nil else {
+      return
+    }
+
+    refreshTask = Task { @MainActor [weak self] in
+      while !Task.isCancelled {
+        guard let self else {
+          return
+        }
+
+        let nanoseconds = UInt64(self.config.refreshIntervalSeconds * 1_000_000_000)
+        try? await Task.sleep(nanoseconds: nanoseconds)
+
+        guard !Task.isCancelled else {
+          return
+        }
+
+        guard !self.isRefreshPaused, !self.isListHeld else {
+          continue
+        }
+
+        await self.refreshNow()
+      }
+    }
+  }
+
+}
+
+// MARK: - Raising
+
+/// Bringing one window forward, by whichever of the three ways answers.
+///
+/// Accessibility first, because it aims at a window without side effects; the
+/// application's own Window menu next, because it is the only list that names a
+/// window on another Space; Apple Events last, because they need a permission of
+/// their own and most applications cannot answer them at all.
+extension WindowCoordinator {
   /// Brings a window forward without taking the keyboard from the overlay.
   ///
   /// Returns whether the window could be aimed at, so that stepping past a window
@@ -340,13 +381,16 @@ final class WindowCoordinator: ObservableObject {
       return
     }
 
+    let attempts = config.activationRetryAttempts
+    let interval = Duration.seconds(config.activationRetryIntervalSeconds)
+
     Task { @MainActor [weak self] in
       // How long an application takes to appear in Accessibility after coming
       // forward varies — measured at under half a second for some and over a second
       // for others — so this asks again until it works or the window plainly is not
       // going to be listed.
-      for attempt in 1...Self.raiseAttempts {
-        try? await Task.sleep(for: Self.raiseRetryInterval)
+      for attempt in 1...attempts {
+        try? await Task.sleep(for: interval)
 
         guard let self,
           NSWorkspace.shared.frontmostApplication?.processIdentifier == tile.processID
@@ -395,48 +439,13 @@ final class WindowCoordinator: ObservableObject {
 
     let raised = await ApplicationScripting.raiseWindow(
       titled: tile.title,
-      bundleIdentifier: bundleIdentifier
+      bundleIdentifier: bundleIdentifier,
+      timeout: .seconds(config.appleEventsTimeoutSeconds)
     )
 
     logger.info("Asked \(tile.displayAppName) through Apple Events: raised=\(raised)")
     return raised
   }
-
-  /// Activation by position, for the overlay's number-key shortcuts.
-  func activateWindow(at index: Int) {
-    guard tiles.indices.contains(index) else {
-      return
-    }
-
-    activateWindow(id: tiles[index].id)
-  }
-  private func startRefreshLoop() {
-    guard refreshTask == nil else {
-      return
-    }
-
-    refreshTask = Task { @MainActor [weak self] in
-      while !Task.isCancelled {
-        guard let self else {
-          return
-        }
-
-        let nanoseconds = UInt64(self.config.refreshIntervalSeconds * 1_000_000_000)
-        try? await Task.sleep(nanoseconds: nanoseconds)
-
-        guard !Task.isCancelled else {
-          return
-        }
-
-        guard !self.isRefreshPaused, !self.isListHeld else {
-          continue
-        }
-
-        await self.refreshNow()
-      }
-    }
-  }
-
 }
 
 // MARK: - Learning

@@ -13,10 +13,15 @@ struct ActivationVerifier {
     let cameForward: Bool
   }
 
-  /// Long enough for a Space switch and its animation to finish.
-  static let grace: TimeInterval = 1.5
+  /// Long enough for a Space switch and its animation to finish. Configurable,
+  /// because how long that takes is a property of the machine and not of this code.
+  let grace: TimeInterval
 
   private var pending: [CGWindowID: (signature: WindowSignature, activatedAt: Date)] = [:]
+
+  init(grace: TimeInterval = AppConfig.default.activationGraceSeconds) {
+    self.grace = grace
+  }
 
   mutating func recordActivation(
     of windowID: CGWindowID,
@@ -37,7 +42,7 @@ struct ActivationVerifier {
   ) -> [Outcome] {
     var outcomes: [Outcome] = []
 
-    for (windowID, entry) in pending where now.timeIntervalSince(entry.activatedAt) >= Self.grace {
+    for (windowID, entry) in pending where now.timeIntervalSince(entry.activatedAt) >= grace {
       pending[windowID] = nil
 
       guard existing.contains(windowID) else {

@@ -519,6 +519,24 @@ Return and Escape cannot be taken this way — stealing Return system-wide, even
 briefly, is not worth it — so the main hotkey becomes the way to close. That is
 tolerable because a step is itself the switch: there is nothing left to confirm.
 
+## The numbers, and which of them are settings
+
+Every timing in this project is a compromise measured on one desktop: how long an
+application takes to appear in Accessibility after coming forward, how long a
+capture may hang before it is abandoned, how long a Space switch and its animation
+take before a window can be judged for not arriving. None of them has a right
+answer on a machine that is not this one, so all seven are configuration:
+`activation_retry_attempts`, `activation_retry_interval_seconds`,
+`activation_grace_seconds`, `apple_events_timeout_seconds`,
+`accessibility_timeout_seconds`, `thumbnail_capture_timeout_seconds` and
+`unresponsive_window_cooldown_seconds`.
+
+Three numbers deliberately stay in the code: how long `quit` and `restart` wait for
+the lock to be released, how often they look, and how far the run loop is pumped
+between those looks. They are not waiting for another application's behaviour, they
+are the mechanics of one command waiting for one process it has just signalled, and
+a person tuning them would be debugging the CLI rather than configuring a switcher.
+
 ## What a reader should not try again
 
 - Pairing `NSScreen` frames with ScreenCaptureKit frames without flipping Y.
