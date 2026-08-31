@@ -122,11 +122,6 @@ struct AppConfigLoader {
       key: "close_hotkey"
     )
     config.closeAction = try closeAction(values["close_action"], default: config.closeAction)
-    config.usesAppleEvents = try bool(
-      values["use_apple_events"],
-      default: config.usesAppleEvents,
-      key: "use_apple_events"
-    )
     config.ignoresMenuBarApplications = try bool(
       values["ignore_menu_bar_apps"],
       default: config.ignoresMenuBarApplications,
@@ -157,40 +152,15 @@ struct AppConfigLoader {
     _ values: [String: String],
     into config: inout AppConfig
   ) throws {
-    config.activationRetryAttempts = try positiveInt(
-      values["activation_retry_attempts"],
-      default: config.activationRetryAttempts,
-      key: "activation_retry_attempts"
+    config.activationSettleSeconds = try positiveDouble(
+      values["activation_settle_seconds"],
+      default: config.activationSettleSeconds,
+      key: "activation_settle_seconds"
     )
-    config.activationRetryIntervalSeconds = try positiveDouble(
-      values["activation_retry_interval_seconds"],
-      default: config.activationRetryIntervalSeconds,
-      key: "activation_retry_interval_seconds"
-    )
-    config.activationGraceSeconds = try positiveDouble(
-      values["activation_grace_seconds"],
-      default: config.activationGraceSeconds,
-      key: "activation_grace_seconds"
-    )
-    config.appleEventsTimeoutSeconds = try positiveDouble(
-      values["apple_events_timeout_seconds"],
-      default: config.appleEventsTimeoutSeconds,
-      key: "apple_events_timeout_seconds"
-    )
-    config.thumbnailCaptureTimeoutSeconds = try positiveDouble(
-      values["thumbnail_capture_timeout_seconds"],
-      default: config.thumbnailCaptureTimeoutSeconds,
-      key: "thumbnail_capture_timeout_seconds"
-    )
-    config.unresponsiveWindowCooldownSeconds = try positiveDouble(
-      values["unresponsive_window_cooldown_seconds"],
-      default: config.unresponsiveWindowCooldownSeconds,
-      key: "unresponsive_window_cooldown_seconds"
-    )
-    config.accessibilityTimeoutSeconds = try positiveDouble(
-      values["accessibility_timeout_seconds"],
-      default: config.accessibilityTimeoutSeconds,
-      key: "accessibility_timeout_seconds"
+    config.unresponsiveAfterSeconds = try positiveDouble(
+      values["unresponsive_after_seconds"],
+      default: config.unresponsiveAfterSeconds,
+      key: "unresponsive_after_seconds"
     )
   }
 

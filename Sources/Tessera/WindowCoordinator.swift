@@ -28,6 +28,8 @@ final class WindowCoordinator: ObservableObject {
   private var spaceTracker = SpaceTracker()
   private var orderRegistry = WindowOrderRegistry()
   private var isListHeld = false
+  private var pendingRaise: WindowTileModel?
+  private var pendingRaiseDeadline: Task<Void, Never>?
   /// Set the first time a tile is dragged. The arrangement then outranks the
   /// configured order for the rest of the session, because an order someone made
   /// by hand is not one a sort should undo.
@@ -54,7 +56,7 @@ final class WindowCoordinator: ObservableObject {
     self.thumbnailService = thumbnailService ?? WindowThumbnailService(config: config)
     self.activator = activator ?? WindowActivator(config: config)
     self.menuActivator = WindowMenuActivator(debugMode: config.debugMode)
-    self.activationVerifier = ActivationVerifier(grace: config.activationGraceSeconds)
+    self.activationVerifier = ActivationVerifier(grace: config.activationSettleSeconds)
     self.previewCache = previewCache ?? WindowPreviewCache(config: config)
   }
 
@@ -81,6 +83,7 @@ final class WindowCoordinator: ObservableObject {
     isRunning = false
     refreshTask?.cancel()
     refreshTask = nil
+    clearPendingRaise()
 
     for observer in workspaceObservers {
       NSWorkspace.shared.notificationCenter.removeObserver(observer)
@@ -341,10 +344,9 @@ final class WindowCoordinator: ObservableObject {
 
 /// Bringing one window forward, by whichever of the three ways answers.
 ///
-/// Accessibility first, because it aims at a window without side effects; the
-/// application's own Window menu next, because it is the only list that names a
-/// window on another Space; Apple Events last, because they need a permission of
-/// their own and most applications cannot answer them at all.
+/// Accessibility first, because it aims at a window without side effects, and the
+/// application's own Window menu when that fails, because it is the only public
+/// list that names a window on another Space.
 extension WindowCoordinator {
   /// Brings a window forward without taking the keyboard from the overlay.
   ///
@@ -374,51 +376,67 @@ extension WindowCoordinator {
   private func raiseOnceTheSpaceHasSwitched(_ tile: WindowTileModel) {
     // The Window menu is asked first, because it answers the case that brought us
     // here — a window Accessibility cannot see — and answers it at once. Measured
-    // on two fullscreen VS Code windows: 931ms to reach the menu through the
-    // retries below, against 30ms when it is asked straight away. A menu that does
-    // not name the window costs one lookup and falls through to them.
+    // on two fullscreen VS Code windows: 931ms to reach the menu through retries,
+    // against 30ms when it is asked straight away.
     if raiseThroughWindowMenu(tile) {
       return
     }
 
-    let attempts = config.activationRetryAttempts
-    let interval = Duration.seconds(config.activationRetryIntervalSeconds)
-
-    Task { @MainActor [weak self] in
-      // How long an application takes to appear in Accessibility after coming
-      // forward varies — measured at under half a second for some and over a second
-      // for others — so this asks again until it works or the window plainly is not
-      // going to be listed.
-      for attempt in 1...attempts {
-        try? await Task.sleep(for: interval)
-
-        guard let self,
-          NSWorkspace.shared.frontmostApplication?.processIdentifier == tile.processID
-        else {
-          return
-        }
-
-        if (try? self.activator.raiseWithoutActivating(tile)) == .raisedTheWindow {
-          self.logger.info("Raised the window on attempt \(attempt) after the switch")
-          return
-        }
-
-        // Once the switch has plainly happened and Accessibility still knows
-        // nothing — Chrome and Finder publish no windows to it at all — the
-        // application is asked directly.
-        if attempt == 3, await self.raiseThroughAppleEvents(tile) {
-          return
-        }
-
-        // Asked once more late on: an application that had just been activated may
-        // not have had a menu bar to read at the first attempt.
-        if attempt == 6, self.raiseThroughWindowMenu(tile) {
-          return
-        }
+    // Otherwise the window is remembered, and asked for again when the system says
+    // something has changed. The wait below is not a poll: it is only the point at
+    // which waiting stops.
+    pendingRaise = tile
+    pendingRaiseDeadline?.cancel()
+    pendingRaiseDeadline = Task { @MainActor [weak self] in
+      guard let settle = self?.config.activationSettleSeconds else {
+        return
       }
 
-      self?.logger.info("The window could not be raised by any means")
+      try? await Task.sleep(for: .seconds(settle))
+
+      guard let self, self.pendingRaise?.id == tile.id else {
+        return
+      }
+
+      self.giveUpOnPendingRaise(tile)
     }
+  }
+
+  /// Asks again for the window that could not be reached, now that the system has
+  /// announced a change. Called for a Space switch and for an application coming
+  /// forward, which are the two things that turn an unreachable window into a
+  /// reachable one.
+  private func attemptPendingRaise() {
+    guard let tile = pendingRaise,
+      NSWorkspace.shared.frontmostApplication?.processIdentifier == tile.processID,
+      (try? activator.raiseWithoutActivating(tile)) == .raisedTheWindow
+    else {
+      return
+    }
+
+    logger.info("Raised the window once the system had settled")
+    clearPendingRaise()
+  }
+
+  /// The last try, for when nothing was announced at all — the application was
+  /// already frontmost and no Space had to change — and the report when there is
+  /// nothing left to try.
+  private func giveUpOnPendingRaise(_ tile: WindowTileModel) {
+    if (try? activator.raiseWithoutActivating(tile)) == .raisedTheWindow {
+      logger.info("Raised the window when the wait ran out")
+    } else if raiseThroughWindowMenu(tile) {
+      logger.info("Raised the window through a menu that could not be read earlier")
+    } else {
+      logger.info("The window could not be raised by any means")
+    }
+
+    clearPendingRaise()
+  }
+
+  private func clearPendingRaise() {
+    pendingRaise = nil
+    pendingRaiseDeadline?.cancel()
+    pendingRaiseDeadline = nil
   }
 
   /// Presses the window's entry in its application's own Window menu, which is the
@@ -428,24 +446,6 @@ extension WindowCoordinator {
     menuActivator.raiseWindow(titled: tile.title, processID: tile.processID)
   }
 
-  /// Asks the application itself to raise the window, when Accessibility cannot.
-  private func raiseThroughAppleEvents(_ tile: WindowTileModel) async -> Bool {
-    guard config.usesAppleEvents,
-      let bundleIdentifier = NSRunningApplication(processIdentifier: tile.processID)?
-        .bundleIdentifier
-    else {
-      return false
-    }
-
-    let raised = await ApplicationScripting.raiseWindow(
-      titled: tile.title,
-      bundleIdentifier: bundleIdentifier,
-      timeout: .seconds(config.appleEventsTimeoutSeconds)
-    )
-
-    logger.info("Asked \(tile.displayAppName) through Apple Events: raised=\(raised)")
-    return raised
-  }
 }
 
 // MARK: - Learning
@@ -528,23 +528,41 @@ extension WindowCoordinator {
     ]
 
     workspaceObservers = names.map { name in
-      NSWorkspace.shared.notificationCenter.addObserver(
-        forName: name,
-        object: nil,
-        queue: .main
-      ) { [weak self] _ in
-        // Registered against the main queue, so the hop is a formality rather than
-        // a thread change.
-        MainActor.assumeIsolated {
-          guard let self, self.isRunning else {
-            return
-          }
+      observeWorkspace(name) { coordinator in
+        coordinator.attemptPendingRaise()
+        coordinator.logger.debug("Workspace changed; refreshing")
 
-          self.logger.debug("Workspace changed; refreshing")
-          Task { @MainActor [weak self] in
-            await self?.refreshNow()
-          }
+        Task { @MainActor [weak coordinator] in
+          await coordinator?.refreshNow()
         }
+      }
+    }
+
+    // An application coming forward asks for nothing else: it happens on every
+    // switch, and rebuilding the list each time would cost more than it tells.
+    workspaceObservers.append(
+      observeWorkspace(NSWorkspace.didActivateApplicationNotification) { coordinator in
+        coordinator.attemptPendingRaise()
+      })
+  }
+
+  private func observeWorkspace(
+    _ name: Notification.Name,
+    _ body: @escaping @MainActor (WindowCoordinator) -> Void
+  ) -> NSObjectProtocol {
+    NSWorkspace.shared.notificationCenter.addObserver(
+      forName: name,
+      object: nil,
+      queue: .main
+    ) { [weak self] _ in
+      // Registered against the main queue, so the hop is a formality rather than a
+      // thread change.
+      MainActor.assumeIsolated {
+        guard let self, self.isRunning else {
+          return
+        }
+
+        body(self)
       }
     }
   }

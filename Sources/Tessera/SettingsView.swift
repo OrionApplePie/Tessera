@@ -172,51 +172,19 @@ struct SettingsView: View {
     Form {
       Section("Reaching a window") {
         Stepper(
-          "Ask again \(model.activationRetryAttempts) times",
-          value: $model.activationRetryAttempts,
-          in: 1...50
-        )
-        Stepper(
-          "Every \(seconds(model.activationRetryIntervalSeconds))",
-          value: $model.activationRetryIntervalSeconds,
-          in: 0.05...2,
-          step: 0.05
-        )
-        Stepper(
-          "Judge the outcome after \(seconds(model.activationGraceSeconds))",
-          value: $model.activationGraceSeconds,
+          "Give the system \(seconds(model.activationSettleSeconds)) to settle",
+          value: $model.activationSettleSeconds,
           in: 0.5...10,
           step: 0.5
         )
       }
 
-      Section("Waiting for an application") {
+      Section("Waiting for an answer") {
         Stepper(
-          "Apple Events: \(seconds(model.appleEventsTimeoutSeconds))",
-          value: $model.appleEventsTimeoutSeconds,
+          "Wedged after \(seconds(model.unresponsiveAfterSeconds))",
+          value: $model.unresponsiveAfterSeconds,
           in: 0.5...30,
           step: 0.5
-        )
-        Stepper(
-          "Accessibility: \(seconds(model.accessibilityTimeoutSeconds))",
-          value: $model.accessibilityTimeoutSeconds,
-          in: 0.5...30,
-          step: 0.5
-        )
-      }
-
-      Section("Waiting for a preview") {
-        Stepper(
-          "Give up after \(seconds(model.thumbnailCaptureTimeoutSeconds))",
-          value: $model.thumbnailCaptureTimeoutSeconds,
-          in: 0.5...30,
-          step: 0.5
-        )
-        Stepper(
-          "Then leave it alone for \(seconds(model.unresponsiveWindowCooldownSeconds))",
-          value: $model.unresponsiveWindowCooldownSeconds,
-          in: 5...3600,
-          step: 30
         )
       }
     }

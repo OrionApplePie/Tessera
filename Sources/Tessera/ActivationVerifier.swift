@@ -19,7 +19,7 @@ struct ActivationVerifier {
 
   private var pending: [CGWindowID: (signature: WindowSignature, activatedAt: Date)] = [:]
 
-  init(grace: TimeInterval = AppConfig.default.activationGraceSeconds) {
+  init(grace: TimeInterval = AppConfig.default.activationSettleSeconds) {
     self.grace = grace
   }
 

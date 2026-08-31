@@ -21,7 +21,7 @@ struct MinimizedWindowService {
   private let logger: AppLogger
 
   init(config: AppConfig = .default) {
-    self.messagingTimeout = Float(config.accessibilityTimeoutSeconds)
+    self.messagingTimeout = Float(config.unresponsiveAfterSeconds)
     self.logger = AppLogger(debugMode: config.debugMode, category: .capture)
   }
 

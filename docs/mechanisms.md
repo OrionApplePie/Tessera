@@ -205,13 +205,6 @@ Three ways to reach the window, tried in turn:
 2. **Accessibility again, after the switch.** Retried every 200 ms for two
    seconds, stopping the moment it works or the user goes elsewhere. This is what
    makes a second Word document reachable.
-3. **The application's own scripting interface**, through Apple Events, behind
-   `use_apple_events`. Chrome and Finder publish no windows to Accessibility at
-   all; `set index of window to 1` followed by `activate` is the only public way to
-   name one of theirs. macOS asks permission per application, a refusal costs
-   nothing, and the script runs off the main actor under a three-second timeout —
-   an application that does not answer must not hold up a window switch.
-
 What none of them reaches: a particular window of an application with no scripting
 dictionary that keeps that window on another Space. Obsidian is the example —
 Electron, no `.sdef`, no `NSAppleScriptEnabled`.
@@ -226,7 +219,8 @@ Every fullscreen window is a Space of its own, and Accessibility lists only the
 windows on the Space showing now. Two fullscreen windows of one application are
 therefore invisible to each other: measured on VS Code, `kAXWindowsAttribute`
 named the one on screen and nothing else, while the window server listed both.
-Apple Events reach neither — Electron applications are not scriptable.
+Nothing else reaches them: Electron applications answer no scripting interface
+either, which is what the third way used to be.
 
 The application's own Window menu does list both, by title, across Spaces:
 
@@ -263,8 +257,8 @@ the other, measured on macOS 26 with `kAXTitleAttribute` against `kCGWindowName`
 for the same window id.
 
 Matching on equality alone therefore aimed at nothing. The retry budget went by,
-Apple Events were asked and refused, and the log said the window could not be
-raised by any means — while the application had come forward and its window was on
+every way of asking was spent, and the log said the window could not be raised by
+any means — while the application had come forward and its window was on
 screen, because it had only the one. An application with several windows would
 have raised whichever it liked.
 
@@ -291,10 +285,9 @@ Everything public was checked and none of it separates a ghost from a real windo
 
 Two things do know. The private `CGSCopySpacesForWindows` reports no Space at all
 for a ghost — exact, one call, and rejected here for the same reason as elsewhere.
-And the application itself, asked through Apple Events, does not list it. The
-second is public and already available behind `use_apple_events`; using it to
-filter the window list, rather than only to raise a window, is the obvious next
-step and is not done yet.
+And the application itself does not list it: not in a scripting interface, and not
+in its Window menu, which is public, already read for raising, and the obvious
+next step for filtering the list as well. That is not done yet.
 
 Note that a minimized window also belongs to no Space, so neither signal can tell
 a ghost from something in the Dock without asking Accessibility as well.
@@ -521,21 +514,40 @@ tolerable because a step is itself the switch: there is nothing left to confirm.
 
 ## The numbers, and which of them are settings
 
-Every timing in this project is a compromise measured on one desktop: how long an
-application takes to appear in Accessibility after coming forward, how long a
-capture may hang before it is abandoned, how long a Space switch and its animation
-take before a window can be judged for not arriving. None of them has a right
-answer on a machine that is not this one, so all seven are configuration:
-`activation_retry_attempts`, `activation_retry_interval_seconds`,
-`activation_grace_seconds`, `apple_events_timeout_seconds`,
-`accessibility_timeout_seconds`, `thumbnail_capture_timeout_seconds` and
-`unresponsive_window_cooldown_seconds`.
+There were seven of them, and most were guesses at how long something else would
+take. Two remain, because most of the questions had an answer better than a number.
 
-Three numbers deliberately stay in the code: how long `quit` and `restart` wait for
-the lock to be released, how often they look, and how far the run loop is pumped
-between those looks. They are not waiting for another application's behaviour, they
-are the mechanics of one command waiting for one process it has just signalled, and
-a person tuning them would be debugging the CLI rather than configuring a switcher.
+**Ask when told, not on a timer.** macOS announces a Space change and an
+application coming forward, and both are exactly the moment an unreachable window
+may have become reachable. Waiting for the announcement replaced ten attempts two
+hundred milliseconds apart — but only in a real application: measured, a plain
+command-line process listening for `NSWorkspace.activeSpaceDidChangeNotification`
+never hears it, while the same code as an accessory application hears every switch
+about half a second after the key, which is the animation. Tessera is an accessory
+application, so it hears.
+
+**Wait for the condition, not for a duration.** A capture hangs because the window
+has no surface — it is minimized, or its application has stopped drawing. That
+state does not end after five minutes, it ends when the window is on screen again,
+and the window server says so on every refresh. A cooldown was a guess in both
+directions; the edge is exact.
+
+**Delete the mechanism, delete its timing.** The Apple Events path had its own
+timeout, its own setting and its own permission prompt for every application. The
+Window menu reaches the same windows — Finder, Chrome and friends, verified — and
+also the ones Apple Events never could, so the whole path went, and the number with
+it.
+
+What is left is `activation_settle_seconds`, the point at which waiting for the
+system stops, and `unresponsive_after_seconds`, the point at which not answering
+becomes wedged rather than busy. Neither can be derived from an event: a capture
+that never returns and one that is slow look the same until time passes.
+
+Three numbers stay in the code and out of the config: how long `quit` and `restart`
+wait for the lock to be released, how often they look, and how far the run loop is
+pumped between those looks. They are not waiting on another application's
+behaviour, they are the mechanics of one command waiting for one process it has
+just signalled.
 
 ## What a reader should not try again
 

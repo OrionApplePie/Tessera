@@ -23,12 +23,6 @@ max_windows = 24
 # the shortcut it collides with.
 hotkey = "ctrl+alt+space"
 
-# Ask an application directly, through Apple Events, to raise a window that
-# Accessibility cannot reach — Chrome and Finder publish no windows to it, so
-# without this they can only be brought forward and choose the window themselves.
-# macOS asks permission for each application the first time.
-use_apple_events = true
-
 # Leave out applications with no Dock icon — the ones that live in the menu bar.
 # Their windows are panels they show themselves, and Accessibility often does not
 # list them, so a tile for one could not be raised anyway.
@@ -80,24 +74,14 @@ debug_mode = false
 # How long the switcher waits for the rest of the system. Every one of these is a
 # compromise measured on a real desktop, not a value with a right answer.
 
-# How many times a window is asked to come forward after its application has been
-# activated, and how long to wait between the attempts. Ten times two hundred
-# milliseconds is two seconds: measured, Accessibility knew nothing of a window
-# before the activation and both Word documents two seconds after.
-activation_retry_attempts = 10
-activation_retry_interval_seconds = 0.2
+# How long the system is given to finish a switch — a Space to change, an
+# application to come forward — before a window that has not appeared is taken to
+# be one that is not coming. Nothing is polled while it passes: macOS announces
+# both of those, and the switcher asks again when it hears.
+activation_settle_seconds = 1.5
 
-# How long to wait after an activation before deciding whether the window came.
-# Shorter than a Space switch and its animation would condemn a slow window.
-activation_grace_seconds = 1.5
-
-# How long an application has to answer an Apple Event, and an Accessibility
-# question, before it is treated as wedged rather than busy.
-apple_events_timeout_seconds = 3
-accessibility_timeout_seconds = 2
-
-# How long a window has to answer a thumbnail capture, and how long one that did
-# not answer is left out of the next ones. A minimized window has no surface to
-# capture and never answers at all.
-thumbnail_capture_timeout_seconds = 2
-unresponsive_window_cooldown_seconds = 300
+# How long anything may go without answering before it is treated as wedged
+# rather than busy: a window asked for a preview, an application asked an
+# Accessibility question. A window that misses it is left alone until it comes
+# back on screen, which is when it has a surface to capture again.
+unresponsive_after_seconds = 2

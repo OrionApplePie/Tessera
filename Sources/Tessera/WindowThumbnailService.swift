@@ -22,9 +22,7 @@ final class WindowThumbnailService {
   init(config: AppConfig = .default) {
     self.targetThumbnailSize = config.windowThumbnailTargetSize
     self.mode = config.windowThumbnailMode
-    self.captureTimeout = .seconds(config.thumbnailCaptureTimeoutSeconds)
-    self.unresponsiveWindows = UnresponsiveWindowTracker(
-      cooldown: config.unresponsiveWindowCooldownSeconds)
+    self.captureTimeout = .seconds(config.unresponsiveAfterSeconds)
     self.logger = AppLogger(debugMode: config.debugMode, category: .capture)
   }
 
@@ -45,14 +43,16 @@ final class WindowThumbnailService {
       var result: [CGWindowID: CGImage] = [:]
 
       for window in content.windows where requested.contains(window.windowID) {
-        guard !unresponsiveWindows.shouldSkip(window.windowID) else {
+        guard !unresponsiveWindows.shouldSkip(window.windowID, isOnScreen: window.isOnScreen)
+        else {
           continue
         }
 
         do {
           result[window.windowID] = try await captureThumbnail(for: window)
         } catch WindowThumbnailError.timedOut {
-          unresponsiveWindows.markUnresponsive(window.windowID)
+          unresponsiveWindows.markUnresponsive(
+            window.windowID, isOnScreen: window.isOnScreen)
           logger.warning(
             "Window \(window.windowID) did not answer a thumbnail capture; "
               + "skipping it for now and showing a name-only tile"
@@ -222,38 +222,49 @@ final class WindowThumbnailService {
 
 }
 
-/// Remembers windows whose capture never came back, so they are asked at most
-/// once per cooldown instead of stalling every refresh.
+/// Remembers windows whose capture never came back, and gives one another chance
+/// when it returns to the screen.
+///
+/// A capture hangs because the window has no surface to capture — a minimized
+/// window of an application that has stopped drawing. That is not a state which
+/// ends after some number of minutes, it ends when the window is on screen again,
+/// and the window server says so on every refresh. Waiting for that is exact, where
+/// a cooldown was a guess in both directions: too long to notice a window that came
+/// straight back, too short to stop paying for one that never would.
 struct UnresponsiveWindowTracker {
-  /// Long enough that a wedged window stops costing anything, short enough that a
-  /// window which merely was not rendering yet gets another chance.
-  let cooldown: TimeInterval
-
-  private var markedAt: [CGWindowID: Date] = [:]
-
-  init(cooldown: TimeInterval = AppConfig.default.unresponsiveWindowCooldownSeconds) {
-    self.cooldown = cooldown
-  }
+  /// The marked windows, each with whether it has been seen off screen since.
+  private var seenOffScreen: [CGWindowID: Bool] = [:]
 
   var skippedCount: Int {
-    markedAt.count
+    seenOffScreen.count
   }
 
-  mutating func markUnresponsive(_ windowID: CGWindowID, at date: Date = Date()) {
-    markedAt[windowID] = date
+  mutating func markUnresponsive(_ windowID: CGWindowID, isOnScreen: Bool) {
+    seenOffScreen[windowID] = !isOnScreen
   }
 
-  mutating func shouldSkip(_ windowID: CGWindowID, now: Date = Date()) -> Bool {
-    guard let markedAt = markedAt[windowID] else {
+  /// Whether this window should be left alone for now.
+  ///
+  /// A window that has been off screen since it was marked and is on screen now has
+  /// a surface again, and is asked again. One that hung while on screen has to leave
+  /// the screen first: otherwise a wedged window in plain sight would cost the whole
+  /// timeout on every refresh, which is the bug the tracker exists to prevent.
+  mutating func shouldSkip(_ windowID: CGWindowID, isOnScreen: Bool) -> Bool {
+    guard let wasOffScreen = seenOffScreen[windowID] else {
       return false
     }
 
-    guard now.timeIntervalSince(markedAt) < cooldown else {
-      self.markedAt[windowID] = nil
-      return false
+    guard isOnScreen else {
+      seenOffScreen[windowID] = true
+      return true
     }
 
-    return true
+    guard wasOffScreen else {
+      return true
+    }
+
+    seenOffScreen[windowID] = nil
+    return false
   }
 }
 

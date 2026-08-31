@@ -74,9 +74,6 @@ enum AppConfigWriter {
     # Global hotkey that toggles the overlay. "" turns it off.
     hotkey = "\(config.hotkey?.displayName ?? "")"
 
-    # Ask an application through Apple Events to raise a window Accessibility cannot.
-    use_apple_events = \(config.usesAppleEvents)
-
     # Leave out applications with no Dock icon, the ones that live in the menu bar.
     ignore_menu_bar_apps = \(config.ignoresMenuBarApplications)
 
@@ -94,24 +91,15 @@ enum AppConfigWriter {
   /// a compromise measured on a real desktop, not a value with a right answer.
   private static func timingSection(_ config: AppConfig) -> String {
     """
-    # How many times a window is asked to come forward after its application has
-    # been activated, and how long to wait between the attempts.
-    activation_retry_attempts = \(config.activationRetryAttempts)
-    activation_retry_interval_seconds = \(number(config.activationRetryIntervalSeconds))
+    # How long the system is given to finish a switch before a window that has not
+    # appeared is taken to be one that is not coming. Nothing is polled while it
+    # passes: a Space change and an application coming forward are both announced.
+    activation_settle_seconds = \(number(config.activationSettleSeconds))
 
-    # How long to wait after an activation before deciding whether the window came.
-    # Shorter than a Space switch and its animation would condemn a slow window.
-    activation_grace_seconds = \(number(config.activationGraceSeconds))
-
-    # How long an application has to answer an Apple Event, and an Accessibility
-    # question, before it is treated as wedged rather than busy.
-    apple_events_timeout_seconds = \(number(config.appleEventsTimeoutSeconds))
-    accessibility_timeout_seconds = \(number(config.accessibilityTimeoutSeconds))
-
-    # How long a window has to answer a thumbnail capture, and how long one that
-    # did not answer is left out of the next ones.
-    thumbnail_capture_timeout_seconds = \(number(config.thumbnailCaptureTimeoutSeconds))
-    unresponsive_window_cooldown_seconds = \(number(config.unresponsiveWindowCooldownSeconds))
+    # How long anything may go without answering before it is treated as wedged
+    # rather than busy: a window asked for a preview, an application asked an
+    # Accessibility question.
+    unresponsive_after_seconds = \(number(config.unresponsiveAfterSeconds))
     """
   }
 

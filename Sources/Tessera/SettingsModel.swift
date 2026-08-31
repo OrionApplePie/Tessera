@@ -17,13 +17,8 @@ final class SettingsModel: ObservableObject {
   @Published var overlayColumns: Int
   @Published var windowOrder: WindowOrder
   @Published var thumbnailMode: WindowThumbnailMode
-  @Published var activationRetryAttempts: Int
-  @Published var activationRetryIntervalSeconds: Double
-  @Published var activationGraceSeconds: Double
-  @Published var appleEventsTimeoutSeconds: Double
-  @Published var accessibilityTimeoutSeconds: Double
-  @Published var thumbnailCaptureTimeoutSeconds: Double
-  @Published var unresponsiveWindowCooldownSeconds: Double
+  @Published var activationSettleSeconds: Double
+  @Published var unresponsiveAfterSeconds: Double
   @Published var groupsDisplays: Bool
   @Published var groupsSpaces: Bool
 
@@ -47,13 +42,8 @@ final class SettingsModel: ObservableObject {
     overlayColumns = config.overlayColumns
     windowOrder = config.windowOrder
     thumbnailMode = config.windowThumbnailMode
-    activationRetryAttempts = config.activationRetryAttempts
-    activationRetryIntervalSeconds = config.activationRetryIntervalSeconds
-    activationGraceSeconds = config.activationGraceSeconds
-    appleEventsTimeoutSeconds = config.appleEventsTimeoutSeconds
-    accessibilityTimeoutSeconds = config.accessibilityTimeoutSeconds
-    thumbnailCaptureTimeoutSeconds = config.thumbnailCaptureTimeoutSeconds
-    unresponsiveWindowCooldownSeconds = config.unresponsiveWindowCooldownSeconds
+    activationSettleSeconds = config.activationSettleSeconds
+    unresponsiveAfterSeconds = config.unresponsiveAfterSeconds
     groupsDisplays = config.overlayGrouping.contains(.displays)
     groupsSpaces = config.overlayGrouping.contains(.spaces)
     refreshIntervalSeconds = config.refreshIntervalSeconds
@@ -105,13 +95,8 @@ final class SettingsModel: ObservableObject {
     config.overlayColumns = max(1, overlayColumns)
     config.windowOrder = windowOrder
     config.windowThumbnailMode = thumbnailMode
-    config.activationRetryAttempts = activationRetryAttempts
-    config.activationRetryIntervalSeconds = activationRetryIntervalSeconds
-    config.activationGraceSeconds = activationGraceSeconds
-    config.appleEventsTimeoutSeconds = appleEventsTimeoutSeconds
-    config.accessibilityTimeoutSeconds = accessibilityTimeoutSeconds
-    config.thumbnailCaptureTimeoutSeconds = thumbnailCaptureTimeoutSeconds
-    config.unresponsiveWindowCooldownSeconds = unresponsiveWindowCooldownSeconds
+    config.activationSettleSeconds = activationSettleSeconds
+    config.unresponsiveAfterSeconds = unresponsiveAfterSeconds
     config.refreshIntervalSeconds = max(0.5, refreshIntervalSeconds)
     config.windowThumbnailsStaleSeconds = max(1, windowThumbnailsStaleSeconds)
     config.dimsStaleThumbnails = dimsStaleThumbnails

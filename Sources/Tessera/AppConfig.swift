@@ -9,14 +9,6 @@ struct AppConfig: Equatable {
   var closeAfterActivation: Bool
   var showMenuBarIcon: Bool
   var debugMode: Bool
-  /// Whether an application may be asked, through Apple Events, to raise a window
-  /// that Accessibility cannot reach.
-  ///
-  /// On by default: without it, Chrome and Finder can only be brought forward, and
-  /// which of their windows appears is their choice rather than yours. macOS asks
-  /// permission for each application the first time, and a refusal costs nothing —
-  /// the switch happens as it would have anyway.
-  var usesAppleEvents: Bool
   /// Whether to leave out applications with no Dock icon.
   ///
   /// An application whose activation policy is `.accessory` lives in the menu bar.
@@ -44,21 +36,14 @@ struct AppConfig: Equatable {
   var windowOrder: WindowOrder
   /// What a tile shows of a window: the whole of it, or its corner at full size.
   var windowThumbnailMode: WindowThumbnailMode
-  /// How many times a window is asked to come forward after its application has
-  /// been activated and the Space has had a chance to switch.
-  var activationRetryAttempts: Int
-  /// How long to wait between those attempts.
-  var activationRetryIntervalSeconds: Double
-  /// How long to wait after an activation before judging whether the window came.
-  var activationGraceSeconds: Double
-  /// How long an application has to answer an Apple Event before it is abandoned.
-  var appleEventsTimeoutSeconds: Double
-  /// How long a window has to answer a thumbnail capture before it is abandoned.
-  var thumbnailCaptureTimeoutSeconds: Double
-  /// How long a window that ignored a capture is left out of the next ones.
-  var unresponsiveWindowCooldownSeconds: Double
-  /// How long an application has to answer an Accessibility question.
-  var accessibilityTimeoutSeconds: Double
+  /// How long the system is given to finish a switch — a Space to change, an
+  /// application to come forward — before a window that has not appeared is one
+  /// that is not coming.
+  var activationSettleSeconds: Double
+  /// How long anything — a window asked for a preview, an application asked an
+  /// Accessibility question — may go without answering before it is treated as
+  /// wedged rather than busy.
+  var unresponsiveAfterSeconds: Double
   /// Whether the overlay splits its tiles into per-Space groups.
   var overlayGrouping: OverlayGrouping
   /// The overlay's own surface. Opaque by default; give it an alpha channel to
@@ -80,9 +65,6 @@ struct AppConfig: Equatable {
     closeAfterActivation: true,
     showMenuBarIcon: true,
     debugMode: false,
-    // Displays are worth telling apart out of the box; Spaces are not, until
-    // someone asks for them.
-    usesAppleEvents: true,
     ignoresMenuBarApplications: true,
     ignoredApplications: [],
     closeHotkey: HotkeyBinding(modifiers: .command, key: .letterW),
@@ -99,26 +81,14 @@ struct AppConfig: Equatable {
     // The whole window. A corner reads better for text, but only once someone has
     // decided that is what they want to see.
     windowThumbnailMode: .fit,
-    // Ten attempts two hundred milliseconds apart. Measured: Accessibility knew
-    // nothing of the window before the activation and both Word documents two
-    // seconds after, so the budget is two seconds and the step is fine enough that
-    // an application which answers sooner is not kept waiting.
-    activationRetryAttempts: 10,
-    activationRetryIntervalSeconds: 0.2,
     // Long enough for a Space switch and its animation to finish, so a window is
-    // not condemned for being slow.
-    activationGraceSeconds: 1.5,
-    // Long enough for a busy application to answer, short enough that a wedged one
-    // does not hold up a window switch.
-    appleEventsTimeoutSeconds: 3,
-    // A capture normally answers in well under 200ms; one that has not answered in
-    // two seconds is a window with no surface to capture.
-    thumbnailCaptureTimeoutSeconds: 2,
-    // Long enough that a wedged window stops costing anything, short enough that a
-    // window which merely was not rendering yet gets another chance.
-    unresponsiveWindowCooldownSeconds: 300,
-    // Measured against a normal desktop: half a second was not enough, two is.
-    accessibilityTimeoutSeconds: 2,
+    // not condemned for being slow. Nothing is polled while it passes: the system
+    // announces the switch, and this is only the point at which waiting stops.
+    activationSettleSeconds: 1.5,
+    // A capture normally answers in well under 200ms and an Accessibility question
+    // in a few; measured against a normal desktop, half a second was not enough for
+    // either and two is. Anything past that is wedged, not slow.
+    unresponsiveAfterSeconds: 2,
     overlayGrouping: .displays,
     // Matte graphite: dark enough for white tile text, light enough not to read as
     // a hole in the screen.

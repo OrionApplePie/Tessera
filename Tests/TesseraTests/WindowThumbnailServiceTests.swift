@@ -11,58 +11,60 @@ struct UnresponsiveWindowTrackerTests {
   private let markedAt = Date(timeIntervalSince1970: 1_700_000_000)
 
   @Test("A window nobody has given up on is captured")
-  func unknownWindowsAreNotSkipped() {
+  func capturesAWindowNobodyGaveUpOn() {
     var tracker = UnresponsiveWindowTracker()
 
-    #expect(tracker.shouldSkip(1, now: markedAt) == false)
+    #expect(tracker.shouldSkip(1, isOnScreen: true) == false)
   }
 
-  @Test("A window that timed out is skipped for the whole cooldown")
+  @Test("A window that timed out is left alone while it stays off screen")
   func skipsAnUnresponsiveWindow() {
     var tracker = UnresponsiveWindowTracker()
-    tracker.markUnresponsive(1, at: markedAt)
+    tracker.markUnresponsive(1, isOnScreen: false)
 
-    #expect(tracker.shouldSkip(1, now: markedAt) == true)
-    #expect(tracker.shouldSkip(1, now: markedAt.addingTimeInterval(299)) == true)
+    #expect(tracker.shouldSkip(1, isOnScreen: false) == true)
+    #expect(tracker.shouldSkip(1, isOnScreen: false) == true)
   }
 
   @Test("Giving up on one window does not affect the others")
   func skipsOnlyTheMarkedWindow() {
     var tracker = UnresponsiveWindowTracker()
-    tracker.markUnresponsive(1, at: markedAt)
+    tracker.markUnresponsive(1, isOnScreen: false)
 
-    #expect(tracker.shouldSkip(2, now: markedAt) == false)
+    #expect(tracker.shouldSkip(2, isOnScreen: false) == false)
   }
 
-  @Test("After the cooldown the window gets another chance")
-  func retriesAfterTheCooldown() {
+  /// A capture hangs when the window has no surface, which is what being off
+  /// screen means. Coming back is the event that makes it worth asking again.
+  @Test("A window that comes back on screen gets another chance")
+  func retriesAWindowThatCameBack() {
     var tracker = UnresponsiveWindowTracker()
-    tracker.markUnresponsive(1, at: markedAt)
+    tracker.markUnresponsive(1, isOnScreen: false)
 
-    #expect(tracker.shouldSkip(1, now: markedAt.addingTimeInterval(300)) == false)
+    #expect(tracker.shouldSkip(1, isOnScreen: true) == false)
   }
 
-  @Test("An expired entry is dropped rather than kept forever")
-  func expiredEntriesAreForgotten() {
+  @Test("Its chance is not spent twice over")
+  func forgetsAWindowItHasGivenBack() {
     var tracker = UnresponsiveWindowTracker()
-    tracker.markUnresponsive(1, at: markedAt)
-    #expect(tracker.skippedCount == 1)
+    tracker.markUnresponsive(1, isOnScreen: false)
+    _ = tracker.shouldSkip(1, isOnScreen: true)
 
-    _ = tracker.shouldSkip(1, now: markedAt.addingTimeInterval(300))
-
+    #expect(tracker.shouldSkip(1, isOnScreen: false) == false)
     #expect(tracker.skippedCount == 0)
   }
 
-  @Test("A window that times out again restarts its cooldown")
-  func remarkingRestartsTheCooldown() {
+  /// Otherwise a wedged window in plain sight would be asked again on every
+  /// refresh, and cost the whole timeout each time — which is the stall the
+  /// tracker exists to prevent.
+  @Test("A window that hung in plain sight has to leave the screen first")
+  func makesAWindowLeaveTheScreenBeforeTryingAgain() {
     var tracker = UnresponsiveWindowTracker()
-    tracker.markUnresponsive(1, at: markedAt)
+    tracker.markUnresponsive(1, isOnScreen: true)
 
-    let later = markedAt.addingTimeInterval(400)
-    #expect(tracker.shouldSkip(1, now: later) == false)
-    tracker.markUnresponsive(1, at: later)
-
-    #expect(tracker.shouldSkip(1, now: later.addingTimeInterval(10)) == true)
+    #expect(tracker.shouldSkip(1, isOnScreen: true) == true)
+    #expect(tracker.shouldSkip(1, isOnScreen: false) == true)
+    #expect(tracker.shouldSkip(1, isOnScreen: true) == false)
   }
 
   @Test("A corner thumbnail crops exactly what the tile draws")

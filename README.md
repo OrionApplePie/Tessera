@@ -66,24 +66,22 @@ Everything the switcher waits for is a setting, because every one of these numbe
 is a compromise measured on one desktop rather than a value with a right answer:
 
 ```toml
-activation_retry_attempts = 10            # how many times a window is asked again
-activation_retry_interval_seconds = 0.2   # how long between those attempts
-activation_grace_seconds = 1.5            # before judging whether the window came
-apple_events_timeout_seconds = 3          # before an application counts as wedged
-accessibility_timeout_seconds = 2         # the same, for an Accessibility question
-thumbnail_capture_timeout_seconds = 2     # before a capture is abandoned
-unresponsive_window_cooldown_seconds = 300  # how long that window is left alone
+activation_settle_seconds = 1.5   # how long the system gets to finish a switch
+unresponsive_after_seconds = 2    # how long anything gets to answer at all
 ```
 
-The two activation numbers multiply into a budget: ten attempts two hundred
-milliseconds apart give a window two seconds to appear in Accessibility after its
-application comes forward. That is what was measured — nothing before the
-activation, both Word documents two seconds after — so raise the interval if your
-machine is slower, and the count if you want to wait longer.
+Neither is a polling interval. Nothing is polled: macOS announces a Space change
+and an application coming forward, and the switcher asks again when it hears one.
+`activation_settle_seconds` is only where waiting stops — a window that has not
+appeared by then is one that is not coming. It is deliberately longer than a Space
+switch and its animation, because a window judged before it lands is recorded as
+one that refused to come, and gets left out of the switcher.
 
-`activation_grace_seconds` is shorter than a Space switch and its animation at your
-peril: a window judged before it lands is recorded as one that refused to come, and
-gets left out of the switcher.
+`unresponsive_after_seconds` covers everything that can simply not answer: a
+window asked for a preview, an application asked an Accessibility question. A
+window that misses it is left alone until it comes back on screen, which is when
+it has a surface to capture again — there is no cooldown to tune, because there is
+no guess to make.
 
 ## Tile order
 
@@ -134,21 +132,16 @@ Landing on the *right* window of several takes more, because Accessibility lists
 only the windows on the Space that is active — so at the moment you choose, the
 window usually cannot be named yet.
 
-Tessera asks Accessibility, waits for the switch and asks again, and finally asks
-the application itself:
+Tessera asks Accessibility first. When it cannot aim — the window is on another
+Space, or the application publishes no windows at all, as Finder and Chrome do not
+— it presses the window's entry in the application's own Window menu, which is the
+only public list that names a window across Spaces. Failing both, it waits for the
+system to announce that a Space has changed or an application has come forward,
+and asks Accessibility again.
 
-```toml
-use_apple_events = true
-```
-
-Apple Events are how Chrome and Finder are reached at all: they publish no windows
-to Accessibility. macOS asks permission for each application the first time, and
-refusing costs nothing — the switch still happens, the application just picks the
-window.
-
-An application with no scripting dictionary that keeps the window you want on
-another Space cannot be reached precisely by any public means. Obsidian is the
-example. `docs/mechanisms.md` has the measurements.
+An application that lists nothing in its Window menu and keeps the window you want
+on another Space cannot be reached precisely by any public means.
+`docs/mechanisms.md` has the measurements.
 
 ## Leaving applications out
 
@@ -644,11 +637,9 @@ concrete collaborators, so testing them means introducing protocols first.
 
 ## TODO
 
-- Use Apple Events to drop windows an application no longer owns. It already
-  reports them correctly for Finder and Chrome, and nothing public distinguishes
-  such a window otherwise — see `docs/mechanisms.md`.
-- Try `⌘\`` as a last resort for reaching a window of an application that has no
-  scripting dictionary.
+- Tell a window an application no longer owns from one on another Space. Nothing
+  public distinguishes them — see `docs/mechanisms.md`; the Window menu may, since
+  it lists what the application still considers a window.
 - Make stepping reach windows on other Spaces, by registering `⌃⇧` with the arrow
   keys as system-wide hotkeys for as long as the overlay is open. See
   `docs/mechanisms.md` for why the three obvious approaches do not work and what
