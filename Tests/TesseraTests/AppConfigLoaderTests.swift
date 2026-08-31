@@ -22,6 +22,7 @@ struct AppConfigLoaderTests {
     "dim_stale_thumbnails",
     "overlay_columns",
     "window_order",
+    "window_thumbnail_mode",
     "overlay_grouping",
     "overlay_background",
     "close_after_activation",
@@ -56,6 +57,7 @@ struct AppConfigLoaderTests {
       dim_stale_thumbnails = true
       overlay_columns = 3
       window_order = "stable"
+      window_thumbnail_mode = "corner"
       overlay_grouping = "displays+spaces"
       overlay_background = "#10203040"
       close_after_activation = false
@@ -79,6 +81,7 @@ struct AppConfigLoaderTests {
       #expect(config.dimsStaleThumbnails == true)
       #expect(config.overlayColumns == 3)
       #expect(config.windowOrder == .stable)
+      #expect(config.windowThumbnailMode == .corner)
       #expect(config.overlayGrouping == [.displays, .spaces])
       #expect(config.overlayBackground.hexDescription == "#10203040")
       #expect(config.closeAfterActivation == false)
@@ -370,4 +373,5 @@ extension AppConfigLoaderTests {
       sourceLocation: sourceLocation
     )
   }
+
 }

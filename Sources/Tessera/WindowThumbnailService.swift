@@ -15,11 +15,13 @@ final class WindowThumbnailService {
   private static let captureTimeout = Duration.seconds(2)
 
   private let targetThumbnailSize: CGSize
+  private let mode: WindowThumbnailMode
   private let logger: AppLogger
   private var unresponsiveWindows = UnresponsiveWindowTracker()
 
   init(config: AppConfig = .default) {
     self.targetThumbnailSize = config.windowThumbnailTargetSize
+    self.mode = config.windowThumbnailMode
     self.logger = AppLogger(debugMode: config.debugMode, category: .capture)
   }
 
@@ -108,17 +110,7 @@ final class WindowThumbnailService {
 
   @available(macOS 14.0, *)
   private func captureUnbounded(for window: SCWindow) async throws -> CGImage {
-    let configuration = SCStreamConfiguration()
-    let outputSize = outputSize(for: window.frame.size)
-
-    configuration.width = Int(outputSize.width)
-    configuration.height = Int(outputSize.height)
-    configuration.showsCursor = false
-    configuration.scalesToFit = true
-    configuration.preservesAspectRatio = true
-    configuration.ignoreShadowsSingleWindow = true
-    configuration.shouldBeOpaque = true
-
+    let configuration = configuration(for: window.frame.size)
     let filter = SCContentFilter(desktopIndependentWindow: window)
 
     return try await withCheckedThrowingContinuation { continuation in
@@ -134,6 +126,53 @@ final class WindowThumbnailService {
         continuation.resume(throwing: error ?? WindowThumbnailError.missingImage)
       }
     }
+  }
+
+  /// How the window is asked for: the whole of it, or one corner of it.
+  ///
+  /// A corner is taken through `sourceRect`, which for a window filter is measured
+  /// in points from the window's own top left — not from the screen's, though the
+  /// filter reports the window's global frame as its content rect. Nothing is
+  /// scaled: the crop is exactly the area the tile draws, so the pixels captured
+  /// are the pixels shown.
+  @available(macOS 14.0, *)
+  private func configuration(for windowSize: CGSize) -> SCStreamConfiguration {
+    let configuration = SCStreamConfiguration()
+    configuration.showsCursor = false
+    configuration.ignoreShadowsSingleWindow = true
+    configuration.shouldBeOpaque = true
+    configuration.preservesAspectRatio = true
+
+    switch mode {
+    case .fit:
+      let outputSize = outputSize(for: windowSize)
+      configuration.width = Int(outputSize.width)
+      configuration.height = Int(outputSize.height)
+      configuration.scalesToFit = true
+    case .corner, .cornerDouble, .quarter:
+      let crop = Self.cornerCrop(forWindowSize: windowSize, mode: mode)
+      configuration.sourceRect = CGRect(origin: .zero, size: crop)
+      configuration.width = Int(max(1, crop.width * backingScaleFactor))
+      configuration.height = Int(max(1, crop.height * backingScaleFactor))
+      configuration.scalesToFit = false
+    }
+
+    return configuration
+  }
+
+  /// The piece of a window a corner thumbnail shows.
+  ///
+  /// Measured against the tile's own drawing area, so that `corner` is drawn at its
+  /// own size — that is the whole point of that mode — and the wider modes are an
+  /// honest multiple of it.
+  nonisolated static func cornerCrop(
+    forWindowSize size: CGSize,
+    mode: WindowThumbnailMode
+  ) -> CGSize {
+    mode.crop(
+      ofWindow: size,
+      tile: CGSize(width: TileMetrics.contentWidth, height: TileMetrics.thumbnailHeight)
+    )
   }
 
   /// The capture size in pixels for a window measured in points.

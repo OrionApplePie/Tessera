@@ -42,6 +42,8 @@ struct AppConfig: Equatable {
   var overlayColumns: Int
   /// What decides the order of the tiles inside a group.
   var windowOrder: WindowOrder
+  /// What a tile shows of a window: the whole of it, or its corner at full size.
+  var windowThumbnailMode: WindowThumbnailMode
   /// Whether the overlay splits its tiles into per-Space groups.
   var overlayGrouping: OverlayGrouping
   /// The overlay's own surface. Opaque by default; give it an alpha channel to
@@ -79,6 +81,9 @@ struct AppConfig: Equatable {
     // together to take in at a glance.
     overlayColumns: 4,
     windowOrder: .title,
+    // The whole window. A corner reads better for text, but only once someone has
+    // decided that is what they want to see.
+    windowThumbnailMode: .fit,
     overlayGrouping: .displays,
     // Matte graphite: dark enough for white tile text, light enough not to read as
     // a hole in the screen.

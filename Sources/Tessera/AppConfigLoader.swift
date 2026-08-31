@@ -95,6 +95,10 @@ struct AppConfigLoader {
       key: "overlay_columns"
     )
     config.windowOrder = try windowOrder(values["window_order"], default: config.windowOrder)
+    config.windowThumbnailMode = try thumbnailMode(
+      values["window_thumbnail_mode"],
+      default: config.windowThumbnailMode
+    )
     config.overlayGrouping = try grouping(
       values["overlay_grouping"],
       default: config.overlayGrouping
@@ -196,6 +200,15 @@ struct AppConfigLoader {
     return line
   }
 
+}
+
+/// Reading one value out of the file.
+///
+/// Separate from reading the file itself so that the type stays inside the
+/// length the linter allows, and because these two jobs fail differently: a
+/// value that does not parse names its own key, while a file that does not parse
+/// leaves every default in place.
+extension AppConfigLoader {
   private func positiveDouble(
     _ rawValue: String?,
     default defaultValue: Double,
@@ -297,6 +310,22 @@ struct AppConfigLoader {
     } catch {
       logger.error("Invalid window_order in config: \(error)")
       throw AppConfigError.invalidValue(key: "window_order")
+    }
+  }
+
+  private func thumbnailMode(
+    _ rawValue: String?,
+    default defaultValue: WindowThumbnailMode
+  ) throws -> WindowThumbnailMode {
+    guard let rawValue else {
+      return defaultValue
+    }
+
+    do {
+      return try WindowThumbnailMode(parsing: unquoted(rawValue))
+    } catch {
+      logger.error("Invalid window_thumbnail_mode in config: \(error)")
+      throw AppConfigError.invalidValue(key: "window_thumbnail_mode")
     }
   }
 

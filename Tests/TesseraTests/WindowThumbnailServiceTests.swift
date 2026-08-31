@@ -64,4 +64,40 @@ struct UnresponsiveWindowTrackerTests {
 
     #expect(tracker.shouldSkip(1, now: later.addingTimeInterval(10)) == true)
   }
+
+  @Test("A corner thumbnail crops exactly what the tile draws")
+  func cropsWhatTheTileDraws() {
+    let crop = WindowThumbnailService.cornerCrop(
+      forWindowSize: CGSize(width: 1512, height: 944), mode: .corner)
+
+    #expect(crop.width == TileMetrics.contentWidth)
+    #expect(crop.height == TileMetrics.thumbnailHeight)
+  }
+
+  @Test("A wider mode asks for more of the window, in the same proportions")
+  func cropsMoreForAWiderMode() {
+    let window = CGSize(width: 1512, height: 944)
+    let corner = WindowThumbnailService.cornerCrop(forWindowSize: window, mode: .corner)
+    let double = WindowThumbnailService.cornerCrop(forWindowSize: window, mode: .cornerDouble)
+
+    #expect(double.width == corner.width * 2)
+    #expect(double.height == corner.height * 2)
+  }
+
+  @Test("A window smaller than the tile is taken whole rather than padded")
+  func takesASmallWindowWhole() {
+    let crop = WindowThumbnailService.cornerCrop(
+      forWindowSize: CGSize(width: 80, height: 60), mode: .corner)
+
+    #expect(crop == CGSize(width: 80, height: 60))
+  }
+
+  @Test("A window with no size still asks for something capturable")
+  func neverAsksForNothing() {
+    let crop = WindowThumbnailService.cornerCrop(forWindowSize: .zero, mode: .quarter)
+
+    #expect(crop.width >= 1)
+    #expect(crop.height >= 1)
+  }
+
 }

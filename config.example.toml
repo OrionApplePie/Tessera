@@ -42,6 +42,17 @@ ignored_apps = ""
 # How many tiles a row may hold before the overlay wraps to the next row.
 overlay_columns = 4
 
+# What a tile shows of a window. "fit" scales the whole window down, which says
+# what shape it is and where things sit in it. The others take its top left corner
+# instead, where text is readable and two documents of one application can be told
+# apart:
+#   "fit"       the whole window, scaled to the tile
+#   "corner"    the tile's own area, drawn at 1:1 — sharpest, shows least
+#   "corner2x"  twice that across and down, drawn at half size
+#   "quarter"   roughly a quarter of the window's area, scaled to fit
+# The target size above applies to "fit" only; a corner is measured from the tile.
+window_thumbnail_mode = "fit"
+
 # Tile order inside a group: "title" sorts by application and window title,
 # "application" ignores the title so a browser tab switch does not move a tile,
 # "stable" keeps the order windows were first seen in and never moves anything.

@@ -16,6 +16,7 @@ final class SettingsModel: ObservableObject {
 
   @Published var overlayColumns: Int
   @Published var windowOrder: WindowOrder
+  @Published var thumbnailMode: WindowThumbnailMode
   @Published var groupsDisplays: Bool
   @Published var groupsSpaces: Bool
 
@@ -38,6 +39,7 @@ final class SettingsModel: ObservableObject {
     background = Color(config.overlayBackground)
     overlayColumns = config.overlayColumns
     windowOrder = config.windowOrder
+    thumbnailMode = config.windowThumbnailMode
     groupsDisplays = config.overlayGrouping.contains(.displays)
     groupsSpaces = config.overlayGrouping.contains(.spaces)
     refreshIntervalSeconds = config.refreshIntervalSeconds
@@ -88,6 +90,7 @@ final class SettingsModel: ObservableObject {
 
     config.overlayColumns = max(1, overlayColumns)
     config.windowOrder = windowOrder
+    config.windowThumbnailMode = thumbnailMode
     config.refreshIntervalSeconds = max(0.5, refreshIntervalSeconds)
     config.windowThumbnailsStaleSeconds = max(1, windowThumbnailsStaleSeconds)
     config.dimsStaleThumbnails = dimsStaleThumbnails

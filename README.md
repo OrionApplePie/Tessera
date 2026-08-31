@@ -34,6 +34,32 @@ when a window fails to come forward.
 - macOS 14 or newer for window thumbnails (`SCScreenshotManager`); on macOS 13
   the switcher still lists windows and falls back to name-only tiles
 
+## What a tile shows
+
+```toml
+window_thumbnail_mode = "fit"       # the default: the whole window, scaled down
+window_thumbnail_mode = "corner"    # its top left corner, at actual size
+window_thumbnail_mode = "corner2x"  # twice as much corner, at half size
+window_thumbnail_mode = "quarter"   # roughly a quarter of the window
+```
+
+`fit` says what shape a window is and where things sit in it, which is enough to
+tell two applications apart. It is not enough to tell two documents apart: a
+window scaled into a tile turns its text into grey texture.
+
+The other three fill the same tile with the window's top left corner instead, and
+differ only in how much of it. `corner` is the tile's own area at 1:1 — the
+sharpest, and the least of the window. `corner2x` takes twice that across and
+down, drawn at half size, which stays legible on a Retina display. `quarter` takes
+about a quarter of the window's area, enough to recognise a document by its layout.
+
+All three keep the tile's proportions, so the top left corner is what actually
+reaches the screen rather than the middle of a wider crop, and all three are
+captured through ScreenCaptureKit's `sourceRect` rather than cropped afterwards —
+a large window costs no more than a small one. A window smaller than the piece
+asked for is taken whole. `window_thumbnail_target_width` and `..._height` apply
+to `fit` only.
+
 ## Tile order
 
 What decides the order inside a group, and therefore what makes a tile move:

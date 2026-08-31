@@ -55,6 +55,11 @@ enum AppConfigWriter {
     # Tile order inside a group: "title", "application" or "stable".
     window_order = "\(config.windowOrder.name)"
 
+    # What a tile shows: "fit" for the whole window, or its top left corner at
+    # "corner" (1:1), "corner2x" (twice as much) or "quarter" (about a quarter of
+    # the window).
+    window_thumbnail_mode = "\(config.windowThumbnailMode.name)"
+
     # Tile grouping: "displays", "spaces", "displays+spaces" or "none".
     overlay_grouping = "\(config.overlayGrouping.name)"
 

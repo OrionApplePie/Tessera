@@ -110,6 +110,15 @@ struct SettingsView: View {
 
   private var previewsPage: some View {
     Form {
+      Section("Contents") {
+        Picker("Show", selection: $model.thumbnailMode) {
+          Text("The whole window").tag(WindowThumbnailMode.fit)
+          Text("Its corner, at actual size").tag(WindowThumbnailMode.corner)
+          Text("Its corner, twice as much").tag(WindowThumbnailMode.cornerDouble)
+          Text("Roughly a quarter of it").tag(WindowThumbnailMode.quarter)
+        }
+      }
+
       Section("Refresh") {
         Stepper(
           "Every \(seconds(model.refreshIntervalSeconds))",
@@ -127,18 +136,24 @@ struct SettingsView: View {
       }
 
       Section("Size") {
+        // A corner is captured at the size the tile draws it, so a target size has
+        // nothing to act on there.
         Stepper(
           "Width: \(Int(model.thumbnailWidth))",
           value: $model.thumbnailWidth,
           in: 40...960,
           step: 20
         )
+        .disabled(model.thumbnailMode != .fit)
+
         Stepper(
           "Height: \(Int(model.thumbnailHeight))",
           value: $model.thumbnailHeight,
           in: 40...960,
           step: 20
         )
+        .disabled(model.thumbnailMode != .fit)
+
         Stepper("At most \(model.maxWindows) windows", value: $model.maxWindows, in: 1...96)
       }
     }
