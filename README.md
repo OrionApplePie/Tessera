@@ -200,10 +200,11 @@ background keeps its contrast without further tuning.
 | `⌘W` | Close the highlighted window — by default this quits its application |
 | `Esc` | Close the overlay without switching |
 
-A letter is read twice: as typed, and as the Latin letter that physical key
-carries. On a Cyrillic layout those differ, and an application named in Latin
-would otherwise be unreachable by its own initial — pressing the `C` key finds
-Code either way.
+A key means every letter printed on it, across the keyboard layouts you have
+enabled. Pressing the `C` key finds Code whatever layout is active, and on a Mac
+with a Russian layout installed it also finds Windows named in Cyrillic with `С` —
+without switching layout first. What you actually typed is tried first, then the
+Latin letter of that key, then what the other layouts make of it.
 
 A letter matches the application name first — `c` walks Claude, then Code, then
 back. Only when no application starts with that letter do the window titles get a

@@ -122,8 +122,8 @@ final class OverlayWindowController: NSWindowController, NSWindowDelegate {
     panel.onCloseWindow = { [weak self] in
       self?.closeSelectedWindow()
     }
-    panel.onJumpToName = { [weak self] typed, latin in
-      self?.jumpToName(typed: typed, orLatin: latin)
+    panel.onJumpToName = { [weak self] readings in
+      self?.jumpToName(readings)
     }
     panel.onActivateSelection = { [weak self] in
       self?.activateSelection()
@@ -382,9 +382,10 @@ final class OverlayWindowController: NSWindowController, NSWindowDelegate {
   ///
   /// So the field decides before the reading does: an application name matched by
   /// either letter beats a window title matched by either.
-  private func jumpToName(typed: Character, orLatin latin: Character?) {
+  /// Moves the selection to the next window whose name starts with the key that
+  /// was pressed — under any of the readings that key has.
+  private func jumpToName(_ readings: [Character]) {
     let tiles = windowCoordinator.tiles
-    let readings = [typed, latin].compactMap { $0 }
     let fields: [OverlayGrid.MatchField] = [.applicationName, .windowTitle]
 
     for field in fields {
@@ -447,7 +448,7 @@ final class OverlayPanel: NSPanel {
   var onMoveSelection: ((OverlayGrid.Direction) -> Void)?
   var onMoveTile: ((OverlayGrid.Direction) -> Void)?
   var onStepAndActivate: ((OverlayGrid.Direction) -> Void)?
-  var onJumpToName: ((Character, Character?) -> Void)?
+  var onJumpToName: (([Character]) -> Void)?
   var onCloseWindow: (() -> Void)?
   var closeHotkey: HotkeyBinding?
   var onActivateSelection: (() -> Void)?
@@ -552,7 +553,12 @@ final class OverlayPanel: NSPanel {
     }
 
     if let character = Self.jumpCharacter(for: event) {
-      onJumpToName?(character, HotkeyKey.latinLetter(forKeyCode: event.keyCode))
+      onJumpToName?(
+        KeyboardLayouts.readings(
+          typed: character,
+          latin: HotkeyKey.latinLetter(forKeyCode: event.keyCode),
+          onOtherLayouts: KeyboardLayouts.characters(forKeyCode: event.keyCode)
+        ))
       return
     }
 

@@ -375,6 +375,24 @@ covered by round-trip tests — write a configuration, read it back, expect the 
 configuration — which is the property that matters when a person's settings pass
 through it.
 
+## Reaching a window by its initial
+
+A key press is a position on the keyboard plus whatever the active layout makes of
+it, so the letter jump used to reach only names spelled in the layout in use.
+Measured on ABC with a window called "Мониторинг системы" open: pressing the key
+that carries "м" moved nothing, because that key reads as "v" there and no window
+starts with it.
+
+macOS will translate a key code through any installed layout — `TISCreateInputSourceList`
+for the enabled sources, then `UCKeyTranslate` through each one's
+`kTISPropertyUnicodeKeyLayoutData` — so a key can simply mean everything printed
+on it at once. Key code 9 answers `["v", "м"]` on this machine.
+
+That costs 16µs per press for two layouts, measured over a hundred calls, which is
+why nothing is cached: a layout added while the app is running is picked up on the
+next key press. Input methods that translate rather than map keys publish no key
+layout and are skipped, as is any key that produces something other than a letter.
+
 ## Showing the overlay
 
 The panel is placed by hand rather than by `center()`, on the screen `NSScreen.main`
