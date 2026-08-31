@@ -258,3 +258,42 @@ struct OverlayGridTests {
     )
   }
 }
+
+@Suite("OverlayGrid placement")
+struct OverlayGridPlacementTests {
+  /// The second display in the layout this was measured on sits above and to the
+  /// left of the built-in one, so its usable area starts at a negative x and a
+  /// positive y. Centring that forgot the origin would land the panel on the
+  /// built-in screen instead.
+  private static let external = CGRect(x: -485, y: 982, width: 2560, height: 1415)
+
+  @Test("A panel is centred in the usable area of the screen it opens on")
+  func centresOnTheScreenGiven() throws {
+    let placed = try #require(
+      OverlayGrid.placement(for: CGSize(width: 858, height: 1312), in: Self.external))
+
+    #expect(placed.midX == Self.external.midX)
+    #expect(placed.midY == Self.external.midY)
+    #expect(placed.size == CGSize(width: 858, height: 1312))
+  }
+
+  @Test("A panel wider than the screen is still centred, not pushed to the edge")
+  func centresEvenWhenOversized() throws {
+    let usable = CGRect(x: 0, y: 0, width: 1512, height: 944)
+    let placed = try #require(
+      OverlayGrid.placement(for: CGSize(width: 1600, height: 400), in: usable))
+
+    #expect(placed.minX == -44)
+    #expect(placed.midX == usable.midX)
+  }
+
+  @Test("An unknown screen places nothing, leaving the fallback to the caller")
+  func reportsNothingForAnUnknownScreen() {
+    #expect(OverlayGrid.placement(for: CGSize(width: 100, height: 100), in: .zero) == nil)
+  }
+
+  @Test("A panel with no size places nothing")
+  func reportsNothingForAnEmptySize() {
+    #expect(OverlayGrid.placement(for: .zero, in: Self.external) == nil)
+  }
+}

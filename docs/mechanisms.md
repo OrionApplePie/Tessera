@@ -355,6 +355,49 @@ covered by round-trip tests — write a configuration, read it back, expect the 
 configuration — which is the property that matters when a person's settings pass
 through it.
 
+## Showing the overlay
+
+The panel is placed by hand rather than by `center()`, on the screen `NSScreen.main`
+names. That is the screen holding the window that has the keyboard, which is what
+makes the overlay follow you between displays — measured by focusing a window on
+the external monitor (`NSScreen.main` became VG27AQL1A) and then one on the
+built-in (it became Built-in Retina Display).
+
+Two things about showing it had to be measured, both invisible in code review and
+obvious at four milliseconds of resolution. Poll `CGWindowListCopyWindowInfo` for
+this app's own on-screen windows in a tight loop, press the hotkey, and print every
+change in geometry; the flicker becomes a list of frames.
+
+**Size and origin must be committed as one displayed frame.** Set separately and
+left to be displayed whenever, they reached the window server *after* the
+order-front did. The panel appeared at the size and position it had the previous
+time — on the other screen, if that is where it last opened — and jumped to the new
+one 27ms later:
+
+```
+0.580  858x1108@366,-1261   ← previous frame, still on the external monitor
+0.607  1062x904@225,58      ← 27ms later, where it belongs
+```
+
+One `setFrame(_:display: true)` before `makeKeyAndOrderFront` removes it, in both
+directions, every time.
+
+**The hosting view must not size the window.** With its default sizing options an
+`NSHostingView` pins the window's content size through constraints — reading
+`contentMinSize` and `contentMaxSize` shows both set to the size the view wants.
+Those constraints do not settle when the root view is replaced: they arrive after
+the window is on screen, so the panel appeared at the size asked for and shrank
+26pt a frame or two later. They cannot be read ahead of time either — at
+presentation they still describe the *previous* layout, which is what makes them
+useless as a prediction and dangerous as an input. `sizingOptions = []` leaves the
+decision with the fitting pass, where it was meant to be.
+
+That leaves the panel a little larger than the content wants, because the fitting
+pass measures a view that is not in a window and lands about 26pt over what the
+same view settles at inside one. The difference would show as a transparent band
+along the edge, so the panel is painted at the layer as well as by the view in it,
+in the same colour.
+
 ## Stepping through windows with the overlay open
 
 `⌃⇧` with an arrow moves the highlight and brings that window forward without

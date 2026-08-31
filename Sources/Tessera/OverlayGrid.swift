@@ -15,6 +15,25 @@ enum OverlayGrid {
   /// One column count for the whole overlay, so tiles line up down the sections
   /// instead of every section picking its own width. A row never holds more than
   /// `maximum` tiles, which is what keeps the panel narrower than the screen.
+  /// Where a panel of `size` sits on a screen whose usable area is `usable`.
+  ///
+  /// `nil` says the screen is not known well enough to place anything, which is
+  /// the caller's cue to fall back to `NSWindow.center()`. Note that `usable` is
+  /// not anchored at the origin on a second display: centring by width and height
+  /// alone would put the panel on whichever screen happens to contain that point.
+  static func placement(for size: CGSize, in usable: CGRect) -> CGRect? {
+    guard usable.width > 0, usable.height > 0, size.width > 0, size.height > 0 else {
+      return nil
+    }
+
+    return CGRect(
+      x: usable.midX - size.width / 2,
+      y: usable.midY - size.height / 2,
+      width: size.width,
+      height: size.height
+    )
+  }
+
   static func columnCount(forSectionSizes sizes: [Int], maximum: Int) -> Int {
     max(1, min(sizes.max() ?? 0, max(1, maximum)))
   }

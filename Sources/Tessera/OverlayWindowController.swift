@@ -64,6 +64,16 @@ final class OverlayWindowController: NSWindowController, NSWindowDelegate {
 
     hostingView.rootView = makeOverlayView()
 
+    // The panel's size is decided here, by the fitting pass, and an `NSHostingView`
+    // otherwise takes that decision back: with its default sizing options it pins
+    // the window's content size to its own layout through constraints. Those
+    // constraints do not settle when the root view is replaced — they arrive a
+    // moment later, after the window is already on screen — so the panel appeared
+    // at the size asked for and then snapped to the one the view wanted, measured
+    // at 26pt shorter. Opening on a screen other than the last one made it obvious,
+    // because the size changes with the screen.
+    hostingView.sizingOptions = []
+
     // The content view follows the window instead of being positioned by hand: a
     // frame set manually drifted from the window's own, and SwiftUI then drew its
     // rounded surface to a size the window did not have — the corners fell outside
@@ -75,6 +85,18 @@ final class OverlayWindowController: NSWindowController, NSWindowDelegate {
     hostingView.layer?.cornerRadius = TileMetrics.surfaceCornerRadius
     hostingView.layer?.cornerCurve = .continuous
     hostingView.layer?.masksToBounds = true
+
+    // The panel is painted at the layer as well as by the view inside it. The
+    // fitting pass measures a view that is not in a window and lands a little over
+    // what the same view settles at once it is, and with the window no longer
+    // resizing itself to the view that difference would show as a transparent band
+    // along the edge. Same colour, so where the two meet is not visible.
+    hostingView.layer?.backgroundColor = CGColor(
+      srgbRed: background.red,
+      green: background.green,
+      blue: background.blue,
+      alpha: background.alpha
+    )
 
     panel.contentView = hostingView
 
@@ -158,19 +180,18 @@ final class OverlayWindowController: NSWindowController, NSWindowDelegate {
     // The panel is sized to its content at show time rather than pinned to a
     // constant, and the content is laid out to fit the screen it opens on.
     let fittingSize = fitToScreen(within: usable.size)
-    if fittingSize.width > 0, fittingSize.height > 0 {
-      window.setContentSize(fittingSize)
-    }
 
-    if usable.width > 0 {
-      window.setFrameOrigin(
-        NSPoint(
-          x: usable.midX - fittingSize.width / 2,
-          y: usable.midY - fittingSize.height / 2
-        ))
+    // Size and position are committed as one frame, and drawn before the panel is
+    // ordered front. Set separately and left to be displayed whenever, they reached
+    // the window server after the order-front did: the panel appeared at the size
+    // and place it had last time — on the other screen, if that is where it was —
+    // and jumped to the new one 27ms later, which is what the flicker was.
+    if let placed = OverlayGrid.placement(for: fittingSize, in: usable) {
+      window.setFrame(window.frameRect(forContentRect: placed), display: true)
     } else {
       window.center()
     }
+
     window.makeKeyAndOrderFront(nil)
     NSApp.activate(ignoringOtherApps: true)
     logger.debug(
