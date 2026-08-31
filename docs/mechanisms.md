@@ -512,6 +512,27 @@ Return and Escape cannot be taken this way — stealing Return system-wide, even
 briefly, is not worth it — so the main hotkey becomes the way to close. That is
 tolerable because a step is itself the switch: there is nothing left to confirm.
 
+## Who decides the overlay is on screen
+
+The panel used to hide itself: `hidesOnDeactivate`, the default for an `NSPanel`.
+That is two behaviours in one flag, and both of them bit.
+
+AppKit remembers a panel it hid that way and puts it back the moment the
+application is activated again — so opening the settings window from the menu bar
+brought the switcher back on screen beside it, unasked. Ordering the panel out
+first does not help: it is already out, and that is not what the list is keyed on.
+
+And the flag only fires if the application was active to begin with. Refused
+activation over a fullscreen window, the application never becomes active, is
+therefore never deactivated, and the panel stays up with nothing to take it down.
+
+So the flag is off and the decision is one place: the overlay hides when another
+application comes forward. Which application that is comes from the notification
+itself — asked of the workspace afterwards, the answer was sometimes still the
+application that had just left, and the overlay hid itself the instant it was
+shown. The one activation it lets through is the one it asked for, so that
+`close_after_activation = false` still means what it says.
+
 ## The numbers, and which of them are settings
 
 There were seven of them, and most were guesses at how long something else would

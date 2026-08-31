@@ -83,6 +83,7 @@ final class AppCoordinator: NSObject, NSApplicationDelegate {
     DistributedNotificationCenter.default().removeObserver(self)
     hotkeyController?.stop()
     hotkeyController = nil
+    overlayWindowController?.stopObserving()
     overlayWindowController?.hideOverlay()
     windowCoordinator.stop()
   }
@@ -144,6 +145,12 @@ final class AppCoordinator: NSObject, NSApplicationDelegate {
   /// works through the CLI and the menu bar, and the log says why the key is dead.
   func openSettings() {
     logger.info("Opening settings")
+
+    // The overlay is put away rather than left to hide itself. A panel that hid
+    // because the application was deactivated is restored by AppKit the moment the
+    // application is activated again — and opening this window activates it, so
+    // the switcher came back on screen next to the settings, unasked.
+    hideOverlay()
 
     if settingsWindowController == nil {
       settingsWindowController = SettingsWindowController(

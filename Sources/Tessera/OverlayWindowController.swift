@@ -12,6 +12,10 @@ final class OverlayWindowController: NSWindowController, NSWindowDelegate {
   private var isPresenting = false
   /// The configured column count, widened when the overlay would otherwise be
   /// taller than the screen it opens on.
+  private var activationObserver: NSObjectProtocol?
+  /// The application the overlay has just asked to come forward, so that its
+  /// arrival is not mistaken for the user going somewhere else.
+  private var expectedActivation: pid_t?
   private var fittedColumns: Int
   private let logger: AppLogger
   private let hostingView: TransparentHostingView<OverlayView>
@@ -62,6 +66,14 @@ final class OverlayWindowController: NSWindowController, NSWindowDelegate {
     panel.level = .floating
     panel.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary, .transient]
 
+    // The panel does not hide itself when the application is deactivated, because
+    // AppKit remembers such a panel and puts it back the moment the application is
+    // activated again — so opening the settings window brought the switcher back
+    // with it, unasked, and ordering it out first did not help: it was already out,
+    // and that is not what the list is keyed on. Hiding it here instead makes this
+    // the only place that decides whether the overlay is on screen.
+    panel.hidesOnDeactivate = false
+
     hostingView.rootView = makeOverlayView()
 
     // The panel's size is decided here, by the fitting pass, and an `NSHostingView`
@@ -101,6 +113,60 @@ final class OverlayWindowController: NSWindowController, NSWindowDelegate {
     panel.contentView = hostingView
 
     connect(panel)
+    observeOtherApplications()
+  }
+
+  /// Puts the overlay away when something else comes forward.
+  ///
+  /// This is what `hidesOnDeactivate` used to do, and it does it in the case that
+  /// one missed: the application is refused activation over a fullscreen window,
+  /// never becomes active, and so is never deactivated either — leaving the panel
+  /// on screen with nothing to take it down.
+  ///
+  /// An application the overlay itself asked for is not "something else": with
+  /// `closeAfterActivation` off the overlay is meant to stay up while windows are
+  /// picked from it, so the one activation it expects is let through.
+  private func observeOtherApplications() {
+    activationObserver = NSWorkspace.shared.notificationCenter.addObserver(
+      forName: NSWorkspace.didActivateApplicationNotification,
+      object: nil,
+      queue: .main
+    ) { [weak self] notification in
+      // Which application arrived is read from the notification rather than asked
+      // of the workspace afterwards: asked afterwards, the answer was sometimes
+      // still the application that had just left, and the overlay hid itself the
+      // instant it was shown.
+      let activated =
+        notification.userInfo?[NSWorkspace.applicationUserInfoKey] as? NSRunningApplication
+      let arrived = activated?.processIdentifier
+
+      // Registered against the main queue, so the hop is a formality rather than a
+      // thread change.
+      MainActor.assumeIsolated {
+        guard let self, let arrived,
+          arrived != ProcessInfo.processInfo.processIdentifier
+        else {
+          return
+        }
+
+        guard arrived != self.expectedActivation else {
+          self.expectedActivation = nil
+          return
+        }
+
+        self.hideOverlay()
+      }
+    }
+  }
+
+  /// Called when the application stops, because the observer outlives the window.
+  func stopObserving() {
+    guard let activationObserver else {
+      return
+    }
+
+    NSWorkspace.shared.notificationCenter.removeObserver(activationObserver)
+    self.activationObserver = nil
   }
 
   /// The panel reports what was pressed; this is where each of those becomes an
@@ -223,9 +289,7 @@ final class OverlayWindowController: NSWindowController, NSWindowDelegate {
   }
 
   func hideOverlay() {
-    // Restored so that the overlay is transient again once this round of stepping
-    // through windows is over.
-    (window as? NSPanel)?.hidesOnDeactivate = true
+    expectedActivation = nil
     window?.orderOut(nil)
     windowCoordinator.releaseList()
     logger.debug("Overlay window ordered out")
@@ -277,59 +341,6 @@ final class OverlayWindowController: NSWindowController, NSWindowDelegate {
     return false
   }
 
-  /// Widens the grid until it is no taller than the screen, or until no more tiles
-  /// fit across it.
-  ///
-  /// The configured column count is where this starts, not what it insists on: a
-  /// column count that reads well with six windows leaves sixteen taller than a
-  /// laptop screen, and a switcher nobody can see all of is not doing its job.
-  /// Measured rather than calculated — SwiftUI's own fitting size is the only
-  /// answer that accounts for the headings.
-  private func fitToScreen(within usable: CGSize) -> CGSize {
-    let widest = TileMetrics.columnsFitting(availableWidth: usable.width)
-
-    var chosen = columns
-    var size = measure(columns: chosen)
-
-    while size.height > usable.height, chosen < widest {
-      chosen += 1
-      size = measure(columns: chosen)
-    }
-
-    fittedColumns = chosen
-    hostingView.rootView = makeOverlayView()
-    return size
-  }
-
-  /// Measured on a throwaway view rather than on the one on screen: an
-  /// `NSHostingView` does not re-report its fitting size synchronously when its
-  /// root view is replaced, so asking the live view in a loop returns the first
-  /// answer every time — which is how the first version of this widened the grid
-  /// to the edge of the screen and then sized the window for the layout it had
-  /// rejected.
-  private func measure(columns count: Int) -> CGSize {
-    TransparentHostingView(rootView: makeOverlayView(columns: count)).fittingSize
-  }
-
-  private func makeOverlayView(columns count: Int? = nil) -> OverlayView {
-    OverlayView(
-      windowCoordinator: windowCoordinator,
-      selection: selection,
-      background: background,
-      columns: count ?? fittedColumns,
-      dimsStaleThumbnails: dimsStaleThumbnails,
-      onSelect: { [weak self] windowID in
-        self?.selectWindow(id: windowID)
-      },
-      onMove: { [weak self] windowID, targetID in
-        self?.windowCoordinator.moveTile(windowID, before: targetID)
-      },
-      onClose: { [weak self] in
-        self?.hideOverlay()
-      }
-    )
-  }
-
   private func selectWindow(id windowID: CGWindowID) {
     logger.info("Window selected from overlay")
 
@@ -337,6 +348,7 @@ final class OverlayWindowController: NSWindowController, NSWindowDelegate {
       hideOverlay()
     }
 
+    expectedActivation = windowCoordinator.tiles.first { $0.id == windowID }?.processID
     windowCoordinator.activateWindow(id: windowID)
   }
 
@@ -381,7 +393,12 @@ final class OverlayWindowController: NSWindowController, NSWindowDelegate {
       return
     }
 
-    let raised = windowCoordinator.raiseWindow(id: windowCoordinator.tiles[selection.index].id)
+    // Stepping raises a window without activating its application, but an
+    // application that comes forward anyway is one the overlay asked for, and must
+    // not be read as the user leaving.
+    let tile = windowCoordinator.tiles[selection.index]
+    expectedActivation = tile.processID
+    let raised = windowCoordinator.raiseWindow(id: tile.id)
     logger.debug("Stepped to index \(selection.index); raised=\(raised)")
   }
 
@@ -455,6 +472,65 @@ final class OverlayWindowController: NSWindowController, NSWindowDelegate {
     }
 
     selectWindow(id: windowCoordinator.tiles[index].id)
+  }
+}
+
+// MARK: - Fitting
+
+/// Choosing how wide the grid is and how large the panel must be to hold it.
+extension OverlayWindowController {
+
+  /// Widens the grid until it is no taller than the screen, or until no more tiles
+  /// fit across it.
+  ///
+  /// The configured column count is where this starts, not what it insists on: a
+  /// column count that reads well with six windows leaves sixteen taller than a
+  /// laptop screen, and a switcher nobody can see all of is not doing its job.
+  /// Measured rather than calculated — SwiftUI's own fitting size is the only
+  /// answer that accounts for the headings.
+  private func fitToScreen(within usable: CGSize) -> CGSize {
+    let widest = TileMetrics.columnsFitting(availableWidth: usable.width)
+
+    var chosen = columns
+    var size = measure(columns: chosen)
+
+    while size.height > usable.height, chosen < widest {
+      chosen += 1
+      size = measure(columns: chosen)
+    }
+
+    fittedColumns = chosen
+    hostingView.rootView = makeOverlayView()
+    return size
+  }
+
+  /// Measured on a throwaway view rather than on the one on screen: an
+  /// `NSHostingView` does not re-report its fitting size synchronously when its
+  /// root view is replaced, so asking the live view in a loop returns the first
+  /// answer every time — which is how the first version of this widened the grid
+  /// to the edge of the screen and then sized the window for the layout it had
+  /// rejected.
+  private func measure(columns count: Int) -> CGSize {
+    TransparentHostingView(rootView: makeOverlayView(columns: count)).fittingSize
+  }
+
+  private func makeOverlayView(columns count: Int? = nil) -> OverlayView {
+    OverlayView(
+      windowCoordinator: windowCoordinator,
+      selection: selection,
+      background: background,
+      columns: count ?? fittedColumns,
+      dimsStaleThumbnails: dimsStaleThumbnails,
+      onSelect: { [weak self] windowID in
+        self?.selectWindow(id: windowID)
+      },
+      onMove: { [weak self] windowID, targetID in
+        self?.windowCoordinator.moveTile(windowID, before: targetID)
+      },
+      onClose: { [weak self] in
+        self?.hideOverlay()
+      }
+    )
   }
 }
 
