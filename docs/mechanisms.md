@@ -282,6 +282,32 @@ the other way round requires `nonisolated(unsafe)` to silence a real diagnostic.
 Carbon dispatches hot key events on the main run loop, which is what makes
 `MainActor.assumeIsolated` in that callback sound rather than hopeful.
 
+### Sharing a combination with macOS
+
+Registering a combination macOS already owns succeeds. `RegisterEventHotKey`
+returns `noErr`, both registrations stand, and the key goes to whichever of the
+two asked for it last. Nothing reports the collision, and the symptom is not a
+hotkey that never works — it is one that works for hours and then stops, with the
+registration still live and nothing in the log. Restarting the app takes the
+combination back, which makes it look like a bug in the app that a restart fixed.
+
+The default shipped here, ctrl+alt+space, is also "Select the next source in the
+Input menu" on any Mac with a second keyboard layout. It was measured on this one:
+enabled, `parameters = (32, 49, 786432)` — space, key code 49, control plus option.
+
+macOS publishes its own shortcuts in a preference domain rather than through an
+API: `AppleSymbolicHotKeys` in `com.apple.symbolichotkeys`, one entry per
+shortcut, each with an id, whether it is enabled, and three parameters — the
+character, the virtual key code, and the modifiers as a Cocoa mask. HIToolbox
+does export `CopySymbolicHotKeys`, but no SDK header declares it, so reaching it
+means declaring the symbol yourself. Reading the plist needs no permission and no
+undeclared symbol, so `SystemHotkeys` does that and `HotkeyController` warns,
+naming the shortcut to switch off.
+
+The ids worth knowing, all bound to the space bar: 60 previous input source
+(⌃Space), 61 next input source (⌃⌥Space), 64 Spotlight (⌘Space), 65 Spotlight
+file window (⌥⌘Space). The tab key carries no system shortcut at all.
+
 ## Activation
 
 Two steps, and neither is sufficient alone: `NSRunningApplication.activate()`

@@ -408,7 +408,7 @@ final class TransparentHostingView<Content: View>: NSHostingView<Content> {
     false
   }
 
-  override required init(rootView: Content) {
+  required init(rootView: Content) {
     super.init(rootView: rootView)
 
     wantsLayer = true

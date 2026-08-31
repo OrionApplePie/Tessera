@@ -423,7 +423,7 @@ and it consumes the key press rather than passing it to the focused app.
 Change it in the config:
 
 ```toml
-hotkey = "cmd+shift+space"
+hotkey = "alt+tab"
 ```
 
 - At least one modifier is required. A bare key would be swallowed system-wide.
@@ -435,8 +435,18 @@ hotkey = "cmd+shift+space"
   current layout produces.
 - `hotkey = ""` disables it. Then bind `tessera toggle` in a launcher instead.
 
-If another application already owns the combination, registration fails, the app
-logs the failure and keeps running — the menu bar item and the CLI still work.
+Pick a combination nothing else owns, and prefer checking rather than assuming:
+
+- If another application already holds it, registration fails, the app logs the
+  failure and keeps running — the menu bar item and the CLI still work.
+- If **macOS** holds it, registration *succeeds*, both claims stand, and the key
+  goes to whichever asked for it last. The overlay then opens for hours and
+  stops without a word. Tessera reads the system's own shortcut list at startup
+  and logs a warning naming the one it collides with; `ctrl+alt+space` is also
+  "Select the next source in the Input menu", so on a Mac with two keyboard
+  layouts either switch that off in System Settings > Keyboard > Keyboard
+  Shortcuts, or bind something else. The tab key carries no system shortcut at
+  all, which makes `alt+tab` a safe choice.
 
 ## Settings window
 

@@ -13,6 +13,14 @@ max_windows = 24
 
 # Global hotkey that toggles the overlay. At least one modifier is required.
 # Set it to "" to disable it and trigger the overlay from the CLI instead.
+#
+# Pick a combination macOS does not already use. Claiming one it owns succeeds
+# silently and the key then goes to whichever of the two registered last, so the
+# overlay opens for a while and then stops. ctrl+alt+space is also "Select the
+# next source in the Input menu", which is on by default once a second keyboard
+# layout exists — either switch that off in System Settings > Keyboard >
+# Keyboard Shortcuts, or bind something else here. Tessera logs a warning naming
+# the shortcut it collides with.
 hotkey = "ctrl+alt+space"
 
 # Ask an application directly, through Apple Events, to raise a window that

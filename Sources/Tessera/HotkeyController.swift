@@ -69,6 +69,25 @@ final class HotkeyController {
     }
 
     logger.info("Registered global hotkey \(binding.displayName)")
+    warnAboutSystemConflict()
+  }
+
+  /// macOS accepts a second claim on a shortcut it already owns without a word,
+  /// and then hands the key to whichever registration is younger. Nothing can be
+  /// done about it from here — but saying so turns an overlay that stops opening
+  /// for no reason into a line naming the shortcut to switch off.
+  private func warnAboutSystemConflict() {
+    guard let conflict = SystemHotkeys.conflict(with: binding) else {
+      return
+    }
+
+    logger.warning(
+      "\(binding.displayName) is also the macOS shortcut \"\(conflict.name)\", which is "
+        + "switched on. Both are registered and macOS gives the key to whichever asked "
+        + "for it last, so the overlay will stop opening at some point. Turn that "
+        + "shortcut off in System Settings > Keyboard > Keyboard Shortcuts, or bind a "
+        + "different hotkey in the config."
+    )
   }
 
   func stop() {
