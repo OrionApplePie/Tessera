@@ -530,8 +530,16 @@ So the flag is off and the decision is one place: the overlay hides when another
 application comes forward. Which application that is comes from the notification
 itself — asked of the workspace afterwards, the answer was sometimes still the
 application that had just left, and the overlay hid itself the instant it was
-shown. The one activation it lets through is the one it asked for, so that
-`close_after_activation = false` still means what it says.
+shown.
+
+Any application, including the one the overlay has just raised a window in.
+Excepting that one sounded right, since `close_after_activation = false` says the
+overlay stays up while windows are picked from it, but it is not what the panel did
+before: AppKit hid it whenever this application was deactivated, whoever had taken
+over. Excepted, picking a window left the overlay on screen, which reads as an
+overlay that will not go away. Stepping through windows still keeps it, because a
+step raises a window without activating its application, so nothing comes
+forward — which is the whole reason that mode exists.
 
 ## The numbers, and which of them are settings
 

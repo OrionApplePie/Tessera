@@ -13,9 +13,6 @@ final class OverlayWindowController: NSWindowController, NSWindowDelegate {
   /// The configured column count, widened when the overlay would otherwise be
   /// taller than the screen it opens on.
   private var activationObserver: NSObjectProtocol?
-  /// The application the overlay has just asked to come forward, so that its
-  /// arrival is not mistaken for the user going somewhere else.
-  private var expectedActivation: pid_t?
   private var fittedColumns: Int
   private let logger: AppLogger
   private let hostingView: TransparentHostingView<OverlayView>
@@ -123,9 +120,13 @@ final class OverlayWindowController: NSWindowController, NSWindowDelegate {
   /// never becomes active, and so is never deactivated either — leaving the panel
   /// on screen with nothing to take it down.
   ///
-  /// An application the overlay itself asked for is not "something else": with
-  /// `closeAfterActivation` off the overlay is meant to stay up while windows are
-  /// picked from it, so the one activation it expects is let through.
+  /// Including one the overlay itself asked for. Letting that one through sounded
+  /// right — `closeAfterActivation` off means the overlay stays up while windows
+  /// are picked from it — but it is not what the panel used to do: AppKit hid it
+  /// whenever this application was deactivated, whoever had taken over. Picking a
+  /// window left the overlay on screen, which reads as an overlay that will not go
+  /// away. Stepping through windows still keeps it, because a step raises a window
+  /// without activating its application, and nothing comes forward.
   private func observeOtherApplications() {
     activationObserver = NSWorkspace.shared.notificationCenter.addObserver(
       forName: NSWorkspace.didActivateApplicationNotification,
@@ -146,11 +147,6 @@ final class OverlayWindowController: NSWindowController, NSWindowDelegate {
         guard let self, let arrived,
           arrived != ProcessInfo.processInfo.processIdentifier
         else {
-          return
-        }
-
-        guard arrived != self.expectedActivation else {
-          self.expectedActivation = nil
           return
         }
 
@@ -289,7 +285,6 @@ final class OverlayWindowController: NSWindowController, NSWindowDelegate {
   }
 
   func hideOverlay() {
-    expectedActivation = nil
     window?.orderOut(nil)
     windowCoordinator.releaseList()
     logger.debug("Overlay window ordered out")
@@ -348,7 +343,6 @@ final class OverlayWindowController: NSWindowController, NSWindowDelegate {
       hideOverlay()
     }
 
-    expectedActivation = windowCoordinator.tiles.first { $0.id == windowID }?.processID
     windowCoordinator.activateWindow(id: windowID)
   }
 
@@ -393,12 +387,7 @@ final class OverlayWindowController: NSWindowController, NSWindowDelegate {
       return
     }
 
-    // Stepping raises a window without activating its application, but an
-    // application that comes forward anyway is one the overlay asked for, and must
-    // not be read as the user leaving.
-    let tile = windowCoordinator.tiles[selection.index]
-    expectedActivation = tile.processID
-    let raised = windowCoordinator.raiseWindow(id: tile.id)
+    let raised = windowCoordinator.raiseWindow(id: windowCoordinator.tiles[selection.index].id)
     logger.debug("Stepped to index \(selection.index); raised=\(raised)")
   }
 
