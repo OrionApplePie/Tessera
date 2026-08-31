@@ -235,6 +235,14 @@ before and after. It needs the Accessibility permission the switcher already ask
 for and nothing further, which is why this is the last thing tried rather than a
 permission to request.
 
+It only acts on an application that is already frontmost. Pressing an item of one
+that is not returns `noErr` and does nothing at all — measured twice, once by
+accident: a switch reported that it had worked and left the window where it was.
+Activation has only just been asked for when the menu would first be useful, so
+usually the application is not frontmost yet, and the press waits for the system to
+announce that it has arrived. That announcement is the same one the retries listen
+for.
+
 It is asked first, before the retries, because it answers the very case that leads
 here — a window Accessibility cannot see — and answers it at once. Measured from
 the tile being chosen to the window being up: 931ms when the menu came after three

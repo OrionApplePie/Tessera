@@ -377,10 +377,13 @@ extension WindowCoordinator {
   /// them, and the one that was asked for can be raised after all.
   private func raiseOnceTheSpaceHasSwitched(_ tile: WindowTileModel) {
     // The Window menu is asked first, because it answers the case that brought us
-    // here — a window Accessibility cannot see — and answers it at once. Measured
-    // on two fullscreen VS Code windows: 931ms to reach the menu through retries,
-    // against 30ms when it is asked straight away.
-    if raiseThroughWindowMenu(tile) {
+    // here — a window Accessibility cannot see. But only of an application that is
+    // already frontmost: pressing an item of one that is not returns success and
+    // does nothing, measured, which is how a switch could report that it had worked
+    // and leave the window where it was. Activation has only just been asked for,
+    // so usually it is not frontmost yet, and the press waits below for the system
+    // to say that it is.
+    if isFrontmost(tile), raiseThroughWindowMenu(tile) {
       return
     }
 
@@ -409,15 +412,25 @@ extension WindowCoordinator {
   /// forward, which are the two things that turn an unreachable window into a
   /// reachable one.
   private func attemptPendingRaise() {
-    guard let tile = pendingRaise,
-      NSWorkspace.shared.frontmostApplication?.processIdentifier == tile.processID,
-      (try? activator.raiseWithoutActivating(tile)) == .raisedTheWindow
-    else {
+    guard let tile = pendingRaise, isFrontmost(tile) else {
       return
     }
 
-    logger.info("Raised the window once the system had settled")
-    clearPendingRaise()
+    if (try? activator.raiseWithoutActivating(tile)) == .raisedTheWindow {
+      logger.info("Raised the window once the system had settled")
+      clearPendingRaise()
+      return
+    }
+
+    // Now that the application is frontmost its menu will act, which it would not
+    // have done at the moment the window was chosen.
+    if raiseThroughWindowMenu(tile) {
+      clearPendingRaise()
+    }
+  }
+
+  private func isFrontmost(_ tile: WindowTileModel) -> Bool {
+    NSWorkspace.shared.frontmostApplication?.processIdentifier == tile.processID
   }
 
   /// The last try, for when nothing was announced at all — the application was
