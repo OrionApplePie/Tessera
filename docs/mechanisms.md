@@ -220,6 +220,26 @@ Electron, no `.sdef`, no `NSAppleScriptEnabled`.
 permission at all, but measured on Chrome it visited two of four windows, so it is
 bounded by the active Space like everything else.
 
+### The two sources spell a window differently
+
+A tile's title comes from the window server; the window is raised through
+Accessibility, which does not always use the same string. Activity Monitor's
+window is "Мониторинг системы" to one and "Мониторинг системы – Все процессы" to
+the other, measured on macOS 26 with `kAXTitleAttribute` against `kCGWindowName`
+for the same window id.
+
+Matching on equality alone therefore aimed at nothing. The retry budget went by,
+Apple Events were asked and refused, and the log said the window could not be
+raised by any means — while the application had come forward and its window was on
+screen, because it had only the one. An application with several windows would
+have raised whichever it liked.
+
+`WindowTitleMatch` takes an exact match first, and failing that a candidate that
+extends the title, or that the title extends — but only when exactly one does.
+Two documents whose names begin alike are left alone: raising the wrong window is
+worse than raising none, and "could not aim" is the truthful answer that also
+teaches the learned-window store nothing.
+
 ## Windows the application does not own any more
 
 A window can outlive what it showed. Finder reported one window through Apple

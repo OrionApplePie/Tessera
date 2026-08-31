@@ -139,7 +139,7 @@ struct WindowActivator {
       AXUIElementCopyAttributeValue(application, kAXWindowsAttribute as CFString, &windowsValue)
         == .success,
       let windows = windowsValue as? [AXUIElement],
-      let match = windows.first(where: { matchesTitle(element: $0, title: window.title) })
+      let match = matchingWindow(among: windows, title: window.title)
     else {
       throw WindowActivationError.windowNotListed(window.displayAppName, window.displayTitle)
     }
@@ -162,7 +162,7 @@ struct WindowActivator {
       return .couldNotAimAtTheWindow
     }
 
-    let matched = windows.first { matchesTitle(element: $0, title: title) }
+    let matched = matchingWindow(among: windows, title: title)
     let target = matched ?? windows.first
 
     guard let target else {
@@ -201,19 +201,26 @@ struct WindowActivator {
     logger.debug("Unminimized window via Accessibility")
   }
 
-  private func matchesTitle(element: AXUIElement, title: String) -> Bool {
-    guard !title.isEmpty else {
-      return false
+  /// The window Accessibility lists under `title`, when it can be told apart.
+  private func matchingWindow(among windows: [AXUIElement], title: String) -> AXUIElement? {
+    let titles = windows.map { accessibilityTitle(of: $0) ?? "" }
+
+    guard let index = WindowTitleMatch.index(of: title, among: titles) else {
+      return nil
     }
 
+    return windows[index]
+  }
+
+  private func accessibilityTitle(of element: AXUIElement) -> String? {
     var titleValue: CFTypeRef?
     let status = AXUIElementCopyAttributeValue(element, kAXTitleAttribute as CFString, &titleValue)
 
-    guard status == .success, let elementTitle = titleValue as? String else {
-      return false
+    guard status == .success else {
+      return nil
     }
 
-    return elementTitle == title
+    return titleValue as? String
   }
 }
 
