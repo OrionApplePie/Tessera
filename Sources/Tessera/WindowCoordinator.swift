@@ -55,7 +55,8 @@ final class WindowCoordinator: ObservableObject {
       windowListService ?? WindowListService(config: config, learnedWindows: store)
     self.thumbnailService = thumbnailService ?? WindowThumbnailService(config: config)
     self.activator = activator ?? WindowActivator(config: config)
-    self.menuActivator = WindowMenuActivator(debugMode: config.debugMode)
+    self.menuActivator = WindowMenuActivator(
+      timeout: config.unresponsiveAfterSeconds, debugMode: config.debugMode)
     self.activationVerifier = ActivationVerifier(grace: config.activationSettleSeconds)
     self.previewCache = previewCache ?? WindowPreviewCache(config: config)
   }
@@ -196,6 +197,7 @@ final class WindowCoordinator: ObservableObject {
     // and the cap below would hide part of it.
     updateSpaceTracker(with: snapshot.windows)
     judgeRecentActivations(against: snapshot.windows)
+    forgetPendingRaiseIfItArrived(snapshot.windows)
 
     // In a stable order a Space switch must not reshuffle anything — unless Spaces
     // are what the overlay groups by, where dropping the rank would let sections
@@ -421,15 +423,34 @@ extension WindowCoordinator {
   /// The last try, for when nothing was announced at all — the application was
   /// already frontmost and no Space had to change — and the report when there is
   /// nothing left to try.
+  ///
+  /// Accessibility only. The Window menu was asked at the start, and asking it
+  /// again a second and a half later means pressing a menu item in an application
+  /// the person may well be using by then: they see its menu open by itself, for a
+  /// window that has usually arrived already.
   private func giveUpOnPendingRaise(_ tile: WindowTileModel) {
     if (try? activator.raiseWithoutActivating(tile)) == .raisedTheWindow {
       logger.info("Raised the window when the wait ran out")
-    } else if raiseThroughWindowMenu(tile) {
-      logger.info("Raised the window through a menu that could not be read earlier")
     } else {
       logger.info("The window could not be raised by any means")
     }
 
+    clearPendingRaise()
+  }
+
+  /// Drops the pending raise once the window is on screen, however it got there.
+  ///
+  /// Without this, a window the person reached themselves — by switching Spaces, or
+  /// by clicking it — would still be chased when the wait ran out, in an
+  /// application they had moved on to.
+  private func forgetPendingRaiseIfItArrived(_ windows: [WindowInfo]) {
+    guard let pending = pendingRaise,
+      windows.contains(where: { $0.id == pending.id && $0.isOnScreen })
+    else {
+      return
+    }
+
+    logger.debug("The window arrived on its own; nothing left to ask for")
     clearPendingRaise()
   }
 

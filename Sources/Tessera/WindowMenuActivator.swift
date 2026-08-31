@@ -15,29 +15,26 @@ import ApplicationServices
 /// already asks for, and nothing else.
 @MainActor
 struct WindowMenuActivator {
+  private let timeout: TimeInterval
   private let logger: AppLogger
 
-  init(debugMode: Bool) {
+  init(timeout: TimeInterval, debugMode: Bool) {
+    self.timeout = timeout
     self.logger = AppLogger(debugMode: debugMode, category: .preview)
   }
 
   /// Presses the menu item that names this window, and says whether it found one.
-  ///
-  /// Only items directly under a menu are considered. That is what keeps this from
-  /// pressing something in "Open Recent", whose entries are one level deeper and
-  /// would open a second window rather than raise the one asked for.
   func raiseWindow(titled title: String, processID: pid_t) -> Bool {
     guard !title.isEmpty else {
       return false
     }
 
-    let items = menuItems(ofApplicationWithProcessID: processID)
-    guard let index = WindowTitleMatch.index(of: title, among: items.map(\.title)) else {
+    guard let item = menuItem(naming: title, ofApplicationWithProcessID: processID) else {
       logger.debug("No menu item names \"\(title)\" in pid \(processID)")
       return false
     }
 
-    let status = AXUIElementPerformAction(items[index].element, kAXPressAction as CFString)
+    let status = AXUIElementPerformAction(item, kAXPressAction as CFString)
     guard status == .success else {
       logger.warning("Pressing the menu item for \"\(title)\" failed: \(status.rawValue)")
       return false
@@ -47,10 +44,21 @@ struct WindowMenuActivator {
     return true
   }
 
-  private func menuItems(ofApplicationWithProcessID processID: pid_t) -> [(
-    element: AXUIElement, title: String
-  )] {
+  /// The item naming this window, searched menu by menu from the end.
+  ///
+  /// Every question here is a round trip to another application, and an application
+  /// in the middle of a Space switch answers slowly — without a limit, one of those
+  /// round trips froze the overlay for as long as it took. So the messaging timeout
+  /// is set, and the search stops at the first menu that names the window: Window
+  /// and Help are the last two menus, and walking File and Edit first costs a round
+  /// trip per item for nothing. Measured across Word, Code and Telegram: the whole
+  /// menu bar is 7-24ms when the application is idle, the search from the end 1-9ms.
+  private func menuItem(
+    naming title: String,
+    ofApplicationWithProcessID processID: pid_t
+  ) -> AXUIElement? {
     let application = AXUIElementCreateApplication(processID)
+    AXUIElementSetMessagingTimeout(application, Float(timeout))
 
     var menuBarValue: CFTypeRef?
     guard
@@ -59,21 +67,26 @@ struct WindowMenuActivator {
       let menuBarValue,
       CFGetTypeID(menuBarValue) == AXUIElementGetTypeID()
     else {
-      return []
+      return nil
     }
 
     let menuBar = unsafeDowncast(menuBarValue, to: AXUIElement.self)
 
-    return children(of: menuBar)
-      .flatMap { children(of: $0) }
-      .flatMap { children(of: $0) }
-      .compactMap { item in
-        guard let title = title(of: item), !title.isEmpty, isEnabled(item) else {
-          return nil
-        }
+    for menu in children(of: menuBar).reversed() {
+      // Only items directly under a menu are considered, which is what keeps this
+      // from pressing something in "Open Recent": its entries are one level deeper
+      // and would open a second window rather than raise the one asked for.
+      let items = children(of: menu)
+        .flatMap { children(of: $0) }
+        .filter { isEnabled($0) }
+      let titles = items.map { self.title(of: $0) ?? "" }
 
-        return (item, title)
+      if let index = WindowTitleMatch.index(of: title, among: titles) {
+        return items[index]
       }
+    }
+
+    return nil
   }
 
   private func children(of element: AXUIElement) -> [AXUIElement] {
