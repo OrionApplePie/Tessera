@@ -21,6 +21,7 @@ final class WindowCoordinator: ObservableObject {
   private let windowListService: WindowListService
   private let thumbnailService: WindowThumbnailService
   private let activator: WindowActivator
+  private let menuActivator: WindowMenuActivator
   private let previewCache: WindowPreviewCache
   private var isRunning = false
   private var refreshTask: Task<Void, Never>?
@@ -58,6 +59,7 @@ final class WindowCoordinator: ObservableObject {
       windowListService ?? WindowListService(config: config, learnedWindows: store)
     self.thumbnailService = thumbnailService ?? WindowThumbnailService(config: config)
     self.activator = activator ?? WindowActivator(config: config)
+    self.menuActivator = WindowMenuActivator(debugMode: config.debugMode)
     self.previewCache = previewCache ?? WindowPreviewCache(config: config)
   }
 
@@ -354,10 +356,21 @@ final class WindowCoordinator: ObservableObject {
         if attempt == 3, await self.raiseThroughAppleEvents(tile) {
           return
         }
+
+        if attempt == 4, self.raiseThroughWindowMenu(tile) {
+          return
+        }
       }
 
       self?.logger.info("The window could not be raised by any means")
     }
+  }
+
+  /// Presses the window's entry in its application's own Window menu, which is the
+  /// only public list that names windows on other Spaces — and so the only way to
+  /// reach one fullscreen window from another.
+  private func raiseThroughWindowMenu(_ tile: WindowTileModel) -> Bool {
+    menuActivator.raiseWindow(titled: tile.title, processID: tile.processID)
   }
 
   /// Asks the application itself to raise the window, when Accessibility cannot.

@@ -220,6 +220,33 @@ Electron, no `.sdef`, no `NSAppleScriptEnabled`.
 permission at all, but measured on Chrome it visited two of four windows, so it is
 bounded by the active Space like everything else.
 
+### The Window menu, for windows on another Space
+
+Every fullscreen window is a Space of its own, and Accessibility lists only the
+windows on the Space showing now. Two fullscreen windows of one application are
+therefore invisible to each other: measured on VS Code, `kAXWindowsAttribute`
+named the one on screen and nothing else, while the window server listed both.
+Apple Events reach neither — Electron applications are not scriptable.
+
+The application's own Window menu does list both, by title, across Spaces:
+
+```
+  "Проверка реорганизации п… — tec-ml-toolbox"
+  "Cli example переименован… — Tessera"
+```
+
+Pressing that item raises the window and switches Spaces to it — verified by
+watching which of the two VS Code windows the window server reported as on screen
+before and after. It needs the Accessibility permission the switcher already asks
+for and nothing further, which is why this is the last thing tried rather than a
+permission to request.
+
+Only items directly under a menu are considered, which is what keeps this away from
+"Open Recent": its entries live one level deeper and would open a second window
+rather than raise the one asked for. The menu is not identified by name — VS Code
+has an English "Window" menu with Russian items, so no list of localized names
+would hold — but by the item that matches the window's title.
+
 ### The two sources spell a window differently
 
 A tile's title comes from the window server; the window is raised through
@@ -419,6 +446,22 @@ one 27ms later:
 
 One `setFrame(_:display: true)` before `makeKeyAndOrderFront` removes it, in both
 directions, every time.
+
+**Whether the panel is up is a question for the window server.** `NSWindow.isVisible`
+stays `true` for a panel that hid itself because the application was deactivated,
+and it is also `true` for one that is on screen while the application was refused
+activation — which is what happens over a fullscreen application. `NSApp.isActive`
+does not separate those either: it is `false` in both. Believing the pair of them
+meant the hotkey re-presented a panel that was already up rather than closing it,
+and since presenting places the panel on the screen the frontmost window is on,
+the panel slid from one display to the other in front of the person pressing the
+key. That is the flicker that survived the fix above.
+
+Listing what is on screen and looking for the panel's own window number answers it
+without doubt. Describing that one window does not: `CGWindowListCreateDescriptionFromArray`
+returns nothing at all for the asking application's own window, measured on
+macOS 26. A panel that is somehow still on screen when it is about to be placed is
+ordered out first, because moving a visible window is a move the eye follows.
 
 **The hosting view must not size the window.** With its default sizing options an
 `NSHostingView` pins the window's content size through constraints — reading
