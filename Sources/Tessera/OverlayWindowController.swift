@@ -161,6 +161,14 @@ final class OverlayWindowController: NSWindowController, NSWindowDelegate {
       return
     }
 
+    // A panel that is already on screen is put away before it is placed again.
+    // Moving a visible window is a move the eye follows: opening the overlay while
+    // it was still up on another display made it slide across, which is the flicker
+    // people reported on the display they had just left.
+    if window.isVisible {
+      window.orderOut(nil)
+    }
+
     // Which window you came from is worked out now rather than taken from the last
     // background refresh, which can be a refresh interval out of date. Then the
     // list is frozen for as long as the overlay is up.
@@ -230,7 +238,38 @@ final class OverlayWindowController: NSWindowController, NSWindowDelegate {
   /// overlay that was already gone, so the next press had to open it again — the
   /// overlay appeared to open only every second time.
   var isOverlayVisible: Bool {
-    window?.isVisible == true && NSApp.isActive
+    isPanelOnScreen
+  }
+
+  /// Whether the window server is actually showing the panel.
+  ///
+  /// `NSWindow.isVisible` cannot answer that on its own. It stays `true` for a
+  /// panel that hid itself because the application was deactivated, and it is also
+  /// `true` for one that is on screen while the application was refused activation
+  /// — which is what happens over a fullscreen application. `NSApp.isActive` does
+  /// not separate the two either: it is `false` in both.
+  ///
+  /// Getting it wrong is visible twice over. The hotkey re-presented a panel that
+  /// was already up instead of closing it, and re-presenting places it on the
+  /// screen the frontmost window is on, so the panel slid from one display to the
+  /// other in front of the person pressing the key.
+  ///
+  /// The window server itself has no such doubt, and answering from it costs one
+  /// lookup by window number.
+  private var isPanelOnScreen: Bool {
+    guard let window, window.isVisible else {
+      return false
+    }
+
+    // Asked by listing what is on screen rather than by describing this one window:
+    // `CGWindowListCreateDescriptionFromArray` answers with nothing at all for the
+    // asking application's own window, measured on macOS 26.
+    let onScreen =
+      CGWindowListCopyWindowInfo([.optionOnScreenOnly], kCGNullWindowID) as? [[String: Any]] ?? []
+
+    return onScreen.contains { entry in
+      (entry[kCGWindowNumber as String] as? Int) == window.windowNumber
+    }
   }
 
   func windowShouldClose(_ sender: NSWindow) -> Bool {
