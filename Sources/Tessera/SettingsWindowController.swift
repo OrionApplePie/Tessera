@@ -9,29 +9,83 @@ final class SettingsWindowController: NSWindowController {
   private let configURL: URL
   private let logger: AppLogger
   private let model: SettingsModel
+  private var hasBeenPresented = false
 
   init(config: AppConfig, configURL: URL, debugMode: Bool) {
     self.configURL = configURL
     self.logger = AppLogger(debugMode: debugMode, category: .config)
     self.model = SettingsModel(config: config)
 
+    // A settings window is not resized: nothing in it benefits from more room, and
+    // a form that can be dragged out of shape is a form that will be.
     let window = NSWindow(
-      contentRect: NSRect(x: 0, y: 0, width: 720, height: 460),
-      styleMask: [.titled, .closable, .resizable],
+      contentRect: NSRect(origin: .zero, size: Self.contentSize(for: model)),
+      styleMask: [.titled, .closable],
       backing: .buffered,
       defer: false
     )
     window.title = "Tessera Settings"
     window.isReleasedWhenClosed = false
 
+    // Reopens where it was left, which is what every other settings window on the
+    // system does. Only the first one is centred.
+    window.setFrameAutosaveName("TesseraSettings")
+
+    // No fullscreen either: a settings window that takes over a display is a
+    // settings window someone has to find their way back out of.
+    window.collectionBehavior = [.fullScreenNone]
+
     super.init(window: window)
 
-    window.contentView = NSHostingView(
+    let hostingView = NSHostingView(
       rootView: SettingsView(
         model: model,
         onSave: { [weak self] in self?.save() },
         onCancel: { [weak self] in self?.close() }
       ))
+
+    // The window's size is decided here, from the measurement above, and the view
+    // is not allowed to renegotiate it page by page — a window that changes height
+    // when you click a section reads as a glitch rather than as a fit.
+    hostingView.sizingOptions = []
+    hostingView.autoresizingMask = [.width, .height]
+    window.contentView = hostingView
+  }
+
+  /// How wide a settings window is here: enough for a sidebar and a form of
+  /// labelled controls, and no wider. Left to its own fitting size the form spreads
+  /// to whatever its longest label allows, which reads as a document window rather
+  /// than as settings.
+  private static let contentWidth: CGFloat = 560
+
+  /// The height of the page that needs the most room, at that width.
+  ///
+  /// Measured rather than chosen, so that adding a setting to any page cannot
+  /// quietly clip it, and so that no page is asked to sit in a window sized for a
+  /// different one.
+  private static func contentSize(for model: SettingsModel) -> NSSize {
+    // Measured inside a window rather than on a loose view: a view that is not in a
+    // window reports a different height for the same content, as the overlay's own
+    // fitting pass found. The pages are measured with their vertical size fixed, so
+    // that the form reports what it draws rather than what it could be squeezed to.
+    let probe = NSWindow(
+      contentRect: NSRect(x: 0, y: 0, width: contentWidth, height: 100),
+      styleMask: [.titled],
+      backing: .buffered,
+      defer: true
+    )
+
+    let height = SettingsSection.allCases.reduce(into: CGFloat(0)) { tallest, section in
+      let page = NSHostingView(
+        rootView: SettingsView(
+          model: model, section: section, measuring: true, onSave: {}, onCancel: {}))
+      probe.contentView = page
+      probe.layoutIfNeeded()
+
+      tallest = max(tallest, page.fittingSize.height, probe.contentMinSize.height)
+    }
+
+    return NSSize(width: contentWidth, height: height)
   }
 
   @available(*, unavailable)
@@ -40,7 +94,11 @@ final class SettingsWindowController: NSWindowController {
   }
 
   func present() {
-    window?.center()
+    if !hasBeenPresented {
+      window?.center()
+      hasBeenPresented = true
+    }
+
     showWindow(nil)
     NSApp.activate(ignoringOtherApps: true)
   }
