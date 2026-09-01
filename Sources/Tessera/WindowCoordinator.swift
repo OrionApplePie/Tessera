@@ -26,6 +26,9 @@ final class WindowCoordinator: ObservableObject {
   private var isRunning = false
   private var refreshTask: Task<Void, Never>?
   private var spaceTracker = SpaceTracker()
+  private let spaceQuery: SpaceQuery
+  /// What the window server said, when it was asked and answered.
+  private var exactSpaceIndices: [CGWindowID: Int] = [:]
   private var orderRegistry = WindowOrderRegistry()
   private var isListHeld = false
   private var pendingRaise: WindowTileModel?
@@ -55,6 +58,8 @@ final class WindowCoordinator: ObservableObject {
       windowListService ?? WindowListService(config: config, learnedWindows: store)
     self.thumbnailService = thumbnailService ?? WindowThumbnailService(config: config)
     self.activator = activator ?? WindowActivator(config: config)
+    self.spaceQuery = SpaceQuery(
+      enabled: config.usesPrivateSpaceAPI, debugMode: config.debugMode)
     self.menuActivator = WindowMenuActivator(
       timeout: config.unresponsiveAfterSeconds, debugMode: config.debugMode)
     self.activationVerifier = ActivationVerifier(grace: config.activationSettleSeconds)
@@ -196,6 +201,7 @@ final class WindowCoordinator: ObservableObject {
     // Learn before ordering: the lesson is what is on screen across every window,
     // and the cap below would hide part of it.
     updateSpaceTracker(with: snapshot.windows)
+    updateExactSpaces(with: snapshot.windows)
     judgeRecentActivations(against: snapshot.windows)
     forgetPendingRaiseIfItArrived(snapshot.windows)
 
@@ -232,7 +238,7 @@ final class WindowCoordinator: ObservableObject {
         isActive: window.id == frontmostWindowID,
         isMinimized: window.isMinimized,
         displayID: window.displayID,
-        spaceIndex: spaceTracker.spaceIndex(of: window.id, on: window.displayID),
+        spaceIndex: spaceIndex(of: window.id, on: window.displayID),
         icon: icons[window.processID],
         thumbnail: nil,
         isThumbnailStale: false
@@ -529,6 +535,42 @@ extension WindowCoordinator {
   }
   /// Sort rank per window: the Space being looked at first, then the rest in the
   /// order they were learned. Windows on an unknown Space get no rank and sort last.
+  /// The Space a window is on: asked, when the window server will say, and inferred
+  /// otherwise. One is exact and one is a good guess, and the rest of the code does
+  /// not need to know which it got.
+  private func spaceIndex(of windowID: CGWindowID, on displayID: CGDirectDisplayID) -> Int? {
+    exactSpaceIndices[windowID] ?? spaceTracker.spaceIndex(of: windowID, on: displayID)
+  }
+
+  /// Turns the window server's Space identifiers into the small per-display numbers
+  /// the overlay groups by. Ordered by identifier, which is the order the Spaces
+  /// were made in, so a heading does not move about between refreshes.
+  private func updateExactSpaces(with windows: [WindowInfo]) {
+    guard spaceQuery.isAvailable else {
+      exactSpaceIndices = [:]
+      return
+    }
+
+    let spaces = spaceQuery.spaces(of: windows.map(\.id))
+    var indices: [CGWindowID: Int] = [:]
+
+    for displayID in Set(windows.map(\.displayID)) {
+      let onDisplay = windows.filter { $0.displayID == displayID }
+      let known = Set(onDisplay.compactMap { spaces[$0.id] }).sorted()
+
+      for window in onDisplay {
+        guard let space = spaces[window.id], let rank = known.firstIndex(of: space) else {
+          continue
+        }
+
+        indices[window.id] = rank
+      }
+    }
+
+    logger.debug("Spaces from the window server: \(indices.count) of \(windows.count) windows")
+    exactSpaceIndices = indices
+  }
+
   private func spaceRanks(for windows: [WindowInfo]) -> [CGWindowID: Int] {
     var ranks: [CGWindowID: Int] = [:]
 
@@ -537,10 +579,10 @@ extension WindowCoordinator {
       let activeSpace =
         onDisplay
         .first { $0.isOnScreen }
-        .flatMap { spaceTracker.spaceIndex(of: $0.id, on: displayID) }
+        .flatMap { spaceIndex(of: $0.id, on: displayID) }
 
       for window in onDisplay {
-        guard let index = spaceTracker.spaceIndex(of: window.id, on: displayID) else {
+        guard let index = spaceIndex(of: window.id, on: displayID) else {
           continue
         }
 

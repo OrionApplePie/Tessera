@@ -8,6 +8,21 @@ enum TileMetrics {
   static let padding: CGFloat = 12
   static let spacing: CGFloat = 14
   static let surfacePadding: CGFloat = 28
+  /// Room inside a group's frame, so its tiles do not touch the line drawn round
+  /// them.
+  static let groupPadding: CGFloat = 12
+  /// The group's corner. Between the tile's and the panel's, so the three read as
+  /// nested rather than repeated.
+  static let groupCornerRadius: CGFloat = 12
+  /// How many tiles a group holds across before it starts a second row of its own.
+  /// Small, because a group is meant to read as one block among several.
+  static let groupColumns = 3
+
+  /// The width a row of `count` tiles takes, gaps included.
+  static func width(forColumns count: Int) -> CGFloat {
+    let columns = CGFloat(max(count, 1))
+    return columns * width + (columns - 1) * spacing
+  }
   static let thumbnailHeight: CGFloat = 100
   /// The tile's own corner. Smaller than the panel's, so a tile reads as sitting
   /// inside it rather than repeating it.
@@ -46,6 +61,15 @@ struct OverlayView: View {
   let onMove: (CGWindowID, CGWindowID) -> Void
   let onClose: () -> Void
 
+  /// A group is at most `groupColumns` tiles across, and narrower when it holds
+  /// fewer — so a Space with one window is a small block, not a wide empty one.
+  private func groupColumns(for tileCount: Int) -> [GridItem] {
+    Array(
+      repeating: GridItem(.fixed(TileMetrics.width), spacing: TileMetrics.spacing),
+      count: min(max(tileCount, 1), TileMetrics.groupColumns)
+    )
+  }
+
   private var gridColumns: [GridItem] {
     let count = OverlayGrid.columnCount(
       forSectionSizes: windowCoordinator.sections.map(\.tiles.count),
@@ -77,15 +101,13 @@ struct OverlayView: View {
       if windowCoordinator.tiles.isEmpty {
         EmptyOverlayContent()
       } else {
-        VStack(alignment: .leading, spacing: 18) {
+        GroupFlow(spacing: TileMetrics.spacing) {
           ForEach(layout) { entry in
-            VStack(alignment: .leading, spacing: 8) {
-              if !entry.section.title.isEmpty {
-                SectionHeading(title: entry.section.title)
-              }
-
+            WindowGroup(title: entry.section.title) {
               LazyVGrid(
-                columns: gridColumns, alignment: .leading, spacing: TileMetrics.spacing
+                columns: groupColumns(for: entry.section.tiles.count),
+                alignment: .leading,
+                spacing: TileMetrics.spacing
               ) {
                 ForEach(Array(entry.section.tiles.enumerated()), id: \.element.id) { index, tile in
                   WindowTileButton(
@@ -104,6 +126,7 @@ struct OverlayView: View {
         }
       }
     }
+    .frame(width: TileMetrics.width(forColumns: columns), alignment: .leading)
     .padding(TileMetrics.surfacePadding)
     .background(
       RoundedRectangle(cornerRadius: TileMetrics.surfaceCornerRadius, style: .continuous)
@@ -114,6 +137,95 @@ struct OverlayView: View {
         .stroke(Color.white.opacity(0.12), lineWidth: 1)
     )
     .onExitCommand(perform: onClose)
+  }
+}
+
+/// Places the groups left to right and starts a new row when the next one does not
+/// fit. Side by side is what makes them read as places on a map rather than as
+/// paragraphs in a list, which is what a stack of them read as.
+private struct GroupFlow: Layout {
+  let spacing: CGFloat
+
+  func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
+    let limit = proposal.width ?? .infinity
+    var total = CGSize.zero
+    var rowWidth: CGFloat = 0
+    var rowHeight: CGFloat = 0
+
+    for view in subviews {
+      let size = view.sizeThatFits(.unspecified)
+
+      if rowWidth > 0, rowWidth + spacing + size.width > limit {
+        total.width = max(total.width, rowWidth)
+        total.height += rowHeight + spacing
+        rowWidth = 0
+        rowHeight = 0
+      }
+
+      rowWidth += (rowWidth > 0 ? spacing : 0) + size.width
+      rowHeight = max(rowHeight, size.height)
+    }
+
+    total.width = max(total.width, rowWidth)
+    total.height += rowHeight
+
+    return total
+  }
+
+  func placeSubviews(
+    in bounds: CGRect,
+    proposal: ProposedViewSize,
+    subviews: Subviews,
+    cache: inout ()
+  ) {
+    var x = bounds.minX
+    var y = bounds.minY
+    var rowHeight: CGFloat = 0
+
+    for view in subviews {
+      let size = view.sizeThatFits(.unspecified)
+
+      if x > bounds.minX, x + size.width > bounds.maxX {
+        x = bounds.minX
+        y += rowHeight + spacing
+        rowHeight = 0
+      }
+
+      view.place(at: CGPoint(x: x, y: y), proposal: ProposedViewSize(size))
+      x += size.width + spacing
+      rowHeight = max(rowHeight, size.height)
+    }
+  }
+}
+
+/// The windows of one group — a display, a Space, or both — drawn as one thing.
+///
+/// A heading alone left the eye to work out where one group ended and the next
+/// began, which is a poor way to show something as separate as a Space. The frame
+/// says it outright, and the heading sits inside it rather than floating above.
+private struct WindowGroup<Content: View>: View {
+  let title: String
+  @ViewBuilder let content: Content
+
+  var body: some View {
+    if title.isEmpty {
+      // Nothing to tell apart: one display, one Space, no frame worth drawing.
+      content
+    } else {
+      VStack(alignment: .leading, spacing: 10) {
+        SectionHeading(title: title)
+        content
+      }
+      .padding(TileMetrics.groupPadding)
+      .background(
+        RoundedRectangle(cornerRadius: TileMetrics.groupCornerRadius, style: .continuous)
+          .fill(Color.white.opacity(0.05))
+      )
+      .overlay(
+        RoundedRectangle(cornerRadius: TileMetrics.groupCornerRadius, style: .continuous)
+          .stroke(Color.white.opacity(0.12), lineWidth: 1)
+      )
+    }
   }
 }
 

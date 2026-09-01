@@ -83,6 +83,17 @@ window that misses it is left alone until it comes back on screen, which is when
 it has a surface to capture again — there is no cooldown to tune, because there is
 no guess to make.
 
+## Groups
+
+With `overlay_grouping = "displays+spaces"` each Space is drawn as a block of its
+own — a framed group with its windows inside — and the groups are laid out left to
+right, wrapping to another row when they run out of width. A heading alone left the
+eye to work out where one Space ended and the next began; a frame says it.
+
+Which Space a window is on comes from the window server when
+`use_private_space_api` allows it, and from what has been seen on screen together
+when it does not.
+
 ## Tile order
 
 What decides the order inside a group, and therefore what makes a tile move:
