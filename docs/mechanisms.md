@@ -577,9 +577,19 @@ for as long as the overlay is up, so a step can activate an application, cross a
 Space, and still have the next press arrive here. Measured: six steps in a row, all
 with the panel not key.
 
-Escape, Return, the keypad's Return and Space are held with them, for the same
-reason: after a step the keyboard belongs to the application that came forward, so
-the overlay's own keys never arrive. Escape did nothing, and neither did the keys
+The keyboard is also taken straight back. Reaching a window on another Space means
+activating its application, and macOS hands the keyboard to whichever application
+is active — but a non-activating panel can be made key without its own application
+becoming active, so the overlay asks for it back the moment it hears that
+activation. Measured across five steps: key=true after every one, while Code,
+Claude, Finder and Spotify took turns being frontmost. That is the arrangement the
+mode wants — you type at the overlay and look at the window it just raised.
+
+Escape, Return, the keypad's Return and Space are held with them anyway, as the
+floor under that. The keyboard comes back a moment *after* the step, and a key
+pressed inside that moment would otherwise land in the application that came
+forward — which is how Escape, then Return and Space, were reported as doing
+nothing at all. Escape did nothing, and neither did the keys
 that mean "this one" — which is how both were reported. Pressing a confirm key
 finishes the switch and closes the overlay whatever `close_after_activation` says,
 because that setting is about picking a tile with a mouse or a number, and a confirm

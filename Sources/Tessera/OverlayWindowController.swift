@@ -140,65 +140,6 @@ final class OverlayWindowController: NSWindowController, NSWindowDelegate {
     )
   }
 
-  /// Puts the overlay away when something else comes forward.
-  ///
-  /// This is what `hidesOnDeactivate` used to do, and it does it in the case that
-  /// one missed: the application is refused activation over a fullscreen window,
-  /// never becomes active, and so is never deactivated either — leaving the panel
-  /// on screen with nothing to take it down.
-  ///
-  /// Including one the overlay itself asked for. Letting that one through sounded
-  /// right — `closeAfterActivation` off means the overlay stays up while windows
-  /// are picked from it — but it is not what the panel used to do: AppKit hid it
-  /// whenever this application was deactivated, whoever had taken over. Picking a
-  /// window left the overlay on screen, which reads as an overlay that will not go
-  /// away. Stepping through windows still keeps it, because a step raises a window
-  /// without activating its application, and nothing comes forward.
-  private func observeOtherApplications() {
-    activationObserver = NSWorkspace.shared.notificationCenter.addObserver(
-      forName: NSWorkspace.didActivateApplicationNotification,
-      object: nil,
-      queue: .main
-    ) { [weak self] notification in
-      // Which application arrived is read from the notification rather than asked
-      // of the workspace afterwards: asked afterwards, the answer was sometimes
-      // still the application that had just left, and the overlay hid itself the
-      // instant it was shown.
-      let activated =
-        notification.userInfo?[NSWorkspace.applicationUserInfoKey] as? NSRunningApplication
-      let arrived = activated?.processIdentifier
-
-      // Registered against the main queue, so the hop is a formality rather than a
-      // thread change.
-      MainActor.assumeIsolated {
-        guard let self, let arrived,
-          arrived != ProcessInfo.processInfo.processIdentifier
-        else {
-          return
-        }
-
-        guard arrived != self.steppingActivation else {
-          self.steppingActivation = nil
-          return
-        }
-
-        self.logger.debug(
-          "Hiding: \(activated?.localizedName ?? "?") came forward (pid \(arrived))")
-        self.hideOverlay()
-      }
-    }
-  }
-
-  /// Called when the application stops, because the observer outlives the window.
-  func stopObserving() {
-    guard let activationObserver else {
-      return
-    }
-
-    NSWorkspace.shared.notificationCenter.removeObserver(activationObserver)
-    self.activationObserver = nil
-  }
-
   /// The panel reports what was pressed; this is where each of those becomes an
   /// action on the list.
   private func connect(_ panel: OverlayPanel) {
@@ -495,6 +436,88 @@ final class OverlayWindowController: NSWindowController, NSWindowDelegate {
     }
 
     selectWindow(id: windowCoordinator.tiles[index].id)
+  }
+}
+
+// MARK: - Focus
+
+/// Who has the keyboard while the overlay is up, and what the overlay does about
+/// another application taking it.
+extension OverlayWindowController {
+
+  /// Puts the overlay away when something else comes forward.
+  ///
+  /// This is what `hidesOnDeactivate` used to do, and it does it in the case that
+  /// one missed: the application is refused activation over a fullscreen window,
+  /// never becomes active, and so is never deactivated either — leaving the panel
+  /// on screen with nothing to take it down.
+  ///
+  /// Including one the overlay itself asked for. Letting that one through sounded
+  /// right — `closeAfterActivation` off means the overlay stays up while windows
+  /// are picked from it — but it is not what the panel used to do: AppKit hid it
+  /// whenever this application was deactivated, whoever had taken over. Picking a
+  /// window left the overlay on screen, which reads as an overlay that will not go
+  /// away. Stepping through windows still keeps it, because a step raises a window
+  /// without activating its application, and nothing comes forward.
+  private func observeOtherApplications() {
+    activationObserver = NSWorkspace.shared.notificationCenter.addObserver(
+      forName: NSWorkspace.didActivateApplicationNotification,
+      object: nil,
+      queue: .main
+    ) { [weak self] notification in
+      // Which application arrived is read from the notification rather than asked
+      // of the workspace afterwards: asked afterwards, the answer was sometimes
+      // still the application that had just left, and the overlay hid itself the
+      // instant it was shown.
+      let activated =
+        notification.userInfo?[NSWorkspace.applicationUserInfoKey] as? NSRunningApplication
+      let arrived = activated?.processIdentifier
+
+      // Registered against the main queue, so the hop is a formality rather than a
+      // thread change.
+      MainActor.assumeIsolated {
+        guard let self, let arrived,
+          arrived != ProcessInfo.processInfo.processIdentifier
+        else {
+          return
+        }
+
+        guard arrived != self.steppingActivation else {
+          self.steppingActivation = nil
+          self.reclaimTheKeyboard()
+          return
+        }
+
+        self.logger.debug(
+          "Hiding: \(activated?.localizedName ?? "?") came forward (pid \(arrived))")
+        self.hideOverlay()
+      }
+    }
+  }
+
+  /// Takes the keyboard back after a step brought another application forward.
+  ///
+  /// A non-activating panel can be made key without its application becoming
+  /// active, which is the only way this could work: the overlay is meant to be
+  /// what you are typing at, and the application it just raised a window in is
+  /// meant to be what you are looking at.
+  private func reclaimTheKeyboard() {
+    guard let window, window.isVisible else {
+      return
+    }
+
+    window.makeKeyAndOrderFront(nil)
+    logger.debug("Took the keyboard back after a step; key=\(window.isKeyWindow)")
+  }
+
+  /// Called when the application stops, because the observer outlives the window.
+  func stopObserving() {
+    guard let activationObserver else {
+      return
+    }
+
+    NSWorkspace.shared.notificationCenter.removeObserver(activationObserver)
+    self.activationObserver = nil
   }
 }
 
