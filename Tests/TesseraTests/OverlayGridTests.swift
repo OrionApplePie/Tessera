@@ -71,15 +71,30 @@ struct OverlayGridTests {
 
   @Test("The highlight starts on the window you are in")
   func initialIndexIsTheActiveWindow() {
-    let tiles = [makeTile(id: 1), makeTile(id: 2, isActive: true), makeTile(id: 3)]
+    let targets = [makeTile(id: 1), makeTile(id: 2, isActive: true), makeTile(id: 3)]
+      .map(OverlayTarget.window)
 
-    #expect(OverlayGrid.initialIndex(for: tiles) == 1)
+    #expect(OverlayGrid.initialIndex(for: targets) == 1)
   }
 
   @Test("With no window frontmost the highlight falls back to the first tile")
   func initialIndexFallsBackToZero() {
-    #expect(OverlayGrid.initialIndex(for: [makeTile(id: 1), makeTile(id: 2)]) == 0)
+    let targets = [makeTile(id: 1), makeTile(id: 2)].map(OverlayTarget.window)
+
+    #expect(OverlayGrid.initialIndex(for: targets) == 0)
     #expect(OverlayGrid.initialIndex(for: []) == 0)
+  }
+
+  /// An empty Space is somewhere to go, so it is somewhere the highlight can be —
+  /// but never where it starts, because you are always in a window, not in a gap.
+  @Test("An empty Space is a place the highlight can reach but not start on")
+  func initialIndexSkipsEmptySpaces() {
+    let section = WindowSectionID(displayID: 1, spaceIndex: 2)
+    let targets: [OverlayTarget] = [
+      .space(section), .window(makeTile(id: 1, isActive: true)),
+    ]
+
+    #expect(OverlayGrid.initialIndex(for: targets) == 1)
   }
 
   @Test("Left and right step through the tiles in reading order and wrap")

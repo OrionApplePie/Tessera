@@ -61,6 +61,33 @@ struct WindowSectionID: Hashable {
   let spaceIndex: Int?
 }
 
+/// What the highlight can sit on: a window, or a Space with nothing on it.
+///
+/// A Space is a place, and an empty one is a place you can go — so the arrows have
+/// to be able to reach it. Windows and empty Spaces therefore share one list, and
+/// the index the overlay keeps is an index into that.
+enum OverlayTarget: Identifiable {
+  case window(WindowTileModel)
+  case space(WindowSectionID)
+
+  var id: String {
+    switch self {
+    case .window(let tile):
+      return "w\(tile.id)"
+    case .space(let section):
+      return "s\(section.displayID)-\(section.spaceIndex ?? -1)"
+    }
+  }
+
+  var window: WindowTileModel? {
+    guard case .window(let tile) = self else {
+      return nil
+    }
+
+    return tile
+  }
+}
+
 /// The tiles of one Space of one display, as the overlay lays them out under a
 /// single heading.
 struct WindowTileSection: Identifiable {
@@ -68,6 +95,12 @@ struct WindowTileSection: Identifiable {
   /// Empty when there is nothing worth saying: one display, one known Space.
   let title: String
   var tiles: [WindowTileModel]
+  /// What the arrows can land on here: the windows, or the Space itself when it
+  /// holds none.
+  var targets: [OverlayTarget] {
+    tiles.isEmpty ? [.space(id)] : tiles.map(OverlayTarget.window)
+  }
+
   /// The Space showing right now, drawn so it stands out from the rest of the map.
   var isCurrent: Bool = false
   /// A Space made by a fullscreen window rather than a desktop. Marked, because it
@@ -235,5 +268,13 @@ struct WindowTileSection: Identifiable {
     }
 
     return parts.joined(separator: " · ")
+  }
+}
+
+extension Array {
+  /// The element at an index that may not exist. The overlay indexes a list that
+  /// changes underneath it, and asking for a place that has gone is ordinary.
+  subscript(safe index: Int) -> Element? {
+    indices.contains(index) ? self[index] : nil
   }
 }

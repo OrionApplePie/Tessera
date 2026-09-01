@@ -87,14 +87,14 @@ struct OverlayView: View {
     var offset = 0
 
     return windowCoordinator.sections.map { section in
-      defer { offset += section.tiles.count }
+      defer { offset += section.targets.count }
       return SectionLayout(section: section, offset: offset)
     }
   }
 
   /// A refresh can shrink the list under a highlight that was already placed.
   private var selectedIndex: Int {
-    min(selection.index, max(0, windowCoordinator.tiles.count - 1))
+    min(selection.index, max(0, windowCoordinator.targets.count - 1))
   }
 
   var body: some View {
@@ -109,6 +109,7 @@ struct OverlayView: View {
               isCurrent: entry.section.isCurrent,
               isFullscreen: entry.section.isFullscreen,
               isEmpty: entry.section.tiles.isEmpty,
+              isSelected: entry.section.tiles.isEmpty && entry.offset == selectedIndex,
               onFocus: { onFocusSpace(entry.section.id) },
               desktop: entry.section.tiles.isEmpty
                 ? windowCoordinator.desktopImage(
@@ -229,6 +230,8 @@ private struct WindowGroup<Content: View>: View {
   var isCurrent: Bool = false
   var isFullscreen: Bool = false
   var isEmpty: Bool = false
+  /// An empty Space carries the highlight itself: there is no tile in it to carry.
+  var isSelected: Bool = false
   var onFocus: () -> Void = {}
   var desktop: CGImage?
   @ViewBuilder let content: Content
@@ -273,6 +276,10 @@ private struct WindowGroup<Content: View>: View {
                       cornerRadius: TileMetrics.tileCornerRadius, style: .continuous))
               }
             }
+            .overlay(
+              RoundedRectangle(cornerRadius: TileMetrics.tileCornerRadius, style: .continuous)
+                .stroke(Color.accentColor, lineWidth: isSelected ? 3 : 0)
+            )
             .contentShape(Rectangle())
             .onTapGesture(perform: onFocus)
         } else {

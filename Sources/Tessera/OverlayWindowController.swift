@@ -219,7 +219,7 @@ final class OverlayWindowController: NSWindowController, NSWindowDelegate {
 
     // The highlight is placed fresh every time: the window list has moved on since
     // the overlay was last open, and a stale index would point at another window.
-    selection.index = OverlayGrid.initialIndex(for: windowCoordinator.tiles)
+    selection.index = OverlayGrid.initialIndex(for: windowCoordinator.targets)
 
     // The screen is chosen here rather than left to `center()`, which would use
     // whichever screen the window was last on. Measuring against one screen and
@@ -277,12 +277,16 @@ final class OverlayWindowController: NSWindowController, NSWindowDelegate {
   /// Names the tile the highlight starts on, so a log line can be checked against
   /// what the user was actually looking at.
   private var selectedApplicationName: String {
-    let tiles = windowCoordinator.tiles
-    guard tiles.indices.contains(selection.index) else {
+    let targets = windowCoordinator.targets
+    guard targets.indices.contains(selection.index) else {
       return "none"
     }
 
-    return "\(tiles[selection.index].displayAppName): \(tiles[selection.index].displayTitle)"
+    guard let tile = targets[selection.index].window else {
+      return "an empty Space"
+    }
+
+    return "\(tile.displayAppName): \(tile.displayTitle)"
   }
 
   func hideOverlay() {
@@ -367,7 +371,7 @@ final class OverlayWindowController: NSWindowController, NSWindowDelegate {
       from: selection.index,
       moving: direction,
       rows: OverlayGrid.rows(
-        forSectionSizes: windowCoordinator.sections.map(\.tiles.count),
+        forSectionSizes: windowCoordinator.sections.map(\.targets.count),
         maximum: fittedColumns
       )
     )
@@ -378,7 +382,7 @@ final class OverlayWindowController: NSWindowController, NSWindowDelegate {
       from: selection.index,
       moving: direction,
       rows: OverlayGrid.rows(
-        forSectionSizes: windowCoordinator.sections.map(\.tiles.count),
+        forSectionSizes: windowCoordinator.sections.map(\.targets.count),
         maximum: fittedColumns
       )
     )
@@ -391,11 +395,11 @@ final class OverlayWindowController: NSWindowController, NSWindowDelegate {
   }
 
   private func closeSelectedWindow() {
-    guard windowCoordinator.tiles.indices.contains(selection.index) else {
+    guard let tile = windowCoordinator.targets[safe: selection.index]?.window else {
       return
     }
 
-    windowCoordinator.closeWindow(id: windowCoordinator.tiles[selection.index].id)
+    windowCoordinator.closeWindow(id: tile.id)
   }
 
   /// Finds the window a letter names, trying every reading of the key press.
@@ -443,11 +447,14 @@ final class OverlayWindowController: NSWindowController, NSWindowDelegate {
   }
 
   private func selectWindow(at index: Int) {
-    guard windowCoordinator.tiles.indices.contains(index) else {
+    switch windowCoordinator.targets[safe: index] {
+    case .window(let tile):
+      selectWindow(id: tile.id)
+    case .space(let section):
+      focusSpace(section)
+    case nil:
       return
     }
-
-    selectWindow(id: windowCoordinator.tiles[index].id)
   }
 }
 
@@ -564,11 +571,20 @@ extension OverlayWindowController {
     // next one.
     moveSelection(direction)
 
-    guard windowCoordinator.tiles.indices.contains(selection.index) else {
+    guard let target = windowCoordinator.targets[safe: selection.index] else {
       return
     }
 
-    let tile = windowCoordinator.tiles[selection.index]
+    guard let stepped = target.window else {
+      // Stepping onto an empty Space shows it: there is no window there to raise.
+      if case .space(let section) = target, let index = section.spaceIndex {
+        windowCoordinator.focusSpace(at: index, on: section.displayID)
+      }
+
+      return
+    }
+
+    let tile = stepped
 
     // Accessibility first, because raising without activating brings nothing
     // forward and so disturbs nothing. It only reaches the Space showing now,

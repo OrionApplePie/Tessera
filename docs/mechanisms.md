@@ -67,6 +67,11 @@ screen together — answers instead. That fallback is what this project did befo
 so an update that breaks SkyLight costs accuracy rather than function. It is also
 switchable: `use_private_space_api = false`.
 
+The highlight moves over both. A window and an empty Space are one list —
+`OverlayTarget` — because a Space is a place you can go and the arrows have to
+reach it; an empty one carries the highlight itself, having no tile to carry it.
+It is never where the highlight starts, though: you are always in a window.
+
 Raising a window and showing a Space are two different things, and the difference
 matters. Raising asks Accessibility or a menu for a window, and the Space changes
 only because that is where the window lives. Showing a Space asks

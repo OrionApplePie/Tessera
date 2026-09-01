@@ -16,6 +16,12 @@ final class WindowCoordinator: ObservableObject {
     sections.flatMap(\.tiles)
   }
 
+  /// Everything the highlight can sit on, in drawing order: every window, and every
+  /// Space that has none.
+  var targets: [OverlayTarget] {
+    sections.flatMap(\.targets)
+  }
+
   private let config: AppConfig
   private let logger: AppLogger
   private let windowListService: WindowListService

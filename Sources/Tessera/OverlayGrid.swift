@@ -66,8 +66,8 @@ enum OverlayGrid {
   /// there makes the two marks agree and gives the arrow keys an obvious origin —
   /// you move away from where you are, rather than from wherever the list happens
   /// to begin.
-  static func initialIndex(for tiles: [WindowTileModel]) -> Int {
-    tiles.firstIndex(where: \.isActive) ?? 0
+  static func initialIndex(for targets: [OverlayTarget]) -> Int {
+    targets.firstIndex { $0.window?.isActive == true } ?? 0
   }
 
   /// What a letter is matched against.
