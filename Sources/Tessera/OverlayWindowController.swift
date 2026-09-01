@@ -16,6 +16,9 @@ final class OverlayWindowController: NSWindowController, NSWindowDelegate {
   /// How long the panel takes to cross to another display when a step lands there.
   private static let followDuration: TimeInterval = 0.18
 
+  /// The last layout measured, and the screen room it was measured for.
+  private var lastFit: (usable: CGSize, size: CGSize)?
+
   private var activationObserver: NSObjectProtocol?
   private var fittedColumns: Int
   private let logger: AppLogger
@@ -239,6 +242,10 @@ final class OverlayWindowController: NSWindowController, NSWindowDelegate {
       window.orderOut(nil)
     }
 
+    // The list has moved on since the overlay was last up, so nothing measured for
+    // it still holds.
+    lastFit = nil
+
     // Which window you came from is worked out now rather than taken from the last
     // background refresh, which can be a refresh interval out of date. Then the
     // list is frozen for as long as the overlay is up.
@@ -387,62 +394,6 @@ final class OverlayWindowController: NSWindowController, NSWindowDelegate {
     )
   }
 
-  /// The typed character first, then the Latin letter the same physical key
-  /// carries. On a Cyrillic layout those differ, and an application named in Latin
-  /// would otherwise be unreachable by its own initial.
-  /// Moves the highlighted tile itself, and takes the highlight with it.
-  /// Moves the highlight and brings that window forward, leaving the overlay up.
-  ///
-  /// The window is raised without its application being activated. Activating
-  /// takes the key window away, and taking it back afterwards proved unreliable:
-  /// after one step the overlay stopped receiving keys, which looked like it had
-  /// hung. Worse, when Accessibility cannot aim at the window, activating raises
-  /// whatever it can instead — stepping onto a Finder window landed on the desktop.
-  ///
-  /// Raising alone keeps the keyboard here and does nothing at all when it cannot
-  /// aim. It also does not cross Spaces: a window on another Space comes forward
-  /// within its own, which is as far as this can go without a switch that would
-  /// take the screen away from the overlay.
-  private func stepAndActivate(_ direction: OverlayGrid.Direction) {
-    // Switching to a window on another Space runs a system animation of about half
-    // a second, and presses arriving faster than that queue up behind each other —
-    // which is what makes a held-down arrow look like the overlay has hung. A step
-    // that arrives too soon moves the highlight and lets the switch wait for the
-    // next one.
-    moveSelection(direction)
-
-    guard windowCoordinator.tiles.indices.contains(selection.index) else {
-      return
-    }
-
-    let tile = windowCoordinator.tiles[selection.index]
-    let raised = windowCoordinator.raiseWindow(id: tile.id)
-    followTheStep(to: tile)
-    logger.debug(
-      "Stepped to index \(selection.index); raised=\(raised) "
-        + "key=\(window?.isKeyWindow == true) appActive=\(NSApp.isActive) "
-        + "frontmost=\(NSWorkspace.shared.frontmostApplication?.localizedName ?? "?")")
-  }
-
-  /// Moves the overlay to the display the window just stepped onto lives on.
-  ///
-  /// Stepping is for finding a window by looking at it, and looking at a window on
-  /// the other display while the list of them stays on this one means looking in
-  /// two places at once. The panel only moves when the display actually changes:
-  /// re-placing it on every step would shift it by whatever the new screen's room
-  /// allows, for no reason.
-  private func followTheStep(to tile: WindowTileModel) {
-    guard let window,
-      let screen = DisplayInfo.screen(for: tile.displayID),
-      screen !== window.screen
-    else {
-      return
-    }
-
-    place(window, on: screen, animated: true)
-    logger.debug("Overlay followed the step to \(screen.localizedName)")
-  }
-
   private func moveTile(_ direction: OverlayGrid.Direction) {
     let target = OverlayGrid.index(
       from: selection.index,
@@ -516,6 +467,71 @@ final class OverlayWindowController: NSWindowController, NSWindowDelegate {
   }
 }
 
+// MARK: - Stepping
+
+/// Moving across the overlay as if it were a map: the highlight moves, the window
+/// under it comes forward, and the panel follows to the display that window is on.
+extension OverlayWindowController {
+
+  /// The typed character first, then the Latin letter the same physical key
+  /// carries. On a Cyrillic layout those differ, and an application named in Latin
+  /// would otherwise be unreachable by its own initial.
+  /// Moves the highlighted tile itself, and takes the highlight with it.
+  /// Moves the highlight and brings that window forward, leaving the overlay up.
+  ///
+  /// The window is raised without its application being activated. Activating
+  /// takes the key window away, and taking it back afterwards proved unreliable:
+  /// after one step the overlay stopped receiving keys, which looked like it had
+  /// hung. Worse, when Accessibility cannot aim at the window, activating raises
+  /// whatever it can instead — stepping onto a Finder window landed on the desktop.
+  ///
+  /// Raising alone keeps the keyboard here and does nothing at all when it cannot
+  /// aim. It also does not cross Spaces: a window on another Space comes forward
+  /// within its own, which is as far as this can go without a switch that would
+  /// take the screen away from the overlay.
+  private func stepAndActivate(_ direction: OverlayGrid.Direction) {
+    let startedAt = Date()
+    // Switching to a window on another Space runs a system animation of about half
+    // a second, and presses arriving faster than that queue up behind each other —
+    // which is what makes a held-down arrow look like the overlay has hung. A step
+    // that arrives too soon moves the highlight and lets the switch wait for the
+    // next one.
+    moveSelection(direction)
+
+    guard windowCoordinator.tiles.indices.contains(selection.index) else {
+      return
+    }
+
+    let tile = windowCoordinator.tiles[selection.index]
+    let raised = windowCoordinator.raiseWindow(id: tile.id)
+    followTheStep(to: tile)
+    logger.debug(
+      "Stepped to index \(selection.index) in \(Int(Date().timeIntervalSince(startedAt) * 1000))ms; "
+        + "raised=\(raised) "
+        + "key=\(window?.isKeyWindow == true) appActive=\(NSApp.isActive) "
+        + "frontmost=\(NSWorkspace.shared.frontmostApplication?.localizedName ?? "?")")
+  }
+
+  /// Moves the overlay to the display the window just stepped onto lives on.
+  ///
+  /// Stepping is for finding a window by looking at it, and looking at a window on
+  /// the other display while the list of them stays on this one means looking in
+  /// two places at once. The panel only moves when the display actually changes:
+  /// re-placing it on every step would shift it by whatever the new screen's room
+  /// allows, for no reason.
+  private func followTheStep(to tile: WindowTileModel) {
+    guard let window,
+      let screen = DisplayInfo.screen(for: tile.displayID),
+      screen !== window.screen
+    else {
+      return
+    }
+
+    place(window, on: screen, animated: true)
+    logger.debug("Overlay followed the step to \(screen.localizedName)")
+  }
+}
+
 // MARK: - Fitting
 
 /// Choosing how wide the grid is and how large the panel must be to hold it.
@@ -530,6 +546,14 @@ extension OverlayWindowController {
   /// Measured rather than calculated — SwiftUI's own fitting size is the only
   /// answer that accounts for the headings.
   private func fitToScreen(within usable: CGSize) -> CGSize {
+    // The list is frozen while the overlay is up, so a screen of the same size asks
+    // for the same layout. Measuring it again is not free — it builds the whole
+    // view twice over and then replaces the live one — and doing that on every
+    // keypress is what made stepping stall after a few crossings.
+    if let lastFit, lastFit.usable == usable {
+      return lastFit.size
+    }
+
     let widest = TileMetrics.columnsFitting(availableWidth: usable.width)
 
     var chosen = columns
@@ -542,6 +566,7 @@ extension OverlayWindowController {
 
     fittedColumns = chosen
     hostingView.rootView = makeOverlayView()
+    lastFit = (usable, size)
     return size
   }
 

@@ -519,6 +519,14 @@ The step raises without activating, so no application comes forward and nothing
 hides the overlay — the same fact that lets `close_after_activation = false` mean
 what it says.
 
+Two things had to stop happening on every step for that to hold up. Accessibility
+is asked with a messaging timeout, because an application busy with a Space
+animation answers slowly and an unbounded wait on the main thread is the overlay
+freezing. And the layout is measured once per screen rather than once per step: the
+fitting pass builds the whole view twice over and then replaces the live one, which
+is not something to do on a keypress. Measured after both: twelve steps in a row at
+0-11ms each, eight crossings between displays at 4-9ms.
+
 And when a step lands on another display the panel travels there, over
 `followDuration`, rather than teleporting or staying behind. Measured across the
 pair here: fifteen frames from the external display to the built-in in about 170ms.

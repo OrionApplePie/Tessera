@@ -11,7 +11,13 @@ import Foundation
 struct WindowActivator {
   private let logger: AppLogger
 
+  /// How long an application is given to answer, so that one busy with a Space
+  /// animation cannot hold the main thread — and with it the overlay — while a step
+  /// waits for it.
+  private let messagingTimeout: Float
+
   init(config: AppConfig = .default) {
+    self.messagingTimeout = Float(config.unresponsiveAfterSeconds)
     self.logger = AppLogger(debugMode: config.debugMode, category: .app)
   }
 
@@ -133,6 +139,7 @@ struct WindowActivator {
     }
 
     let application = AXUIElementCreateApplication(window.processID)
+    AXUIElementSetMessagingTimeout(application, messagingTimeout)
 
     var windowsValue: CFTypeRef?
     guard
@@ -149,6 +156,7 @@ struct WindowActivator {
 
   private func raiseWindow(processID: pid_t, title: String) -> Result {
     let applicationElement = AXUIElementCreateApplication(processID)
+    AXUIElementSetMessagingTimeout(applicationElement, messagingTimeout)
 
     var windowsValue: CFTypeRef?
     let status = AXUIElementCopyAttributeValue(
