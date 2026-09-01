@@ -96,6 +96,18 @@ struct DisplayInfo: Identifiable, Hashable, Sendable {
     return overlap >= min(frame.height, other.frame.height) / 2
   }
 
+  /// The screen a display id names, for the times something has to be put on the
+  /// same display as a window. Matched on the number AppKit publishes, which is the
+  /// id ScreenCaptureKit uses.
+  @MainActor
+  static func screen(for displayID: CGDirectDisplayID) -> NSScreen? {
+    NSScreen.screens.first { screen in
+      let number = screen.deviceDescription[NSDeviceDescriptionKey("NSScreenNumber")] as? NSNumber
+
+      return number.map { CGDirectDisplayID($0.uint32Value) } == displayID
+    }
+  }
+
   /// ScreenCaptureKit knows displays only by number. The name a person recognises
   /// comes from AppKit, matched on the same display id.
   @MainActor

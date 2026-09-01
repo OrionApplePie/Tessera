@@ -501,6 +501,31 @@ in the same colour.
 
 ## Stepping through windows with the overlay open
 
+The overlay is a map, and `⌃⌥⇧` with an arrow moves across it: the highlight moves,
+the window under it comes forward, and the overlay stays up. It is the nearest
+thing to a tiling window manager's directional movement that macOS allows, and the
+map has to be the overlay because macOS arranges Spaces in no geometry a person
+can navigate.
+
+Three details make it work rather than merely happen.
+
+The panel is a `.nonactivatingPanel`. It takes the keyboard without the
+application becoming active — which over a fullscreen application it cannot do,
+because macOS refuses that activation. Measured: with the panel key, seven steps in
+a row all arrive; the arrows keep reaching the overlay rather than the application
+behind it.
+
+The step raises without activating, so no application comes forward and nothing
+hides the overlay — the same fact that lets `close_after_activation = false` mean
+what it says.
+
+And when a step lands on another display the panel travels there, over
+`followDuration`, rather than teleporting or staying behind. Measured across the
+pair here: fifteen frames from the external display to the built-in in about 170ms.
+Long enough to be followed by eye, short enough that a held arrow does not leave
+the panel several steps behind.
+
+
 `⌃⇧` with an arrow moves the highlight and brings that window forward without
 closing the overlay. It raises the window through Accessibility and does not
 activate its application, which means it only reaches windows on the current

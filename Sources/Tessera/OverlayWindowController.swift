@@ -1,5 +1,6 @@
 import AppKit
 import Carbon.HIToolbox
+import QuartzCore
 import SwiftUI
 
 final class OverlayWindowController: NSWindowController, NSWindowDelegate {
@@ -12,6 +13,9 @@ final class OverlayWindowController: NSWindowController, NSWindowDelegate {
   private var isPresenting = false
   /// The configured column count, widened when the overlay would otherwise be
   /// taller than the screen it opens on.
+  /// How long the panel takes to cross to another display when a step lands there.
+  private static let followDuration: TimeInterval = 0.18
+
   private var activationObserver: NSObjectProtocol?
   private var fittedColumns: Int
   private let logger: AppLogger
@@ -49,7 +53,11 @@ final class OverlayWindowController: NSWindowController, NSWindowDelegate {
 
     let panel = OverlayPanel(
       contentRect: NSRect(x: 0, y: 0, width: 800, height: 260),
-      styleMask: [.borderless, .fullSizeContentView],
+      // Non-activating: the panel takes the keyboard without the application
+      // becoming active, which over a fullscreen application it cannot do — macOS
+      // refuses that activation, and the arrows went to the fullscreen application
+      // instead of to the overlay standing in front of it.
+      styleMask: [.borderless, .fullSizeContentView, .nonactivatingPanel],
       backing: .buffered,
       defer: false
     )
@@ -244,24 +252,7 @@ final class OverlayWindowController: NSWindowController, NSWindowDelegate {
     // The screen is chosen here rather than left to `center()`, which would use
     // whichever screen the window was last on. Measuring against one screen and
     // opening on another is how the fitting appeared to work only the second time.
-    let screen = NSScreen.main
-    let usable = screen?.visibleFrame ?? .zero
-
-    // The panel is sized to its content at show time rather than pinned to a
-    // constant, and the content is laid out to fit the screen it opens on.
-    let fittingSize = fitToScreen(within: usable.size)
-
-    // Size and position are committed as one frame, and drawn before the panel is
-    // ordered front. Set separately and left to be displayed whenever, they reached
-    // the window server after the order-front did: the panel appeared at the size
-    // and place it had last time — on the other screen, if that is where it was —
-    // and jumped to the new one 27ms later, which is what the flicker was.
-    if let placed = OverlayGrid.placement(for: fittingSize, in: usable) {
-      window.setFrame(window.frameRect(forContentRect: placed), display: true)
-    } else {
-      window.center()
-    }
-
+    let fittingSize = place(window, on: NSScreen.main)
     window.makeKeyAndOrderFront(nil)
     NSApp.activate(ignoringOtherApps: true)
     logger.debug(
@@ -269,8 +260,45 @@ final class OverlayWindowController: NSWindowController, NSWindowDelegate {
         + "fitting=\(Int(fittingSize.width))x\(Int(fittingSize.height)) "
         + "frame=\(Int(window.frame.width))x\(Int(window.frame.height)) "
         + "columns=\(fittedColumns) visible=\(window.isVisible) "
+        + "key=\(window.isKeyWindow) appActive=\(NSApp.isActive) "
+        + "frontmost=\(NSWorkspace.shared.frontmostApplication?.localizedName ?? "?") "
         + "selection=\(selection.index) (\(selectedApplicationName))"
     )
+  }
+
+  /// Centres the panel on a screen, at the size that screen's room allows.
+  ///
+  /// Size and position are committed as one frame, and drawn before the window is
+  /// shown or moved. Set separately and left to be displayed whenever, they reached
+  /// the window server after the order-front did: the panel appeared at the size
+  /// and place it had last time — on the other screen, if that is where it was —
+  /// and jumped to the new one 27ms later, which is what the flicker was.
+  @discardableResult
+  private func place(_ window: NSWindow, on screen: NSScreen?, animated: Bool = false) -> CGSize {
+    let usable = screen?.visibleFrame ?? .zero
+    let fittingSize = fitToScreen(within: usable.size)
+
+    guard let placed = OverlayGrid.placement(for: fittingSize, in: usable) else {
+      window.center()
+      return fittingSize
+    }
+
+    let frame = window.frameRect(forContentRect: placed)
+    guard animated else {
+      window.setFrame(frame, display: true)
+      return fittingSize
+    }
+
+    // Travelling rather than teleporting, so that the eye is led to the display the
+    // window is on instead of having to find the panel again. Short enough that a
+    // held-down arrow does not leave the panel trailing several steps behind.
+    NSAnimationContext.runAnimationGroup { context in
+      context.duration = Self.followDuration
+      context.timingFunction = CAMediaTimingFunction(name: .easeInEaseOut)
+      window.animator().setFrame(frame, display: true)
+    }
+
+    return fittingSize
   }
 
   /// Names the tile the highlight starts on, so a log line can be checked against
@@ -387,8 +415,32 @@ final class OverlayWindowController: NSWindowController, NSWindowDelegate {
       return
     }
 
-    let raised = windowCoordinator.raiseWindow(id: windowCoordinator.tiles[selection.index].id)
-    logger.debug("Stepped to index \(selection.index); raised=\(raised)")
+    let tile = windowCoordinator.tiles[selection.index]
+    let raised = windowCoordinator.raiseWindow(id: tile.id)
+    followTheStep(to: tile)
+    logger.debug(
+      "Stepped to index \(selection.index); raised=\(raised) "
+        + "key=\(window?.isKeyWindow == true) appActive=\(NSApp.isActive) "
+        + "frontmost=\(NSWorkspace.shared.frontmostApplication?.localizedName ?? "?")")
+  }
+
+  /// Moves the overlay to the display the window just stepped onto lives on.
+  ///
+  /// Stepping is for finding a window by looking at it, and looking at a window on
+  /// the other display while the list of them stays on this one means looking in
+  /// two places at once. The panel only moves when the display actually changes:
+  /// re-placing it on every step would shift it by whatever the new screen's room
+  /// allows, for no reason.
+  private func followTheStep(to tile: WindowTileModel) {
+    guard let window,
+      let screen = DisplayInfo.screen(for: tile.displayID),
+      screen !== window.screen
+    else {
+      return
+    }
+
+    place(window, on: screen, animated: true)
+    logger.debug("Overlay followed the step to \(screen.localizedName)")
   }
 
   private func moveTile(_ direction: OverlayGrid.Direction) {
@@ -629,7 +681,7 @@ final class OverlayPanel: NSPanel {
       switch modifiers {
       case [.shift]:
         onMoveTile?(direction)
-      case [.control, .shift]:
+      case [.control, .option, .shift]:
         onStepAndActivate?(direction)
       default:
         onMoveSelection?(direction)

@@ -240,7 +240,7 @@ background keeps its contrast without further tuning.
 | `1`–`9` | Activate that tile directly |
 | A letter | Move to the next window whose name starts with it; press again to cycle |
 | `⇧` + arrows | Move the highlighted tile itself, within its group |
-| `⌃⇧` + arrows | Switch to the next window without closing the overlay |
+| `⌃⌥⇧` + arrows | Switch to the window in that direction, keeping the overlay up |
 | `⌘W` | Close the highlighted window — by default this quits its application |
 | `Esc` | Close the overlay without switching |
 
@@ -254,8 +254,13 @@ A letter matches the application name first — `c` walks Claude, then Code, the
 back. Only when no application starts with that letter do the window titles get a
 turn, which is what makes a letter useful among several Finder windows.
 
-`⌃⇧` with an arrow steps through the windows and switches to each one as it goes,
-leaving the overlay up — for finding a window by looking at it rather than at its
+`⌃⌥⇧` with an arrow steps through the windows and switches to each one as it goes,
+leaving the overlay up, and the overlay travels to the display the window is on
+rather than staying behind — a tiling window manager's directional movement, as
+close as macOS allows. It is the overlay that is the map, because macOS has no
+geometric arrangement of Spaces to navigate.
+
+Stepping is for finding a window by looking at it rather than at its
 thumbnail. The overlay stops hiding itself for the duration and takes the keyboard
 straight back after each switch, so the next step still reaches it.
 
@@ -640,7 +645,7 @@ concrete collaborators, so testing them means introducing protocols first.
 - Tell a window an application no longer owns from one on another Space. Nothing
   public distinguishes them — see `docs/mechanisms.md`; the Window menu may, since
   it lists what the application still considers a window.
-- Make stepping reach windows on other Spaces, by registering `⌃⇧` with the arrow
+- Make stepping reach windows on other Spaces, by registering `⌃⌥⇧` with the arrow
   keys as system-wide hotkeys for as long as the overlay is open. See
   `docs/mechanisms.md` for why the three obvious approaches do not work and what
   this one costs.
