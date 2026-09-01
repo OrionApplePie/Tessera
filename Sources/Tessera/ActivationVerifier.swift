@@ -31,6 +31,16 @@ struct ActivationVerifier {
     pending[windowID] = (signature, date)
   }
 
+  /// Drops what is waiting to be judged, because something else has been asked for.
+  ///
+  /// The verdict reads "is this window on screen once the switch has had time to
+  /// happen". Ask for a second window inside that time — which is what stepping
+  /// does on every press — and the first one is legitimately gone by then, so
+  /// judging it would condemn a window that came forward exactly as told.
+  mutating func forgetPending() {
+    pending = [:]
+  }
+
   /// Judges the activations old enough to judge, and forgets them either way.
   ///
   /// A window that has closed in the meantime gets no verdict: it did not refuse

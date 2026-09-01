@@ -146,6 +146,19 @@ Raising a minimized window does nothing, so `WindowActivator` clears
 Without the Accessibility permission this degrades: nothing is reported as
 minimized, a capture is attempted, and the two-second timeout catches it.
 
+### A verdict only counts if nothing else was asked for
+
+The store learns from what happens after an activation: a window still absent once
+the switch has had time to happen did not come. Stepping breaks that reading, and
+did — every press asks for the next window, so the one before is legitimately off
+screen a second later, gets recorded as refusing to come, and disappears from the
+switcher. Seen in the log as `Code came forward again; listing it once more`: it
+had been hidden, and was only forgiven when it happened to come forward later.
+
+So a pending verdict is dropped as soon as anything else is asked for. What is left
+is the case the store was written for: one window asked for, nothing else asked,
+and still nothing on screen.
+
 ## Leftover windows of tray applications
 
 A tray application often keeps its window object alive after you close the window.

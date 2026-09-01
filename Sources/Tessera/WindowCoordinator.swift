@@ -279,6 +279,10 @@ final class WindowCoordinator: ObservableObject {
       return
     }
 
+    // Whatever was waiting to be judged is dropped: a window asked for a moment ago
+    // is allowed to be off screen once something else has been asked for.
+    activationVerifier.forgetPending()
+
     do {
       let result = try activator.activate(tile)
       logger.info("Activated window")
@@ -359,6 +363,8 @@ extension WindowCoordinator {
     guard let tile = tiles.first(where: { $0.id == windowID }) else {
       return false
     }
+
+    activationVerifier.forgetPending()
 
     do {
       return try activator.raiseWithoutActivating(tile) == .raisedTheWindow

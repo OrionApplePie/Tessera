@@ -108,4 +108,20 @@ struct ActivationVerifierTests {
         ActivationVerifier.Outcome(signature: other, cameForward: true),
       ])
   }
+
+  /// Stepping asks for a window on every press. Without this the one before is
+  /// judged for being off screen a second later, which it is because the next one
+  /// was asked for — and a window that came exactly as told gets hidden for it.
+  @Test("A window superseded by another request is not judged at all")
+  func doesNotJudgeASupersededActivation() {
+    var verifier = ActivationVerifier()
+    verifier.recordActivation(of: 1, signature: signature, at: activatedAt)
+    verifier.forgetPending()
+
+    let outcomes = verifier.evaluate(
+      onScreen: [], existing: [1], now: activatedAt.addingTimeInterval(verifier.grace + 1))
+
+    #expect(outcomes.isEmpty)
+  }
+
 }
