@@ -95,6 +95,11 @@ struct AppConfigLoader {
       key: "overlay_columns"
     )
     config.windowOrder = try windowOrder(values["window_order"], default: config.windowOrder)
+    config.usesPrivateSpaceAPI = try bool(
+      values["use_private_space_api"],
+      default: config.usesPrivateSpaceAPI,
+      key: "use_private_space_api"
+    )
     config.windowThumbnailMode = try thumbnailMode(
       values["window_thumbnail_mode"],
       default: config.windowThumbnailMode

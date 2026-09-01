@@ -50,6 +50,29 @@ half the shorter one's height count as one row.
 
 ## Which Space a window is on
 
+Asked, now, and inferred when the asking fails.
+
+There is no public way to ask. The window server knows, and answers
+`SLSCopySpacesForWindows` — a SkyLight call with no header, no contract and no
+promise to exist tomorrow. Measured against two fullscreen VS Code windows: the one
+on screen answers with the active Space identifier, the other with a Space of its
+own. No amount of watching can establish that second fact, because the two windows
+are never on screen together and never on screen with anything else.
+
+It is used, and it is isolated. `SpaceQuery` opens SkyLight by path and looks up
+every function by name at run time, trying both the `SLS` and the older `CGS`
+spelling. A symbol that has been renamed or removed is `nil`, `isAvailable` turns
+false, and `SpaceTracker` — which infers Space membership from what appears on
+screen together — answers instead. That fallback is what this project did before,
+so an update that breaks SkyLight costs accuracy rather than function. It is also
+switchable: `use_private_space_api = false`.
+
+The identifiers themselves are large and grow over time, so they are turned into
+the small per-display numbers the overlay groups by, ordered by identifier — which
+is the order the Spaces were made in, so a heading does not move about between
+refreshes.
+
+
 **macOS publishes no API for this.** `NSWorkspace` will say that the active Space
 changed, never which one it is. `SCWindow` only reports whether a window is on
 screen right now.

@@ -56,6 +56,11 @@ enum AppConfigWriter {
     # Tile order inside a group: "title", "application" or "stable".
     window_order = "\(config.windowOrder.name)"
 
+    # Ask the window server directly which Space a window is on. There is no public
+    # way to ask, so this is the one private interface here; off, Space membership
+    # is inferred from what appears on screen together.
+    use_private_space_api = \(config.usesPrivateSpaceAPI)
+
     # What a tile shows: "fit" for the whole window, or its top left corner at
     # "corner" (1:1), "corner2x" (twice as much) or "quarter" (about a quarter of
     # the window).

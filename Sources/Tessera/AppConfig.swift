@@ -34,6 +34,12 @@ struct AppConfig: Equatable {
   var overlayColumns: Int
   /// What decides the order of the tiles inside a group.
   var windowOrder: WindowOrder
+  /// Whether the window server may be asked directly which Space a window is on.
+  ///
+  /// That question has no public answer, so this is the one private interface here.
+  /// Switched off — or broken by an update — Space membership goes back to being
+  /// inferred from what appears on screen together, which is what it always was.
+  var usesPrivateSpaceAPI: Bool
   /// What a tile shows of a window: the whole of it, or its corner at full size.
   var windowThumbnailMode: WindowThumbnailMode
   /// How long the system is given to finish a switch — a Space to change, an
@@ -80,6 +86,7 @@ struct AppConfig: Equatable {
     windowOrder: .title,
     // The whole window. A corner reads better for text, but only once someone has
     // decided that is what they want to see.
+    usesPrivateSpaceAPI: true,
     windowThumbnailMode: .fit,
     // Long enough for a Space switch and its animation to finish, so a window is
     // not condemned for being slow. Nothing is polled while it passes: the system
