@@ -1,3 +1,4 @@
+import AppKit
 import CoreGraphics
 import Foundation
 
@@ -113,21 +114,64 @@ final class SpaceQuery {
   /// sees: measured on this machine, the display whose Spaces the system lists as
   /// 4351, 4313, 4516, 4555, 4556, 4506 sorts by identifier into a different
   /// sequence entirely.
-  func orderedSpaces() -> [Int] {
+  /// One Space as the window server describes it: its identifier and whether it is
+  /// a fullscreen window's Space rather than a desktop. The server says so in the
+  /// same answer — type 4 is fullscreen, 0 is a desktop — which is how Mission
+  /// Control knows to name one after an application and number the other.
+  struct Space: Equatable {
+    let id: Int
+    let isFullscreen: Bool
+  }
+
+  func orderedSpaces() -> [CGDirectDisplayID: [Space]] {
     guard let connectionID, let copyManagedDisplaySpaces,
       let displays = copyManagedDisplaySpaces(connectionID)?.takeRetainedValue()
         as? [[String: Any]]
     else {
-      return []
+      return [:]
     }
 
-    return displays.flatMap { display -> [Int] in
-      let spaces = display["Spaces"] as? [[String: Any]] ?? []
+    let displayIDs = Self.displayIDsByUUID()
+    var ordered: [CGDirectDisplayID: [Space]] = [:]
 
-      return spaces.compactMap { space in
-        (space["ManagedSpaceID"] as? Int) ?? (space["id64"] as? Int)
+    for display in displays {
+      guard let uuid = display["Display Identifier"] as? String,
+        let displayID = displayIDs[uuid]
+      else {
+        continue
+      }
+
+      let spaces = display["Spaces"] as? [[String: Any]] ?? []
+      ordered[displayID] = spaces.compactMap { space in
+        guard let id = (space["ManagedSpaceID"] as? Int) ?? (space["id64"] as? Int) else {
+          return nil
+        }
+
+        return Space(id: id, isFullscreen: (space["type"] as? Int) == 4)
       }
     }
+
+    return ordered
+  }
+
+  /// The window server names displays by UUID; everything else here uses the
+  /// display id. `CGDisplayCreateUUIDFromDisplayID` is the public bridge between
+  /// them.
+  private static func displayIDsByUUID() -> [String: CGDirectDisplayID] {
+    var byUUID: [String: CGDirectDisplayID] = [:]
+
+    for screen in NSScreen.screens {
+      let number = screen.deviceDescription[NSDeviceDescriptionKey("NSScreenNumber")] as? NSNumber
+      guard let displayID = number.map({ CGDirectDisplayID($0.uint32Value) }),
+        let uuid = CGDisplayCreateUUIDFromDisplayID(displayID)?.takeRetainedValue()
+      else {
+        continue
+      }
+
+      byUUID[CFUUIDCreateString(nil, uuid) as String] = displayID
+    }
+
+    return byUUID
   }
 
   /// The Space showing now, which is what orders the groups: the one you are on

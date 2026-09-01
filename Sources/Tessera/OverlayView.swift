@@ -103,7 +103,12 @@ struct OverlayView: View {
       } else {
         GroupFlow(spacing: TileMetrics.spacing) {
           ForEach(layout) { entry in
-            WindowGroup(title: entry.section.title) {
+            WindowGroup(
+              title: entry.section.title,
+              isCurrent: entry.section.isCurrent,
+              isFullscreen: entry.section.isFullscreen,
+              isEmpty: entry.section.tiles.isEmpty
+            ) {
               LazyVGrid(
                 columns: groupColumns(for: entry.section.tiles.count),
                 alignment: .leading,
@@ -205,6 +210,9 @@ private struct GroupFlow: Layout {
 /// says it outright, and the heading sits inside it rather than floating above.
 private struct WindowGroup<Content: View>: View {
   let title: String
+  var isCurrent: Bool = false
+  var isFullscreen: Bool = false
+  var isEmpty: Bool = false
   @ViewBuilder let content: Content
 
   var body: some View {
@@ -213,17 +221,36 @@ private struct WindowGroup<Content: View>: View {
       content
     } else {
       VStack(alignment: .leading, spacing: 10) {
-        SectionHeading(title: title)
-        content
+        HStack(spacing: 5) {
+          if isFullscreen {
+            // The Space of a fullscreen window: one window, and no room for another.
+            Image(systemName: "arrow.up.left.and.arrow.down.right")
+              .font(.system(size: 9, weight: .semibold))
+              .foregroundStyle(Color.white.opacity(0.5))
+          }
+
+          SectionHeading(title: title)
+        }
+
+        if isEmpty {
+          // A Space with nothing on it is still a place: given the room one window
+          // would take, so it reads as somewhere a window could go rather than as a
+          // stray heading.
+          RoundedRectangle(cornerRadius: TileMetrics.tileCornerRadius, style: .continuous)
+            .fill(Color.white.opacity(0.03))
+            .frame(width: TileMetrics.width, height: TileMetrics.width)
+        } else {
+          content
+        }
       }
       .padding(TileMetrics.groupPadding)
       .background(
         RoundedRectangle(cornerRadius: TileMetrics.groupCornerRadius, style: .continuous)
-          .fill(Color.white.opacity(0.05))
+          .fill(Color.white.opacity(isCurrent ? 0.12 : 0.04))
       )
       .overlay(
         RoundedRectangle(cornerRadius: TileMetrics.groupCornerRadius, style: .continuous)
-          .stroke(Color.white.opacity(0.12), lineWidth: 1)
+          .stroke(Color.white.opacity(isCurrent ? 0.38 : 0.10), lineWidth: isCurrent ? 1.5 : 1)
       )
     }
   }

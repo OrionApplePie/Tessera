@@ -68,6 +68,11 @@ struct WindowTileSection: Identifiable {
   /// Empty when there is nothing worth saying: one display, one known Space.
   let title: String
   var tiles: [WindowTileModel]
+  /// The Space showing right now, drawn so it stands out from the rest of the map.
+  var isCurrent: Bool = false
+  /// A Space made by a fullscreen window rather than a desktop. Marked, because it
+  /// behaves differently: it holds one window and cannot hold another.
+  var isFullscreen: Bool = false
 
   /// Splits an already ordered tile list into sections.
   ///
@@ -109,7 +114,11 @@ struct WindowTileSection: Identifiable {
   static func sections(
     from tiles: [WindowTileModel],
     displayNames: [CGDirectDisplayID: String],
-    grouping: OverlayGrouping = .displays
+    grouping: OverlayGrouping = .displays,
+    spaceCounts: [CGDirectDisplayID: Int] = [:],
+    currentSpaces: [CGDirectDisplayID: Int] = [:],
+    spaceNames: [WindowSectionID: String] = [:],
+    fullscreenSpaces: Set<WindowSectionID> = []
   ) -> [WindowTileSection] {
     guard !grouping.isEmpty else {
       guard let first = tiles.first else {
@@ -144,6 +153,13 @@ struct WindowTileSection: Identifiable {
       runs.append((id, [tile]))
     }
 
+    // A Space with nothing in it is still a place on the map, and leaving it out
+    // would make the map disagree with Mission Control — and leave nowhere to put a
+    // window that is being moved somewhere empty.
+    if grouping.contains(.spaces), !spaceCounts.isEmpty {
+      runs = withEmptySpaces(runs, spaceCounts: spaceCounts)
+    }
+
     let displays = Set(runs.map(\.id.displayID))
     let runsPerDisplay = runs.reduce(into: [CGDirectDisplayID: Int]()) { counts, run in
       counts[run.id.displayID, default: 0] += 1
@@ -156,11 +172,45 @@ struct WindowTileSection: Identifiable {
           for: run.id,
           displayNames: displayNames,
           namesDisplay: grouping.contains(.displays) && displays.count > 1,
-          namesSpace: grouping.contains(.spaces) && (runsPerDisplay[run.id.displayID] ?? 0) > 1
+          namesSpace: grouping.contains(.spaces) && (runsPerDisplay[run.id.displayID] ?? 0) > 1,
+          spaceName: spaceNames[run.id]
         ),
-        tiles: run.tiles
+        tiles: run.tiles,
+        isCurrent: run.id.spaceIndex != nil
+          && currentSpaces[run.id.displayID] == run.id.spaceIndex,
+        isFullscreen: fullscreenSpaces.contains(run.id)
       )
     }
+  }
+
+  /// Fills in a run for every Space each display has, in the system's order, so
+  /// that the empty ones appear between the occupied ones rather than not at all.
+  private static func withEmptySpaces(
+    _ runs: [(id: WindowSectionID, tiles: [WindowTileModel])],
+    spaceCounts: [CGDirectDisplayID: Int]
+  ) -> [(id: WindowSectionID, tiles: [WindowTileModel])] {
+    var byID: [WindowSectionID: [WindowTileModel]] = [:]
+    for run in runs {
+      byID[run.id, default: []].append(contentsOf: run.tiles)
+    }
+
+    var filled: [(id: WindowSectionID, tiles: [WindowTileModel])] = []
+
+    // Displays in the order their windows appeared, then any display with Spaces
+    // but nothing on them at all.
+    let seen = runs.map(\.id.displayID)
+    let displays = seen + spaceCounts.keys.filter { !seen.contains($0) }.sorted()
+
+    for displayID in NSOrderedSet(array: displays.map { NSNumber(value: $0) }).compactMap({
+      ($0 as? NSNumber).map { CGDirectDisplayID($0.uint32Value) }
+    }) {
+      for index in 0..<(spaceCounts[displayID] ?? 0) {
+        let id = WindowSectionID(displayID: displayID, spaceIndex: index)
+        filled.append((id, byID[id] ?? []))
+      }
+    }
+
+    return filled.isEmpty ? runs : filled
   }
 
   /// The heading names only what tells this section apart from its neighbours: the
@@ -171,7 +221,8 @@ struct WindowTileSection: Identifiable {
     for id: WindowSectionID,
     displayNames: [CGDirectDisplayID: String],
     namesDisplay: Bool,
-    namesSpace: Bool
+    namesSpace: Bool,
+    spaceName: String? = nil
   ) -> String {
     var parts: [String] = []
 
@@ -180,7 +231,7 @@ struct WindowTileSection: Identifiable {
     }
 
     if namesSpace {
-      parts.append(id.spaceIndex.map { "Space \($0 + 1)" } ?? "Other Spaces")
+      parts.append(spaceName ?? id.spaceIndex.map { "Space \($0 + 1)" } ?? "Other Spaces")
     }
 
     return parts.joined(separator: " · ")

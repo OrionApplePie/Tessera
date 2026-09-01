@@ -29,6 +29,15 @@ final class WindowCoordinator: ObservableObject {
   private let spaceQuery: SpaceQuery
   /// What the window server said, when it was asked and answered.
   private var exactSpaceIndices: [CGWindowID: Int] = [:]
+  /// How many Spaces each display has, so the empty ones still get a place on the
+  /// map, and which of them is showing now.
+  private var spaceCounts: [CGDirectDisplayID: Int] = [:]
+  private var currentSpaces: [CGDirectDisplayID: Int] = [:]
+  /// What each group is called: a desktop by its number among desktops, a
+  /// fullscreen Space by the application filling it — the way Mission Control
+  /// names them.
+  private var spaceNames: [WindowSectionID: String] = [:]
+  private var fullscreenSpaces: Set<WindowSectionID> = []
   private var orderRegistry = WindowOrderRegistry()
   private var isListHeld = false
   private var pendingRaise: WindowTileModel?
@@ -558,26 +567,79 @@ extension WindowCoordinator {
     // in. Numbering by identifier would be our own order and match nothing anyone
     // sees.
     let systemOrder = spaceQuery.orderedSpaces()
+    let active = spaceQuery.activeSpace()
     var indices: [CGWindowID: Int] = [:]
+    var counts: [CGDirectDisplayID: Int] = [:]
+    var current: [CGDirectDisplayID: Int] = [:]
+    var names: [WindowSectionID: String] = [:]
+    var fullscreen: Set<WindowSectionID> = []
 
-    for displayID in Set(windows.map(\.displayID)) {
+    for displayID in Set(windows.map(\.displayID)).union(systemOrder.keys) {
       let onDisplay = windows.filter { $0.displayID == displayID }
       let present = Set(onDisplay.compactMap { spaces[$0.id] })
+      // Every Space the display has, in the system's order — not only the ones with
+      // something in them, so the numbering matches what Mission Control shows.
       let ordered =
-        systemOrder.isEmpty
-        ? present.sorted() : systemOrder.filter { present.contains($0) }
+        systemOrder[displayID]
+        ?? present.sorted().map { SpaceQuery.Space(id: $0, isFullscreen: false) }
+
+      counts[displayID] = ordered.count
+      current[displayID] = active.flatMap { space in ordered.firstIndex { $0.id == space } }
 
       for window in onDisplay {
-        guard let space = spaces[window.id], let rank = ordered.firstIndex(of: space) else {
+        guard let space = spaces[window.id],
+          let rank = ordered.firstIndex(where: { $0.id == space })
+        else {
           continue
         }
 
         indices[window.id] = rank
       }
+
+      names.merge(
+        Self.names(for: ordered, on: displayID, windows: onDisplay, spaces: spaces)
+      ) { first, _ in first }
+
+      for (index, space) in ordered.enumerated() where space.isFullscreen {
+        fullscreen.insert(WindowSectionID(displayID: displayID, spaceIndex: index))
+      }
     }
+
+    spaceCounts = counts
+    currentSpaces = current.compactMapValues { $0 }
+    spaceNames = names
+    fullscreenSpaces = fullscreen
 
     logger.debug("Spaces from the window server: \(indices.count) of \(windows.count) windows")
     exactSpaceIndices = indices
+  }
+
+  /// Names one display's Spaces as the system does: desktops counted among
+  /// themselves, a fullscreen Space called after the application filling it —
+  /// because "Space 4" for a fullscreen window would be a number nothing else uses.
+  private static func names(
+    for ordered: [SpaceQuery.Space],
+    on displayID: CGDirectDisplayID,
+    windows: [WindowInfo],
+    spaces: [CGWindowID: Int]
+  ) -> [WindowSectionID: String] {
+    var names: [WindowSectionID: String] = [:]
+    var desktopNumber = 0
+
+    for (index, space) in ordered.enumerated() {
+      let id = WindowSectionID(displayID: displayID, spaceIndex: index)
+
+      guard space.isFullscreen else {
+        desktopNumber += 1
+        names[id] = String(localized: "Desktop \(desktopNumber)")
+        continue
+      }
+
+      let occupant = windows.first { spaces[$0.id] == space.id }
+      names[id] = occupant?.appName ?? String(localized: "Fullscreen")
+    }
+
+    return names
   }
 
   private func spaceRanks(for windows: [WindowInfo]) -> [CGWindowID: Int] {
@@ -764,7 +826,11 @@ extension WindowCoordinator {
     sections = WindowTileSection.sections(
       from: tiles,
       displayNames: displayNames,
-      grouping: config.overlayGrouping
+      grouping: config.overlayGrouping,
+      spaceCounts: spaceCounts,
+      currentSpaces: currentSpaces,
+      spaceNames: spaceNames,
+      fullscreenSpaces: fullscreenSpaces
     )
   }
 
