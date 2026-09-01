@@ -552,14 +552,23 @@ extension WindowCoordinator {
     }
 
     let spaces = spaceQuery.spaces(of: windows.map(\.id))
+
+    // Numbered the way the system numbers them: the order Mission Control shows and
+    // the ⌃1…⌃N shortcuts count in, which is the order the window server keeps them
+    // in. Numbering by identifier would be our own order and match nothing anyone
+    // sees.
+    let systemOrder = spaceQuery.orderedSpaces()
     var indices: [CGWindowID: Int] = [:]
 
     for displayID in Set(windows.map(\.displayID)) {
       let onDisplay = windows.filter { $0.displayID == displayID }
-      let known = Set(onDisplay.compactMap { spaces[$0.id] }).sorted()
+      let present = Set(onDisplay.compactMap { spaces[$0.id] })
+      let ordered =
+        systemOrder.isEmpty
+        ? present.sorted() : systemOrder.filter { present.contains($0) }
 
       for window in onDisplay {
-        guard let space = spaces[window.id], let rank = known.firstIndex(of: space) else {
+        guard let space = spaces[window.id], let rank = ordered.firstIndex(of: space) else {
           continue
         }
 

@@ -21,6 +21,7 @@ final class SpaceQuery {
     @convention(c) (Int32, Int32, CFArray) ->
     Unmanaged<CFArray>?
   private typealias GetActiveSpace = @convention(c) (Int32) -> UInt64
+  private typealias CopyManagedDisplaySpaces = @convention(c) (Int32) -> Unmanaged<CFArray>?
 
   /// SkyLight's own name for "every Space", as opposed to only the visible ones.
   private static let allSpaces: Int32 = 0x7
@@ -31,6 +32,7 @@ final class SpaceQuery {
   private let connectionID: Int32?
   private let copySpacesForWindows: CopySpacesForWindows?
   private let getActiveSpace: GetActiveSpace?
+  private let copyManagedDisplaySpaces: CopyManagedDisplaySpaces?
   private let logger: AppLogger
 
   var isAvailable: Bool {
@@ -44,6 +46,7 @@ final class SpaceQuery {
       self.connectionID = nil
       self.copySpacesForWindows = nil
       self.getActiveSpace = nil
+      self.copyManagedDisplaySpaces = nil
 
       if enabled {
         logger.warning("SkyLight did not open; Spaces will be inferred from what is on screen")
@@ -64,6 +67,10 @@ final class SpaceQuery {
     self.connectionID = connection.map { $0() }
     self.copySpacesForWindows = spaces
     self.getActiveSpace = active
+    self.copyManagedDisplaySpaces = Self.symbol(
+      handle, "SLSCopyManagedDisplaySpaces", "CGSCopyManagedDisplaySpaces"
+    )
+    .map { unsafeBitCast($0, to: CopyManagedDisplaySpaces.self) }
 
     if spaces == nil || connection == nil {
       logger.warning(
@@ -97,6 +104,30 @@ final class SpaceQuery {
     }
 
     return found
+  }
+
+  /// Every Space, in the order the system keeps them — which is the order they
+  /// appear in Mission Control and the order the ⌃1…⌃N shortcuts count in.
+  ///
+  /// Sorting by identifier instead would be our own order and not the one anybody
+  /// sees: measured on this machine, the display whose Spaces the system lists as
+  /// 4351, 4313, 4516, 4555, 4556, 4506 sorts by identifier into a different
+  /// sequence entirely.
+  func orderedSpaces() -> [Int] {
+    guard let connectionID, let copyManagedDisplaySpaces,
+      let displays = copyManagedDisplaySpaces(connectionID)?.takeRetainedValue()
+        as? [[String: Any]]
+    else {
+      return []
+    }
+
+    return displays.flatMap { display -> [Int] in
+      let spaces = display["Spaces"] as? [[String: Any]] ?? []
+
+      return spaces.compactMap { space in
+        (space["ManagedSpaceID"] as? Int) ?? (space["id64"] as? Int)
+      }
+    }
   }
 
   /// The Space showing now, which is what orders the groups: the one you are on
