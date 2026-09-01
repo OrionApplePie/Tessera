@@ -132,12 +132,23 @@ struct OverlayGridTests {
     #expect(OverlayGrid.index(from: 5, moving: .up, rows: rows) == 1)
   }
 
-  @Test("The top and bottom rows do not wrap around")
-  func verticalMovementStopsAtTheEdges() {
+  /// This used to stop at the edges. Held down, that reads as an overlay which has
+  /// stopped responding — which is how it was reported — and it disagreed with left
+  /// and right, which have always wrapped.
+  @Test("The top and bottom rows wrap into each other, so an arrow never dead-ends")
+  func verticalMovementWrapsAtTheEdges() {
     let rows = OverlayGrid.rows(forSectionSizes: [3, 3], maximum: 6)
 
+    #expect(OverlayGrid.index(from: 1, moving: .up, rows: rows) == 4)
+    #expect(OverlayGrid.index(from: 4, moving: .down, rows: rows) == 1)
+  }
+
+  @Test("A single row wraps onto itself rather than refusing to move")
+  func verticalMovementInOneRow() {
+    let rows = OverlayGrid.rows(forSectionSizes: [3], maximum: 6)
+
+    #expect(OverlayGrid.index(from: 1, moving: .down, rows: rows) == 1)
     #expect(OverlayGrid.index(from: 1, moving: .up, rows: rows) == 1)
-    #expect(OverlayGrid.index(from: 4, moving: .down, rows: rows) == 4)
   }
 
   @Test("An out-of-range starting index is brought back in bounds")

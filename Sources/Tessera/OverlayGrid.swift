@@ -139,19 +139,16 @@ enum OverlayGrid {
     case .right:
       return (current + 1) % tileCount
 
+    // Wrapping, like left and right, because the alternative is a dead end: holding
+    // an arrow at the last row left the overlay looking as though it had stopped
+    // responding, which is exactly what it was reported as.
     case .up:
-      guard row > 0 else {
-        return current
-      }
-
-      return rows[row - 1][min(current - rows[row][0], rows[row - 1].count - 1)]
+      let above = (row - 1 + rows.count) % rows.count
+      return rows[above][min(current - rows[row][0], rows[above].count - 1)]
 
     case .down:
-      guard row + 1 < rows.count else {
-        return current
-      }
-
-      return rows[row + 1][min(current - rows[row][0], rows[row + 1].count - 1)]
+      let below = (row + 1) % rows.count
+      return rows[below][min(current - rows[row][0], rows[below].count - 1)]
     }
   }
 }

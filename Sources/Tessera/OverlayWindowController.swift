@@ -16,6 +16,15 @@ final class OverlayWindowController: NSWindowController, NSWindowDelegate {
   /// How long the panel takes to cross to another display when a step lands there.
   private static let followDuration: TimeInterval = 0.18
 
+  /// The application a step has asked to come forward. Stepping is the one thing
+  /// that survives another application activating, because bringing windows forward
+  /// while the overlay stays up is the whole of what it does.
+  private var steppingActivation: pid_t?
+
+  /// Holds the arrow keys system-wide while the overlay is up, so that stepping
+  /// survives the application it just brought forward taking the keyboard.
+  private var stepHotkeys: StepHotkeyController?
+
   /// The last layout measured, and the screen room it was measured for.
   private var lastFit: (usable: CGSize, size: CGSize)?
 
@@ -122,6 +131,10 @@ final class OverlayWindowController: NSWindowController, NSWindowDelegate {
 
     connect(panel)
     observeOtherApplications()
+
+    stepHotkeys = StepHotkeyController(debugMode: debugMode) { [weak self] direction in
+      self?.stepAndActivate(direction)
+    }
   }
 
   /// Puts the overlay away when something else comes forward.
@@ -158,6 +171,11 @@ final class OverlayWindowController: NSWindowController, NSWindowDelegate {
         guard let self, let arrived,
           arrived != ProcessInfo.processInfo.processIdentifier
         else {
+          return
+        }
+
+        guard arrived != self.steppingActivation else {
+          self.steppingActivation = nil
           return
         }
 
@@ -261,6 +279,7 @@ final class OverlayWindowController: NSWindowController, NSWindowDelegate {
     // opening on another is how the fitting appeared to work only the second time.
     let fittingSize = place(window, on: NSScreen.main)
     window.makeKeyAndOrderFront(nil)
+    stepHotkeys?.start()
     NSApp.activate(ignoringOtherApps: true)
     logger.debug(
       "Overlay ordered front tiles=\(windowCoordinator.tiles.count) "
@@ -320,6 +339,8 @@ final class OverlayWindowController: NSWindowController, NSWindowDelegate {
   }
 
   func hideOverlay() {
+    stepHotkeys?.stop()
+    steppingActivation = nil
     window?.orderOut(nil)
     windowCoordinator.releaseList()
     logger.debug("Overlay window ordered out")
@@ -489,7 +510,7 @@ extension OverlayWindowController {
   /// aim. It also does not cross Spaces: a window on another Space comes forward
   /// within its own, which is as far as this can go without a switch that would
   /// take the screen away from the overlay.
-  private func stepAndActivate(_ direction: OverlayGrid.Direction) {
+  fileprivate func stepAndActivate(_ direction: OverlayGrid.Direction) {
     let startedAt = Date()
     // Switching to a window on another Space runs a system animation of about half
     // a second, and presses arriving faster than that queue up behind each other —
@@ -503,7 +524,18 @@ extension OverlayWindowController {
     }
 
     let tile = windowCoordinator.tiles[selection.index]
-    let raised = windowCoordinator.raiseWindow(id: tile.id)
+
+    // Accessibility first, because raising without activating brings nothing
+    // forward and so disturbs nothing. It only reaches the Space showing now,
+    // though, and a step onto any other one used to do nothing at all — the
+    // highlight moved and the window stayed where it was. So the full path is
+    // asked next, and the activation it causes is marked as one to survive.
+    var raised = windowCoordinator.raiseWindow(id: tile.id)
+    if !raised {
+      steppingActivation = tile.processID
+      windowCoordinator.activateWindow(id: tile.id)
+      raised = true
+    }
     followTheStep(to: tile)
     logger.debug(
       "Stepped to index \(selection.index) in \(Int(Date().timeIntervalSince(startedAt) * 1000))ms; "

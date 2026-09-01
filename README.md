@@ -645,10 +645,6 @@ concrete collaborators, so testing them means introducing protocols first.
 - Tell a window an application no longer owns from one on another Space. Nothing
   public distinguishes them — see `docs/mechanisms.md`; the Window menu may, since
   it lists what the application still considers a window.
-- Make stepping reach windows on other Spaces, by registering `⌃⌥⇧` with the arrow
-  keys as system-wide hotkeys for as long as the overlay is open. See
-  `docs/mechanisms.md` for why the three obvious approaches do not work and what
-  this one costs.
 
 - Let the menu bar item show the current hotkey and report a failed registration,
   which today only reaches the log.

@@ -515,9 +515,19 @@ because macOS refuses that activation. Measured: with the panel key, seven steps
 a row all arrive; the arrows keep reaching the overlay rather than the application
 behind it.
 
-The step raises without activating, so no application comes forward and nothing
-hides the overlay — the same fact that lets `close_after_activation = false` mean
-what it says.
+A step raises without activating where it can, so nothing comes forward and nothing
+hides the overlay. Accessibility only reaches the Space showing now, though, and a
+step onto any other one used to move the highlight and leave the window where it
+was. So the full path is asked next — activation, then the Window menu — and that
+one activation is marked as one the overlay survives.
+
+Which costs the keyboard: macOS gives it to whichever application is active, so
+the panel goes quiet the moment a step brings another application forward, and the
+mode died after one move. The arrows are therefore held system-wide, as Carbon
+hotkeys, for exactly as long as the overlay is up — a Carbon hotkey arrives whoever
+is frontmost. Measured: six steps in a row, every one with `key=false`, four of them
+crossing displays. Released on hide, so `⌃⌥⇧` with an arrow means nothing to this
+application the rest of the time — measured too.
 
 Two things had to stop happening on every step for that to hold up. Accessibility
 is asked with a messaging timeout, because an application busy with a Space
