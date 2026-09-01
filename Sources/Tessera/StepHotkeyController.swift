@@ -29,9 +29,26 @@ final class StepHotkeyController {
   /// It is held only while the overlay is up, and released with the arrows.
   private static let dismissID: UInt32 = 100
 
+  /// Return, the keypad's Return and Space: the keys that mean "this one, done".
+  /// They are held for the same reason Escape is — after a step they would
+  /// otherwise reach the application that came forward — and they finish the
+  /// switch, because by then the window has already been chosen.
+  private static let confirmKeys: [ConfirmKey] = [
+    ConfirmKey(code: UInt32(kVK_Return), id: 101, name: "return"),
+    ConfirmKey(code: UInt32(kVK_ANSI_KeypadEnter), id: 102, name: "keypad enter"),
+    ConfirmKey(code: UInt32(kVK_Space), id: 103, name: "space"),
+  ]
+
+  private struct ConfirmKey {
+    let code: UInt32
+    let id: UInt32
+    let name: String
+  }
+
   private let logger: AppLogger
   private let onStep: @MainActor (OverlayGrid.Direction) -> Void
   private let onDismiss: @MainActor () -> Void
+  private let onConfirm: @MainActor () -> Void
   private var hotKeyRefs: [EventHotKeyRef] = []
   private var eventHandler: EventHandlerRef?
   private var directionsByID: [UInt32: OverlayGrid.Direction] = [:]
@@ -39,11 +56,13 @@ final class StepHotkeyController {
   init(
     debugMode: Bool,
     onStep: @escaping @MainActor (OverlayGrid.Direction) -> Void,
-    onDismiss: @escaping @MainActor () -> Void
+    onDismiss: @escaping @MainActor () -> Void,
+    onConfirm: @escaping @MainActor () -> Void
   ) {
     self.logger = AppLogger(debugMode: debugMode, category: .trigger)
     self.onStep = onStep
     self.onDismiss = onDismiss
+    self.onConfirm = onConfirm
   }
 
   var isHolding: Bool {
@@ -86,6 +105,10 @@ final class StepHotkeyController {
     }
 
     register(keyCode: UInt32(kVK_Escape), modifiers: [], id: Self.dismissID, name: "escape")
+
+    for key in Self.confirmKeys {
+      register(keyCode: key.code, modifiers: [], id: key.id, name: key.name)
+    }
 
     logger.debug("Holding \(hotKeyRefs.count) overlay hotkeys while the overlay is up")
   }
@@ -133,6 +156,11 @@ final class StepHotkeyController {
   fileprivate func handleStep(id: UInt32) {
     if id == Self.dismissID {
       onDismiss()
+      return
+    }
+
+    if Self.confirmKeys.contains(where: { $0.id == id }) {
+      onConfirm()
       return
     }
 

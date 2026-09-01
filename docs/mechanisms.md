@@ -577,15 +577,18 @@ for as long as the overlay is up, so a step can activate an application, cross a
 Space, and still have the next press arrive here. Measured: six steps in a row, all
 with the panel not key.
 
-Escape is held with them. After a step the keyboard belongs to the application that
-came forward, so the overlay's own Escape never arrives — the key everyone reaches
-for did nothing, which is how it was reported. Return is not held: it is a key
-whose absence costs nothing here, because a step is itself the switch and there is
-nothing left to confirm.
+Escape, Return, the keypad's Return and Space are held with them, for the same
+reason: after a step the keyboard belongs to the application that came forward, so
+the overlay's own keys never arrive. Escape did nothing, and neither did the keys
+that mean "this one" — which is how both were reported. Pressing a confirm key
+finishes the switch and closes the overlay whatever `close_after_activation` says,
+because that setting is about picking a tile with a mouse or a number, and a confirm
+key is someone saying they are done looking.
 
-What it costs is honest to state: those five keys stop reaching other applications
-while the overlay is up. They are released the moment it closes — verified by
-pressing each afterwards and watching nothing happen.
+What it costs is honest to state: those eight keys stop reaching other applications
+while the overlay is up, and Space and Return are not small keys to borrow. They
+are released the moment it closes — verified by pressing each afterwards and
+watching nothing happen at all.
 
 ## Who decides the overlay is on screen
 

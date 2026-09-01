@@ -135,7 +135,8 @@ final class OverlayWindowController: NSWindowController, NSWindowDelegate {
     stepHotkeys = StepHotkeyController(
       debugMode: debugMode,
       onStep: { [weak self] direction in self?.stepAndActivate(direction) },
-      onDismiss: { [weak self] in self?.hideOverlay() }
+      onDismiss: { [weak self] in self?.hideOverlay() },
+      onConfirm: { [weak self] in self?.activateSelection() }
     )
   }
 
@@ -479,8 +480,13 @@ final class OverlayWindowController: NSWindowController, NSWindowDelegate {
     }
   }
 
+  /// Return or Space: the window has been chosen, so this finishes — it comes
+  /// forward and the overlay goes away, whatever `close_after_activation` says
+  /// about picking a tile with the mouse or a number. Pressing the confirm key is
+  /// the moment someone says they are done looking.
   private func activateSelection() {
     selectWindow(at: selection.index)
+    hideOverlay()
   }
 
   private func selectWindow(at index: Int) {
