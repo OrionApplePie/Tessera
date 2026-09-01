@@ -250,6 +250,18 @@ retries and an Apple Event, 151ms when it is asked straight away, and 71ms for a
 window of an application that had nothing else to do. What is left after that is
 the system's own fullscreen transition, which is not ours to shorten.
 
+Reading a menu is not free of consequence. An application whose menu bar is on
+screen may actually put its menus up while they are read: measured on Word, a pass
+over the whole bar left two menus standing open for 1.3 seconds — which is what
+"Word's menu opens by itself" was. Reading one named menu two hundred times over
+opened nothing at all, so only the Window menu is read, and it is closed with
+`kAXCancelAction` afterwards in case it did appear.
+
+Finding that one menu costs nothing: a top level menu's title can be read without
+opening it. Failing a name match — the list of translations here is not
+exhaustive — the last two menus are tried, because Window sits before Help at the
+end of the bar in every application that has one.
+
 Only items directly under a menu are considered, which is what keeps this away from
 "Open Recent": its entries live one level deeper and would open a second window
 rather than raise the one asked for. The menu is not identified by name — VS Code
