@@ -38,6 +38,8 @@ final class WindowCoordinator: ObservableObject {
   /// names them.
   private var spaceNames: [WindowSectionID: String] = [:]
   private var fullscreenSpaces: Set<WindowSectionID> = []
+  private var spaceOrder: [CGDirectDisplayID: [SpaceQuery.Space]] = [:]
+  private let wallpaper = DesktopWallpaper()
   private var orderRegistry = WindowOrderRegistry()
   private var isListHeld = false
   private var pendingRaise: WindowTileModel?
@@ -568,6 +570,7 @@ extension WindowCoordinator {
     // sees.
     let systemOrder = spaceQuery.orderedSpaces()
     let active = spaceQuery.activeSpace()
+    spaceOrder = systemOrder
     var indices: [CGWindowID: Int] = [:]
     var counts: [CGDirectDisplayID: Int] = [:]
     var current: [CGDirectDisplayID: Int] = [:]
@@ -597,7 +600,7 @@ extension WindowCoordinator {
       }
 
       names.merge(
-        Self.names(for: ordered, on: displayID, windows: onDisplay, spaces: spaces)
+        SpaceQuery.names(for: ordered, on: displayID, windows: onDisplay, spaces: spaces)
       ) { first, _ in first }
 
       for (index, space) in ordered.enumerated() where space.isFullscreen {
@@ -612,34 +615,6 @@ extension WindowCoordinator {
 
     logger.debug("Spaces from the window server: \(indices.count) of \(windows.count) windows")
     exactSpaceIndices = indices
-  }
-
-  /// Names one display's Spaces as the system does: desktops counted among
-  /// themselves, a fullscreen Space called after the application filling it —
-  /// because "Space 4" for a fullscreen window would be a number nothing else uses.
-  private static func names(
-    for ordered: [SpaceQuery.Space],
-    on displayID: CGDirectDisplayID,
-    windows: [WindowInfo],
-    spaces: [CGWindowID: Int]
-  ) -> [WindowSectionID: String] {
-    var names: [WindowSectionID: String] = [:]
-    var desktopNumber = 0
-
-    for (index, space) in ordered.enumerated() {
-      let id = WindowSectionID(displayID: displayID, spaceIndex: index)
-
-      guard space.isFullscreen else {
-        desktopNumber += 1
-        names[id] = String(localized: "Desktop \(desktopNumber)")
-        continue
-      }
-
-      let occupant = windows.first { spaces[$0.id] == space.id }
-      names[id] = occupant?.appName ?? String(localized: "Fullscreen")
-    }
-
-    return names
   }
 
   private func spaceRanks(for windows: [WindowInfo]) -> [CGWindowID: Int] {
@@ -832,6 +807,22 @@ extension WindowCoordinator {
       spaceNames: spaceNames,
       fullscreenSpaces: fullscreenSpaces
     )
+  }
+
+  /// Shows the Space a group stands for. Choosing an empty one is the only way onto
+  /// an empty desktop: there is no window there to activate.
+  func focusSpace(at index: Int, on displayID: CGDirectDisplayID) {
+    guard let ordered = spaceOrder[displayID], ordered.indices.contains(index) else {
+      return
+    }
+
+    logger.info("Switching to a Space chosen from the overlay")
+    spaceQuery.focus(space: ordered[index].id, on: displayID)
+  }
+
+  /// The desktop picture of a display, for drawing a Space with nothing on it.
+  func desktopImage(for displayID: CGDirectDisplayID, fitting size: CGSize) -> CGImage? {
+    wallpaper.image(for: displayID, fitting: size)
   }
 
   /// The application in front, not counting this one.

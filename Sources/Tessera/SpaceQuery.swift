@@ -23,6 +23,7 @@ final class SpaceQuery {
     Unmanaged<CFArray>?
   private typealias GetActiveSpace = @convention(c) (Int32) -> UInt64
   private typealias CopyManagedDisplaySpaces = @convention(c) (Int32) -> Unmanaged<CFArray>?
+  private typealias SetCurrentSpace = @convention(c) (Int32, CFString, UInt64) -> Void
 
   /// SkyLight's own name for "every Space", as opposed to only the visible ones.
   private static let allSpaces: Int32 = 0x7
@@ -34,6 +35,7 @@ final class SpaceQuery {
   private let copySpacesForWindows: CopySpacesForWindows?
   private let getActiveSpace: GetActiveSpace?
   private let copyManagedDisplaySpaces: CopyManagedDisplaySpaces?
+  private let setCurrentSpace: SetCurrentSpace?
   private let logger: AppLogger
 
   var isAvailable: Bool {
@@ -48,6 +50,7 @@ final class SpaceQuery {
       self.copySpacesForWindows = nil
       self.getActiveSpace = nil
       self.copyManagedDisplaySpaces = nil
+      self.setCurrentSpace = nil
 
       if enabled {
         logger.warning("SkyLight did not open; Spaces will be inferred from what is on screen")
@@ -72,6 +75,10 @@ final class SpaceQuery {
       handle, "SLSCopyManagedDisplaySpaces", "CGSCopyManagedDisplaySpaces"
     )
     .map { unsafeBitCast($0, to: CopyManagedDisplaySpaces.self) }
+    self.setCurrentSpace = Self.symbol(
+      handle, "SLSManagedDisplaySetCurrentSpace", "CGSManagedDisplaySetCurrentSpace"
+    )
+    .map { unsafeBitCast($0, to: SetCurrentSpace.self) }
 
     if spaces == nil || connection == nil {
       logger.warning(
@@ -174,6 +181,29 @@ final class SpaceQuery {
     return byUUID
   }
 
+  /// Shows a Space, including one with nothing on it — which no public call can do,
+  /// because the public way to reach a Space is to activate a window that lives
+  /// there and an empty desktop has none.
+  ///
+  /// Measured: the active Space went from 4313 to 4555, an empty desktop, and back.
+  @discardableResult
+  func focus(space: Int, on displayID: CGDirectDisplayID) -> Bool {
+    guard let connectionID, let setCurrentSpace,
+      let uuid = Self.uuidsByDisplayID()[displayID]
+    else {
+      return false
+    }
+
+    setCurrentSpace(connectionID, uuid as CFString, UInt64(space))
+    return true
+  }
+
+  private static func uuidsByDisplayID() -> [CGDirectDisplayID: String] {
+    displayIDsByUUID().reduce(into: [:]) { result, entry in
+      result[entry.value] = entry.key
+    }
+  }
+
   /// The Space showing now, which is what orders the groups: the one you are on
   /// comes first.
   func activeSpace() -> Int? {
@@ -182,6 +212,34 @@ final class SpaceQuery {
     }
 
     return Int(getActiveSpace(connectionID))
+  }
+
+  /// Names one display's Spaces as the system does: desktops counted among
+  /// themselves, a fullscreen Space called after the application filling it —
+  /// because "Space 4" for a fullscreen window would be a number nothing else uses.
+  static func names(
+    for ordered: [SpaceQuery.Space],
+    on displayID: CGDirectDisplayID,
+    windows: [WindowInfo],
+    spaces: [CGWindowID: Int]
+  ) -> [WindowSectionID: String] {
+    var names: [WindowSectionID: String] = [:]
+    var desktopNumber = 0
+
+    for (index, space) in ordered.enumerated() {
+      let id = WindowSectionID(displayID: displayID, spaceIndex: index)
+
+      guard space.isFullscreen else {
+        desktopNumber += 1
+        names[id] = String(localized: "Desktop \(desktopNumber)")
+        continue
+      }
+
+      let occupant = windows.first { spaces[$0.id] == space.id }
+      names[id] = occupant?.appName ?? String(localized: "Fullscreen")
+    }
+
+    return names
   }
 
   private static func symbol(

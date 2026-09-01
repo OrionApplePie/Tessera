@@ -59,6 +59,7 @@ final class OverlayWindowController: NSWindowController, NSWindowDelegate {
         columns: columns,
         dimsStaleThumbnails: dimsStaleThumbnails,
         onSelect: { _ in },
+        onFocusSpace: { _ in },
         onMove: { _, _ in },
         onClose: {}
       ))
@@ -336,6 +337,17 @@ final class OverlayWindowController: NSWindowController, NSWindowDelegate {
   func windowShouldClose(_ sender: NSWindow) -> Bool {
     hideOverlay()
     return false
+  }
+
+  /// Choosing a Space rather than a window: the overlay goes away and that Space
+  /// comes up, which is the only way onto an empty desktop.
+  private func focusSpace(_ section: WindowSectionID) {
+    guard let index = section.spaceIndex else {
+      return
+    }
+
+    hideOverlay()
+    windowCoordinator.focusSpace(at: index, on: section.displayID)
   }
 
   private func selectWindow(id windowID: CGWindowID) {
@@ -654,6 +666,9 @@ extension OverlayWindowController {
       dimsStaleThumbnails: dimsStaleThumbnails,
       onSelect: { [weak self] windowID in
         self?.selectWindow(id: windowID)
+      },
+      onFocusSpace: { [weak self] section in
+        self?.focusSpace(section)
       },
       onMove: { [weak self] windowID, targetID in
         self?.windowCoordinator.moveTile(windowID, before: targetID)

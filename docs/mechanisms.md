@@ -67,6 +67,14 @@ screen together — answers instead. That fallback is what this project did befo
 so an update that breaks SkyLight costs accuracy rather than function. It is also
 switchable: `use_private_space_api = false`.
 
+Raising a window and showing a Space are two different things, and the difference
+matters. Raising asks Accessibility or a menu for a window, and the Space changes
+only because that is where the window lives. Showing a Space asks
+`SLSManagedDisplaySetCurrentSpace` and touches no window at all — which is the only
+way onto a desktop with nothing on it, since the public way to reach a Space is to
+activate a window that lives there. Measured: the active Space went from 4313 to
+4555, an empty desktop, and back.
+
 The identifiers themselves are large and grow over time, so they are turned into
 the small per-display numbers the overlay groups by, ordered by identifier — which
 is the order the Spaces were made in, so a heading does not move about between

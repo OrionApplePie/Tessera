@@ -7,10 +7,10 @@ enum TileMetrics {
   static let width: CGFloat = 190
   static let padding: CGFloat = 12
   static let spacing: CGFloat = 14
-  static let surfacePadding: CGFloat = 28
+  static let surfacePadding: CGFloat = 20
   /// Room inside a group's frame, so its tiles do not touch the line drawn round
   /// them.
-  static let groupPadding: CGFloat = 12
+  static let groupPadding: CGFloat = 8
   /// The group's corner. Between the tile's and the panel's, so the three read as
   /// nested rather than repeated.
   static let groupCornerRadius: CGFloat = 12
@@ -58,6 +58,7 @@ struct OverlayView: View {
   let columns: Int
   let dimsStaleThumbnails: Bool
   let onSelect: (CGWindowID) -> Void
+  let onFocusSpace: (WindowSectionID) -> Void
   let onMove: (CGWindowID, CGWindowID) -> Void
   let onClose: () -> Void
 
@@ -107,26 +108,41 @@ struct OverlayView: View {
               title: entry.section.title,
               isCurrent: entry.section.isCurrent,
               isFullscreen: entry.section.isFullscreen,
-              isEmpty: entry.section.tiles.isEmpty
-            ) {
-              LazyVGrid(
-                columns: groupColumns(for: entry.section.tiles.count),
-                alignment: .leading,
-                spacing: TileMetrics.spacing
-              ) {
-                ForEach(Array(entry.section.tiles.enumerated()), id: \.element.id) { index, tile in
-                  WindowTileButton(
-                    tile: tile,
-                    shortcutIndex: entry.offset + index,
-                    isSelected: entry.offset + index == selectedIndex,
-                    dimsStaleThumbnails: dimsStaleThumbnails,
-                    onMove: onMove
-                  ) {
-                    onSelect(tile.id)
+              isEmpty: entry.section.tiles.isEmpty,
+              onFocus: { onFocusSpace(entry.section.id) },
+              desktop: entry.section.tiles.isEmpty
+                ? windowCoordinator.desktopImage(
+                  for: entry.section.id.displayID,
+                  fitting: CGSize(width: TileMetrics.width, height: TileMetrics.width))
+                : nil,
+              content: {
+                LazyVGrid(
+                  columns: groupColumns(for: entry.section.tiles.count),
+                  alignment: .leading,
+                  spacing: TileMetrics.spacing
+                ) {
+                  ForEach(Array(entry.section.tiles.enumerated()), id: \.element.id) { item in
+                    WindowTileButton(
+                      tile: item.element,
+                      shortcutIndex: entry.offset + item.offset,
+                      isSelected: entry.offset + item.offset == selectedIndex,
+                      dimsStaleThumbnails: dimsStaleThumbnails,
+                      onMove: onMove
+                    ) {
+                      onSelect(item.element.id)
+                    }
                   }
                 }
+                // Exactly as wide as the tiles it holds: a group of two windows is two
+                // windows wide, and nothing is left over to make it look emptier than
+                // it is.
+                .frame(
+                  width: TileMetrics.width(
+                    forColumns: min(entry.section.tiles.count, TileMetrics.groupColumns)),
+                  alignment: .leading
+                )
               }
-            }
+            )
           }
         }
       }
@@ -213,6 +229,8 @@ private struct WindowGroup<Content: View>: View {
   var isCurrent: Bool = false
   var isFullscreen: Bool = false
   var isEmpty: Bool = false
+  var onFocus: () -> Void = {}
+  var desktop: CGImage?
   @ViewBuilder let content: Content
 
   var body: some View {
@@ -230,15 +248,33 @@ private struct WindowGroup<Content: View>: View {
           }
 
           SectionHeading(title: title)
+            .lineLimit(1)
         }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .contentShape(Rectangle())
+        .onTapGesture(perform: onFocus)
 
         if isEmpty {
-          // A Space with nothing on it is still a place: given the room one window
-          // would take, so it reads as somewhere a window could go rather than as a
-          // stray heading.
+          // A Space with nothing on it is still a place, and it is drawn as what it
+          // is: the desktop, dimmed, in the room one window would take. A Space you
+          // are not on cannot be captured, so this is its wallpaper rather than a
+          // picture of it.
           RoundedRectangle(cornerRadius: TileMetrics.tileCornerRadius, style: .continuous)
             .fill(Color.white.opacity(0.03))
             .frame(width: TileMetrics.width, height: TileMetrics.width)
+            .overlay {
+              if let desktop {
+                Image(decorative: desktop, scale: 1, orientation: .up)
+                  .resizable()
+                  .scaledToFill()
+                  .opacity(0.55)
+                  .clipShape(
+                    RoundedRectangle(
+                      cornerRadius: TileMetrics.tileCornerRadius, style: .continuous))
+              }
+            }
+            .contentShape(Rectangle())
+            .onTapGesture(perform: onFocus)
         } else {
           content
         }
