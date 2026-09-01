@@ -179,6 +179,8 @@ final class OverlayWindowController: NSWindowController, NSWindowDelegate {
           return
         }
 
+        self.logger.debug(
+          "Hiding: \(activated?.localizedName ?? "?") came forward (pid \(arrived))")
         self.hideOverlay()
       }
     }

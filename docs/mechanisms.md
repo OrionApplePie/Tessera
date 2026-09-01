@@ -521,6 +521,14 @@ step onto any other one used to move the highlight and leave the window where it
 was. So the full path is asked next — activation, then the Window menu — and that
 one activation is marked as one the overlay survives.
 
+One thing this cannot avoid, and it shows. Reaching a window on another Space
+means activating its application, and macOS brings that application back to
+whichever Space it was last on — not to the one being asked for. If those differ,
+the display changes twice: once for the application, once for the window. With two
+fullscreen VS Code windows that reads as Code disappearing and coming back oddly.
+The menu press cannot come first, because a menu item of an application that is not
+frontmost does nothing at all.
+
 Which costs the keyboard: macOS gives it to whichever application is active, so
 the panel goes quiet the moment a step brings another application forward, and the
 mode died after one move. The arrows are therefore held system-wide, as Carbon
