@@ -132,9 +132,11 @@ final class OverlayWindowController: NSWindowController, NSWindowDelegate {
     connect(panel)
     observeOtherApplications()
 
-    stepHotkeys = StepHotkeyController(debugMode: debugMode) { [weak self] direction in
-      self?.stepAndActivate(direction)
-    }
+    stepHotkeys = StepHotkeyController(
+      debugMode: debugMode,
+      onStep: { [weak self] direction in self?.stepAndActivate(direction) },
+      onDismiss: { [weak self] in self?.hideOverlay() }
+    )
   }
 
   /// Puts the overlay away when something else comes forward.

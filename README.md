@@ -242,7 +242,7 @@ background keeps its contrast without further tuning.
 | `⇧` + arrows | Move the highlighted tile itself, within its group |
 | `⌃⌥⇧` + arrows | Switch to the window in that direction, keeping the overlay up |
 | `⌘W` | Close the highlighted window — by default this quits its application |
-| `Esc` | Close the overlay without switching |
+| `Esc` | Close the overlay without switching, even after a step took the keyboard |
 
 A key means every letter printed on it, across the keyboard layouts you have
 enabled. Pressing the `C` key finds Code whatever layout is active, and on a Mac

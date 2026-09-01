@@ -570,18 +570,22 @@ application that is not in front cannot simply take activation back, and the
 system is free to refuse — so after a step or two the overlay stops receiving keys
 and looks frozen. Waiting longer does not help, because the problem is not timing.
 
-The way out is not to need focus at all. A Carbon hot key is delivered to this
-process whatever is in front — that is how the global hotkey works from inside
-Safari. Registering `⌃⇧` with the arrows the same way, for as long as the overlay
-is open, would let a step activate the application, cross the Space, and still
-have the next press arrive here.
+The way out is not to need focus at all, and that is what is done now. A Carbon hot
+key is delivered to this process whatever is in front — that is how the global
+hotkey works from inside Safari. `⌃⌥⇧` with the arrows is registered the same way
+for as long as the overlay is up, so a step can activate an application, cross a
+Space, and still have the next press arrive here. Measured: six steps in a row, all
+with the panel not key.
 
-What it costs: those four chords stop reaching other applications while the
-overlay is up, and in an editor `⇧⌃→` usually selects text. The overlay also has
-to stop hiding itself on deactivation, so it must be dismissed deliberately.
-Return and Escape cannot be taken this way — stealing Return system-wide, even
-briefly, is not worth it — so the main hotkey becomes the way to close. That is
-tolerable because a step is itself the switch: there is nothing left to confirm.
+Escape is held with them. After a step the keyboard belongs to the application that
+came forward, so the overlay's own Escape never arrives — the key everyone reaches
+for did nothing, which is how it was reported. Return is not held: it is a key
+whose absence costs nothing here, because a step is itself the switch and there is
+nothing left to confirm.
+
+What it costs is honest to state: those five keys stop reaching other applications
+while the overlay is up. They are released the moment it closes — verified by
+pressing each afterwards and watching nothing happen.
 
 ## Who decides the overlay is on screen
 

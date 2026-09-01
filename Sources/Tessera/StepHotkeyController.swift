@@ -23,15 +23,27 @@ final class StepHotkeyController {
     (.left, "left"), (.right, "right"), (.up, "up"), (.down, "down"),
   ]
 
+  /// Escape is held too, and for the same reason: after a step the keyboard belongs
+  /// to the application that came forward, so the overlay's own Escape never
+  /// arrives and the panel cannot be dismissed by the key everyone reaches for.
+  /// It is held only while the overlay is up, and released with the arrows.
+  private static let dismissID: UInt32 = 100
+
   private let logger: AppLogger
   private let onStep: @MainActor (OverlayGrid.Direction) -> Void
+  private let onDismiss: @MainActor () -> Void
   private var hotKeyRefs: [EventHotKeyRef] = []
   private var eventHandler: EventHandlerRef?
   private var directionsByID: [UInt32: OverlayGrid.Direction] = [:]
 
-  init(debugMode: Bool, onStep: @escaping @MainActor (OverlayGrid.Direction) -> Void) {
+  init(
+    debugMode: Bool,
+    onStep: @escaping @MainActor (OverlayGrid.Direction) -> Void,
+    onDismiss: @escaping @MainActor () -> Void
+  ) {
     self.logger = AppLogger(debugMode: debugMode, category: .trigger)
     self.onStep = onStep
+    self.onDismiss = onDismiss
   }
 
   var isHolding: Bool {
@@ -68,26 +80,40 @@ final class StepHotkeyController {
       }
 
       let id = UInt32(index + 1)
-      var reference: EventHotKeyRef?
-      let status = RegisterEventHotKey(
-        key.carbonKeyCode,
-        Self.modifiers.rawValue,
-        EventHotKeyID(signature: stepSignature, id: id),
-        GetApplicationEventTarget(),
-        0,
-        &reference
-      )
-
-      guard status == noErr, let reference else {
-        logger.warning("Stepping hotkey \(entry.key) refused: OSStatus \(status)")
-        continue
+      if register(keyCode: key.carbonKeyCode, modifiers: Self.modifiers, id: id, name: entry.key) {
+        directionsByID[id] = entry.direction
       }
-
-      hotKeyRefs.append(reference)
-      directionsByID[id] = entry.direction
     }
 
-    logger.debug("Holding \(hotKeyRefs.count) stepping hotkeys while the overlay is up")
+    register(keyCode: UInt32(kVK_Escape), modifiers: [], id: Self.dismissID, name: "escape")
+
+    logger.debug("Holding \(hotKeyRefs.count) overlay hotkeys while the overlay is up")
+  }
+
+  @discardableResult
+  private func register(
+    keyCode: UInt32,
+    modifiers: HotkeyModifiers,
+    id: UInt32,
+    name: String
+  ) -> Bool {
+    var reference: EventHotKeyRef?
+    let status = RegisterEventHotKey(
+      keyCode,
+      modifiers.rawValue,
+      EventHotKeyID(signature: stepSignature, id: id),
+      GetApplicationEventTarget(),
+      0,
+      &reference
+    )
+
+    guard status == noErr, let reference else {
+      logger.warning("Overlay hotkey \(name) refused: OSStatus \(status)")
+      return false
+    }
+
+    hotKeyRefs.append(reference)
+    return true
   }
 
   func stop() {
@@ -105,6 +131,11 @@ final class StepHotkeyController {
   }
 
   fileprivate func handleStep(id: UInt32) {
+    if id == Self.dismissID {
+      onDismiss()
+      return
+    }
+
     guard let direction = directionsByID[id] else {
       return
     }
