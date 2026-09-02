@@ -94,6 +94,13 @@ Which Space a window is on comes from the window server when
 `use_private_space_api` allows it, and from what has been seen on screen together
 when it does not.
 
+Choosing a Space rather than a window — the only way onto a desktop with nothing on
+it — presses the shortcut macOS binds to that desktop, the same ⌃1…⌃8 you would
+press yourself. It follows that a desktop whose shortcut you have switched off in
+System Settings > Keyboard > Shortcuts > Mission Control cannot be reached from the
+overlay either, and that a fullscreen Space is reached by its window rather than as
+a Space, since macOS numbers only desktops.
+
 ## Tile order
 
 What decides the order inside a group, and therefore what makes a tile move:

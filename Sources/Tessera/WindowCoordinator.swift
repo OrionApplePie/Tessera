@@ -33,6 +33,7 @@ final class WindowCoordinator: ObservableObject {
   private var refreshTask: Task<Void, Never>?
   private var spaceTracker = SpaceTracker()
   private let spaceQuery: SpaceQuery
+  private let desktops: DesktopSwitcher
   /// What the window server said, when it was asked and answered.
   private var exactSpaceIndices: [CGWindowID: Int] = [:]
   /// How many Spaces each display has, so the empty ones still get a place on the
@@ -77,6 +78,7 @@ final class WindowCoordinator: ObservableObject {
     self.activator = activator ?? WindowActivator(config: config)
     self.spaceQuery = SpaceQuery(
       enabled: config.usesPrivateSpaceAPI, debugMode: config.debugMode)
+    self.desktops = DesktopSwitcher(config: config)
     self.menuActivator = WindowMenuActivator(
       timeout: config.unresponsiveAfterSeconds, debugMode: config.debugMode)
     self.activationVerifier = ActivationVerifier(grace: config.activationSettleSeconds)
@@ -144,6 +146,12 @@ final class WindowCoordinator: ObservableObject {
   /// The mark is otherwise as old as the last background refresh — up to a refresh
   /// interval — and the overlay opening is exactly the moment it must be right: it
   /// says where you are, and it is where the keyboard highlight starts.
+  ///
+  /// Standing on a desktop with nothing on it, you are in no window at all, and the
+  /// mark is left off rather than put on the front application's window somewhere
+  /// else. After a Space is shown the front application is Finder — that is what
+  /// makes the switch stick — so the mark would otherwise land on a Finder window on
+  /// another display every time, saying "you are here" about a place you are not.
   func refreshActiveWindow() {
     let frontmostWindowID = FrontmostWindow.identify(
       processID: frontmostApplicationProcessID(),
@@ -819,13 +827,23 @@ extension WindowCoordinator {
 
   /// Shows the Space a group stands for. Choosing an empty one is the only way onto
   /// an empty desktop: there is no window there to activate.
-  func focusSpace(at index: Int, on displayID: CGDirectDisplayID) {
-    guard let ordered = spaceOrder[displayID], ordered.indices.contains(index) else {
+  /// Shows the Space chosen from the overlay, which is the only way onto a desktop
+  /// with nothing on it.
+  ///
+  /// A fullscreen Space is not reached this way — macOS numbers desktops only —
+  /// but it never needs to be: it holds the one window filling it, and raising
+  /// that window brings its Space along.
+  func showSpace(at index: Int, on displayID: CGDirectDisplayID, handingBack: Bool) async {
+    guard let space = spaceOrder[displayID]?[safe: index] else {
       return
     }
 
-    let shown = spaceQuery.focus(space: ordered[index].id, on: displayID)
-    logger.info("Switching to the Space chosen from the overlay: shown=\(shown)")
+    await desktops.show(
+      desktop: spaceQuery.desktopNumbers()[space.id],
+      on: displayID,
+      handingBack: handingBack,
+      showing: { [spaceQuery] in spaceQuery.currentSpaces()[displayID] == space.id }
+    )
   }
 
   /// The desktop picture of a display, for drawing a Space with nothing on it.

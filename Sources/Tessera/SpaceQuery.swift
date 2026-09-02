@@ -23,7 +23,6 @@ final class SpaceQuery {
     Unmanaged<CFArray>?
   private typealias GetActiveSpace = @convention(c) (Int32) -> UInt64
   private typealias CopyManagedDisplaySpaces = @convention(c) (Int32) -> Unmanaged<CFArray>?
-  private typealias SetCurrentSpace = @convention(c) (Int32, CFString, UInt64) -> Void
 
   /// SkyLight's own name for "every Space", as opposed to only the visible ones.
   private static let allSpaces: Int32 = 0x7
@@ -35,7 +34,6 @@ final class SpaceQuery {
   private let copySpacesForWindows: CopySpacesForWindows?
   private let getActiveSpace: GetActiveSpace?
   private let copyManagedDisplaySpaces: CopyManagedDisplaySpaces?
-  private let setCurrentSpace: SetCurrentSpace?
   private let logger: AppLogger
 
   var isAvailable: Bool {
@@ -50,7 +48,6 @@ final class SpaceQuery {
       self.copySpacesForWindows = nil
       self.getActiveSpace = nil
       self.copyManagedDisplaySpaces = nil
-      self.setCurrentSpace = nil
 
       if enabled {
         logger.warning("SkyLight did not open; Spaces will be inferred from what is on screen")
@@ -75,11 +72,6 @@ final class SpaceQuery {
       handle, "SLSCopyManagedDisplaySpaces", "CGSCopyManagedDisplaySpaces"
     )
     .map { unsafeBitCast($0, to: CopyManagedDisplaySpaces.self) }
-    self.setCurrentSpace = Self.symbol(
-      handle, "SLSManagedDisplaySetCurrentSpace", "CGSManagedDisplaySetCurrentSpace"
-    )
-    .map { unsafeBitCast($0, to: SetCurrentSpace.self) }
-
     if spaces == nil || connection == nil {
       logger.warning(
         "SkyLight is missing the calls this needs; Spaces will be inferred from what is on screen")
@@ -160,34 +152,65 @@ final class SpaceQuery {
   }
 
   func orderedSpaces() -> [CGDirectDisplayID: [Space]] {
+    managedDisplays().reduce(into: [:]) { result, display in
+      result[display.0] = display.1
+    }
+  }
+
+  /// The number macOS gives each desktop — the N in the "Switch to Desktop N"
+  /// shortcut, which is the only thing that actually shows a Space.
+  ///
+  /// Counted across every display in the system's own order, skipping fullscreen
+  /// Spaces because those are not numbered: measured on a machine whose built-in
+  /// display holds desktops 1 and 2, the external display's only desktop answers
+  /// to ⌃3, and it answers wherever the pointer happens to be.
+  func desktopNumbers() -> [Int: Int] {
+    Self.desktopNumbers(inOrder: managedDisplays().map(\.1))
+  }
+
+  nonisolated static func desktopNumbers(inOrder displays: [[Space]]) -> [Int: Int] {
+    var numbers: [Int: Int] = [:]
+    var desktop = 0
+
+    for spaces in displays {
+      for space in spaces where !space.isFullscreen {
+        desktop += 1
+        numbers[space.id] = desktop
+      }
+    }
+
+    return numbers
+  }
+
+  /// Every display with its Spaces, in the order the window server lists both —
+  /// the order the numbering above counts in, and the one a dictionary would lose.
+  private func managedDisplays() -> [(CGDirectDisplayID, [Space])] {
     guard let connectionID, let copyManagedDisplaySpaces,
       let displays = copyManagedDisplaySpaces(connectionID)?.takeRetainedValue()
         as? [[String: Any]]
     else {
-      return [:]
+      return []
     }
 
     let displayIDs = Self.displayIDsByUUID()
-    var ordered: [CGDirectDisplayID: [Space]] = [:]
 
-    for display in displays {
+    return displays.compactMap { display in
       guard let uuid = display["Display Identifier"] as? String,
         let displayID = displayIDs[uuid]
       else {
-        continue
+        return nil
       }
 
-      let spaces = display["Spaces"] as? [[String: Any]] ?? []
-      ordered[displayID] = spaces.compactMap { space in
+      let spaces = (display["Spaces"] as? [[String: Any]] ?? []).compactMap { space -> Space? in
         guard let id = (space["ManagedSpaceID"] as? Int) ?? (space["id64"] as? Int) else {
           return nil
         }
 
         return Space(id: id, isFullscreen: (space["type"] as? Int) == 4)
       }
-    }
 
-    return ordered
+      return (displayID, spaces)
+    }
   }
 
   /// The window server names displays by UUID; everything else here uses the
@@ -208,58 +231,6 @@ final class SpaceQuery {
     }
 
     return byUUID
-  }
-
-  /// Shows a Space, including one with nothing on it — which no public call can do,
-  /// because the public way to reach a Space is to activate a window that lives
-  /// there and an empty desktop has none.
-  ///
-  /// Measured: the active Space went from 4313 to 4555, an empty desktop, and back.
-  @discardableResult
-  func focus(space: Int, on displayID: CGDirectDisplayID) -> Bool {
-    guard let connectionID, let setCurrentSpace,
-      let uuid = Self.uuidsByDisplayID()[displayID]
-    else {
-      logger.warning("No display UUID for \(displayID); cannot show that Space")
-      return false
-    }
-
-    logger.info("Showing Space \(space) on display \(uuid)")
-    setCurrentSpace(connectionID, uuid as CFString, UInt64(space))
-    Self.followTheEye(to: displayID)
-
-    return true
-  }
-
-  /// Puts the pointer on the display whose Space was just shown.
-  ///
-  /// macOS switches that display and leaves your attention where it was, so
-  /// choosing a Space on the other screen looked like nothing at all: the switch
-  /// happened, out of sight. The display under the pointer is the one the system
-  /// treats as yours, so moving it is what makes the choice mean "go there".
-  private static func followTheEye(to displayID: CGDirectDisplayID) {
-    guard let screen = DisplayInfo.screen(for: displayID),
-      !screen.frame.contains(NSEvent.mouseLocation)
-    else {
-      return
-    }
-
-    // Cocoa counts from the bottom of the main screen, the warp counts from the
-    // top of it, which is the one conversion this needs.
-    let centre = CGPoint(x: screen.frame.midX, y: screen.frame.midY)
-    let flipped = CGPoint(
-      x: centre.x,
-      y: (NSScreen.screens.first?.frame.maxY ?? centre.y) - centre.y
-    )
-
-    CGWarpMouseCursorPosition(flipped)
-    CGAssociateMouseAndMouseCursorPosition(1)
-  }
-
-  private static func uuidsByDisplayID() -> [CGDirectDisplayID: String] {
-    displayIDsByUUID().reduce(into: [:]) { result, entry in
-      result[entry.value] = entry.key
-    }
   }
 
   /// The Space showing now, which is what orders the groups: the one you are on

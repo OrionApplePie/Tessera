@@ -354,7 +354,15 @@ final class OverlayWindowController: NSWindowController, NSWindowDelegate {
     }
 
     hideOverlay()
-    windowCoordinator.focusSpace(at: index, on: section.displayID)
+
+    // The overlay goes first and the Space changes last. With this application in
+    // front, macOS answers a switch to an empty desktop by picking a front
+    // application of its own — the one from the Space being left — and that
+    // application brings its Space back with it.
+    Task { @MainActor [weak self] in
+      await self?.windowCoordinator.showSpace(
+        at: index, on: section.displayID, handingBack: true)
+    }
   }
 
   private func selectWindow(id windowID: CGWindowID) {
@@ -586,7 +594,10 @@ extension OverlayWindowController {
     guard let stepped = target.window else {
       // Stepping onto an empty Space shows it: there is no window there to raise.
       if case .space(let section) = target, let index = section.spaceIndex {
-        windowCoordinator.focusSpace(at: index, on: section.displayID)
+        Task { @MainActor [weak self] in
+          await self?.windowCoordinator.showSpace(
+            at: index, on: section.displayID, handingBack: false)
+        }
       }
 
       return

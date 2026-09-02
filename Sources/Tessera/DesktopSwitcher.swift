@@ -1,0 +1,298 @@
+import AppKit
+import CoreGraphics
+import Foundation
+
+/// Shows a desktop Space by pressing the shortcut macOS itself binds to it.
+///
+/// This is the only way found that moves the screen. The private
+/// `SLSManagedDisplaySetCurrentSpace` writes the window server's "Current Space"
+/// field and stops there: measured, the field went from 5847 to 4556 while the
+/// external display went on showing the same fullscreen window, which is why
+/// choosing an empty desktop used to look like nothing at all — the bookkeeping
+/// agreed the Space had changed and the screen disagreed. Synthesising the
+/// system's own ⌃← and ⌃→ does not work either, with or without the function flag
+/// their preference entry carries. Synthesising ⌃N does: measured, ⌃3 posted from
+/// this process took the external display from 5847 to 4556 and a screenshot of
+/// that display showed bare wallpaper.
+///
+/// The shortcut is read from the system rather than assumed, because it is the
+/// user's to rebind or switch off — and past the last one macOS binds, a desktop
+/// has no shortcut and cannot be reached this way at all.
+@MainActor
+struct DesktopSwitcher {
+
+  /// "Switch to Desktop 1" and the seven entries after it, in the table of
+  /// shortcuts macOS keeps for itself. It binds no ninth, so a ninth desktop has
+  /// no way in.
+  nonisolated static let firstSymbolicID = 118
+  nonisolated static let desktopLimit = 8
+
+  /// How long the key is held down.
+  ///
+  /// Not a tuned delay but a threshold: posted back to back, the down and the up
+  /// cancel and the shortcut does nothing at all — measured, the display stayed on
+  /// the Space it was showing, while the same two events with a moment between
+  /// them switched it. The window server wants the key held, briefly.
+  private static let keyDownHold = Duration.milliseconds(20)
+
+  private let logger: AppLogger
+  /// How long the handover below is given before the keystroke goes out anyway.
+  private let settle: Duration
+
+  init(config: AppConfig) {
+    self.settle = .seconds(config.activationSettleSeconds)
+    self.logger = AppLogger(debugMode: config.debugMode, category: .trigger)
+  }
+
+  /// The shortcut for one desktop, or nothing when the user has switched it off.
+  nonisolated static func shortcut(
+    forDesktop number: Int,
+    among hotkeys: [SystemHotkey]
+  ) -> SystemHotkey? {
+    guard (1...desktopLimit).contains(number) else {
+      return nil
+    }
+
+    return hotkeys.first { $0.id == firstSymbolicID + number - 1 }
+  }
+
+  /// Presses the shortcut, and says whether there was one to press.
+  ///
+  /// A `true` here means the keystroke went out, not that the Space changed — the
+  /// caller is the one that can read back what the display is showing now, and
+  /// does.
+  func show(
+    desktop number: Int?,
+    on displayID: CGDirectDisplayID,
+    handingBack: Bool,
+    showing: () -> Bool
+  ) async {
+    guard let number else {
+      logger.warning("That Space has no desktop number, so no shortcut shows it")
+      return
+    }
+
+    // A desktop already on screen has nothing to switch to — measured, its shortcut
+    // does nothing at all — but choosing it still means "take me there", and on
+    // another display that is a real move: macOS shifts its attention on a click or
+    // an activation, never on the pointer alone. So the pointer goes there and the
+    // desktop is clicked, which is what a person does. Only with the overlay gone,
+    // though: while it is up and being stepped through, the click would land on the
+    // panel itself.
+    guard !showing() else {
+      logger.info("Desktop \(number) is already showing; going there instead of switching")
+
+      if handingBack {
+        Self.goToTheDesktop(on: displayID)
+      } else {
+        Self.followTheEye(to: displayID)
+      }
+
+      return
+    }
+
+    guard let shortcut = Self.shortcut(forDesktop: number, among: SystemHotkeys.enabled()) else {
+      logger.warning(
+        """
+        Desktop \(number) has no shortcut in System Settings > Keyboard > Shortcuts \
+        > Mission Control, so it cannot be shown
+        """
+      )
+      return
+    }
+
+    // Posting a keystroke is one of the things Accessibility gates, and a denied
+    // post reports nothing: the event is simply dropped.
+    guard AXIsProcessTrusted() else {
+      logger.warning("Accessibility is not granted, so the keystroke showing a desktop is dropped")
+      return
+    }
+
+    if handingBack {
+      await handTheKeyboardToTheDesktop()
+    }
+
+    logger.info("Showing desktop \(number) with the system shortcut")
+    await press(shortcut)
+    Self.followTheEye(to: displayID)
+
+    let arrived = await waitUntil(showing)
+    logger.info("Desktop \(number) on display \(displayID): arrived=\(arrived)")
+  }
+
+  /// Gives the keyboard to the application that owns the desktop, and waits until
+  /// it has taken it, so the keystroke lands with an ordinary application in front
+  /// and nothing pending.
+  ///
+  /// Measured, and the reason this is not left to macOS. Pressing the shortcut with
+  /// this application in front makes macOS pick a front application of its own — the
+  /// one from the Space being left — and that application brings its Space back:
+  /// 600 ms after the switch the front had moved, 300 ms later the display had
+  /// followed it. Handing the keyboard to that same application first does fix the
+  /// switch, but it leaves a fullscreen application in front of a desktop it owns no
+  /// window on, and then the next activation of any kind — opening this overlay
+  /// again — sends the display back to it, which is what "the overlay opens on the
+  /// previous desktop" was.
+  ///
+  /// The desktop belongs to Finder, and Finder in front is the state a person ends
+  /// up in having switched desktops themselves. It is activated without raising its
+  /// windows: measured, that leaves every other display where it was, while asking
+  /// AppleScript to activate Finder raised a window and took the other display off
+  /// its fullscreen Space with it.
+  ///
+  /// Nobody to hand it to means nothing to wait for — the case while the overlay
+  /// stays up and Spaces are stepped through with the keyboard.
+  ///
+  /// The wait is read rather than subscribed to: the activation notification can
+  /// arrive before there is anything listening for it, and waiting for one that has
+  /// already been and gone runs to the deadline every time. The twenty milliseconds
+  /// are the granularity of the answer, not a delay anybody tuned.
+  private func handTheKeyboardToTheDesktop() async {
+    guard NSApp.isActive else {
+      return
+    }
+
+    Self.desktopOwner?.activate(options: [])
+
+    let deadline = ContinuousClock.now + settle
+
+    while NSApp.isActive, ContinuousClock.now < deadline {
+      try? await Task.sleep(for: .milliseconds(20))
+    }
+  }
+
+  /// Finder draws the desktop and its icons, and no API says as much — its bundle
+  /// identifier is the only way to name the application that owns a desktop.
+  private static var desktopOwner: NSRunningApplication? {
+    NSRunningApplication.runningApplications(withBundleIdentifier: "com.apple.finder").first
+  }
+
+  /// Waits for the display to actually show it, which is what makes the answer worth
+  /// anything: the private call this replaced reported success out of a field it had
+  /// written itself, and was believed.
+  ///
+  /// It is also what lets the overlay stay up until the Space has changed, and that
+  /// order is the whole trick. Pressing while the overlay is still on screen keeps
+  /// this application in front, and macOS then hands the desktop to Finder by
+  /// itself. Pressing once the overlay was gone left the application whose Space had
+  /// just been left in front, and it brought that Space back — first as an instant
+  /// undo, and then as an overlay that opened on the Space before.
+  private func waitUntil(_ arrived: () -> Bool) async -> Bool {
+    let deadline = ContinuousClock.now + settle
+
+    while ContinuousClock.now < deadline {
+      if arrived() {
+        return true
+      }
+
+      try? await Task.sleep(for: .milliseconds(20))
+    }
+
+    return false
+  }
+
+  private func press(_ shortcut: SystemHotkey) async {
+    let flags = Self.eventFlags(shortcut.modifiers)
+    let key = CGKeyCode(shortcut.keyCode)
+
+    guard let down = CGEvent(keyboardEventSource: nil, virtualKey: key, keyDown: true),
+      let up = CGEvent(keyboardEventSource: nil, virtualKey: key, keyDown: false)
+    else {
+      logger.warning("Could not build the keystroke that shows a desktop")
+      return
+    }
+
+    down.flags = flags
+    up.flags = flags
+
+    // The HID tap rather than the session one: the window server reads its own
+    // shortcuts below every application, so an event posted further up the chain
+    // reaches the front application and never the shortcut.
+    down.post(tap: .cghidEventTap)
+    try? await Task.sleep(for: Self.keyDownHold)
+    up.post(tap: .cghidEventTap)
+  }
+
+  /// The system stores modifiers as a Cocoa mask and Carbon reads them as its own;
+  /// a posted event needs the third spelling.
+  private static func eventFlags(_ modifiers: HotkeyModifiers) -> CGEventFlags {
+    var flags: CGEventFlags = []
+
+    if modifiers.contains(.control) {
+      flags.insert(.maskControl)
+    }
+    if modifiers.contains(.option) {
+      flags.insert(.maskAlternate)
+    }
+    if modifiers.contains(.shift) {
+      flags.insert(.maskShift)
+    }
+    if modifiers.contains(.command) {
+      flags.insert(.maskCommand)
+    }
+
+    return flags
+  }
+
+  /// Moves to a display that is already showing the desktop asked for.
+  ///
+  /// The pointer alone is not enough: measured, moving it leaves the active Space —
+  /// the one that decides where Spotlight opens and which display the menu bar is
+  /// on — exactly where it was, while a click on the desktop moves it. The Space
+  /// has no windows on it, which is what makes the click safe: there is nothing
+  /// under the pointer but the desktop.
+  private static func goToTheDesktop(on displayID: CGDirectDisplayID) {
+    followTheEye(to: displayID)
+
+    guard let screen = DisplayInfo.screen(for: displayID) else {
+      return
+    }
+
+    let centre = CGPoint(x: screen.frame.midX, y: screen.frame.midY)
+    let point = CGPoint(
+      x: centre.x,
+      y: (NSScreen.screens.first?.frame.maxY ?? centre.y) - centre.y
+    )
+
+    let click = { (type: CGEventType) in
+      CGEvent(
+        mouseEventSource: nil,
+        mouseType: type,
+        mouseCursorPosition: point,
+        mouseButton: .left
+      )
+    }
+
+    guard let down = click(.leftMouseDown), let up = click(.leftMouseUp) else {
+      return
+    }
+
+    down.post(tap: .cghidEventTap)
+    up.post(tap: .cghidEventTap)
+  }
+
+  /// Puts the pointer on the display whose Space was just shown.
+  ///
+  /// macOS switches that display and leaves your attention where it was, so
+  /// choosing a Space on the other screen looked like nothing: the switch
+  /// happened, out of sight. The display under the pointer is the one the system
+  /// treats as yours, so moving it is what makes the choice mean "go there".
+  private static func followTheEye(to displayID: CGDirectDisplayID) {
+    guard let screen = DisplayInfo.screen(for: displayID),
+      !screen.frame.contains(NSEvent.mouseLocation)
+    else {
+      return
+    }
+
+    // Cocoa counts from the bottom of the main screen, the warp counts from the
+    // top of it, which is the one conversion this needs.
+    let centre = CGPoint(x: screen.frame.midX, y: screen.frame.midY)
+    let flipped = CGPoint(
+      x: centre.x,
+      y: (NSScreen.screens.first?.frame.maxY ?? centre.y) - centre.y
+    )
+
+    CGWarpMouseCursorPosition(flipped)
+    CGAssociateMouseAndMouseCursorPosition(1)
+  }
+}

@@ -72,21 +72,64 @@ The highlight moves over both. A window and an empty Space are one list —
 reach it; an empty one carries the highlight itself, having no tile to carry it.
 It is never where the highlight starts, though: you are always in a window.
 
-Showing a Space on another display is invisible unless you look at it: macOS
-switches that display and leaves your attention where it was, so the choice looked
-like nothing at all — the switch had happened, out of sight. The pointer is
-therefore moved to that display, because the display under the pointer is the one
-the system treats as yours. Measured: the external display went from Space 5847 to
-4556 on a choice made from the laptop screen, which is exactly the switch that
-looked like a failure.
-
 Raising a window and showing a Space are two different things, and the difference
 matters. Raising asks Accessibility or a menu for a window, and the Space changes
-only because that is where the window lives. Showing a Space asks
-`SLSManagedDisplaySetCurrentSpace` and touches no window at all — which is the only
-way onto a desktop with nothing on it, since the public way to reach a Space is to
-activate a window that lives there. Measured: the active Space went from 4313 to
-4555, an empty desktop, and back.
+only because that is where the window lives. Showing a Space touches no window at
+all, which is the only way onto a desktop with nothing on it — the public way to
+reach a Space is to activate a window that lives there, and an empty desktop has
+none.
+
+**A Space is shown by pressing the shortcut macOS binds to it, not by asking the
+window server.** `SLSManagedDisplaySetCurrentSpace` looked like the answer and is
+not: it writes the window server's "Current Space" field and stops there. Measured,
+the field went from 5847 to 4556 while the external display went on showing the
+same fullscreen window — so every check that read the field back agreed the switch
+had happened, and a screenshot of the display proved it had not. On macOS 15 the
+private call needs SIP disabled to do anything more than bookkeeping.
+
+What works is the system's own "Switch to Desktop N": measured, ⌃3 posted from this
+process took the external display from 5847 to 4556, and a screenshot of that
+display showed bare wallpaper. Three things about it are worth knowing. The
+numbering runs across displays and skips fullscreen Spaces, which macOS does not
+number — on a machine whose built-in display holds desktops 1 and 2, the external
+display's only desktop is 3. The shortcut is read from
+`com.apple.symbolichotkeys` rather than assumed, because it is the user's to
+rebind or switch off, and macOS binds no desktop past the eighth. And the event
+goes to the HID tap: the window server reads its own shortcuts below every
+application, so an event posted further up the chain reaches the front application
+and never the shortcut. The arrow shortcuts ⌃← and ⌃→ ignore a synthesised event
+entirely, with or without the function flag their preference entry carries.
+
+**Who is in front when the keystroke goes out decides whether it holds.** With this
+application in front, macOS answers a switch to an empty desktop by picking a front
+application of its own — the one from the Space being left — and that application
+brings its Space back: measured, the front moved 600 ms after the switch and the
+display followed it 300 ms later. Handing the keyboard to that same application
+first does fix the switch, and it was shipped that way for an afternoon, but it
+leaves a fullscreen application in front of a desktop it owns no window on. Then any
+activation at all — opening this overlay again — sends the display back to it, which
+is what "the overlay opens on the previous desktop" turned out to be.
+
+The keyboard therefore goes to Finder, which owns the desktop, and the display is
+left in the state a person ends up in having switched desktops themselves. Finder is
+activated without raising its windows: measured, that leaves every other display
+where it is, while activating it the way AppleScript does raised a Finder window and
+took the other display off its fullscreen Space with it. `NSApp.deactivate()` is no
+help here — measured, it does not move this application out of the front at all.
+
+Stepping through Spaces with the overlay still up hands nothing over, because
+nothing took the keyboard away.
+
+A desktop that is **already on screen** needs the opposite treatment. Its shortcut
+does nothing at all — measured, pressing it changes neither the Space nor the focus
+— yet choosing it from the overlay still means "take me there", and when it is on
+another display that is a real move. macOS shifts its attention on a click or an
+activation and never on the pointer alone: measured, moving the pointer to that
+display left the active Space where it was, and a click on the desktop moved it. So
+the pointer goes there and the desktop is clicked, which is what a person does. The
+Space has no windows on it — that is why it is drawn as a place rather than as
+tiles — so there is nothing under the pointer but the desktop. The click is skipped
+while the overlay is up and being stepped through, where it would land on the panel.
 
 The identifiers themselves are large and grow over time, so they are turned into
 the small per-display numbers the overlay groups by, ordered by identifier — which
