@@ -575,7 +575,7 @@ extension WindowCoordinator {
     // in. Numbering by identifier would be our own order and match nothing anyone
     // sees.
     let systemOrder = spaceQuery.orderedSpaces()
-    let active = spaceQuery.activeSpace()
+    let showing = spaceQuery.currentSpaces()
     spaceOrder = systemOrder
     var indices: [CGWindowID: Int] = [:]
     var counts: [CGDirectDisplayID: Int] = [:]
@@ -593,7 +593,9 @@ extension WindowCoordinator {
         ?? present.sorted().map { SpaceQuery.Space(id: $0, isFullscreen: false) }
 
       counts[displayID] = ordered.count
-      current[displayID] = active.flatMap { space in ordered.firstIndex { $0.id == space } }
+      current[displayID] = showing[displayID].flatMap { space in
+        ordered.firstIndex { $0.id == space }
+      }
 
       for window in onDisplay {
         guard let space = spaces[window.id],
@@ -822,8 +824,8 @@ extension WindowCoordinator {
       return
     }
 
-    logger.info("Switching to a Space chosen from the overlay")
-    spaceQuery.focus(space: ordered[index].id, on: displayID)
+    let shown = spaceQuery.focus(space: ordered[index].id, on: displayID)
+    logger.info("Switching to the Space chosen from the overlay: shown=\(shown)")
   }
 
   /// The desktop picture of a display, for drawing a Space with nothing on it.

@@ -368,7 +368,10 @@ final class OverlayWindowController: NSWindowController, NSWindowDelegate {
   }
 
   private func moveSelection(_ direction: OverlayGrid.Direction) {
-    defer { logger.debug("Overlay selection moved \(direction) to index \(selection.index)") }
+    // At info level rather than debug: this is the line that says where the
+    // highlight actually went, and a report of "it did nothing" is answered by
+    // reading it back afterwards, which only works for what the system keeps.
+    defer { logger.info("Overlay selection moved \(direction) to index \(selection.index)") }
 
     selection.index = OverlayGrid.index(
       from: selection.index,
@@ -450,6 +453,8 @@ final class OverlayWindowController: NSWindowController, NSWindowDelegate {
   }
 
   private func selectWindow(at index: Int) {
+    logger.info("Chosen at index \(index) of \(windowCoordinator.targets.count) targets")
+
     switch windowCoordinator.targets[safe: index] {
     case .window(let tile):
       selectWindow(id: tile.id)

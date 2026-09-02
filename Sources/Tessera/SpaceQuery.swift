@@ -130,6 +130,35 @@ final class SpaceQuery {
     let isFullscreen: Bool
   }
 
+  /// The Space each display is showing. Every display shows one, and only one of
+  /// them is "active" — so asking `SLSGetActiveSpace` marks a single group on a map
+  /// that has a current Space per display.
+  func currentSpaces() -> [CGDirectDisplayID: Int] {
+    guard let connectionID, let copyManagedDisplaySpaces,
+      let displays = copyManagedDisplaySpaces(connectionID)?.takeRetainedValue()
+        as? [[String: Any]]
+    else {
+      return [:]
+    }
+
+    let displayIDs = Self.displayIDsByUUID()
+    var current: [CGDirectDisplayID: Int] = [:]
+
+    for display in displays {
+      guard let uuid = display["Display Identifier"] as? String,
+        let displayID = displayIDs[uuid],
+        let space = display["Current Space"] as? [String: Any],
+        let id = (space["ManagedSpaceID"] as? Int) ?? (space["id64"] as? Int)
+      else {
+        continue
+      }
+
+      current[displayID] = id
+    }
+
+    return current
+  }
+
   func orderedSpaces() -> [CGDirectDisplayID: [Space]] {
     guard let connectionID, let copyManagedDisplaySpaces,
       let displays = copyManagedDisplaySpaces(connectionID)?.takeRetainedValue()
@@ -191,11 +220,40 @@ final class SpaceQuery {
     guard let connectionID, let setCurrentSpace,
       let uuid = Self.uuidsByDisplayID()[displayID]
     else {
+      logger.warning("No display UUID for \(displayID); cannot show that Space")
       return false
     }
 
+    logger.info("Showing Space \(space) on display \(uuid)")
     setCurrentSpace(connectionID, uuid as CFString, UInt64(space))
+    Self.followTheEye(to: displayID)
+
     return true
+  }
+
+  /// Puts the pointer on the display whose Space was just shown.
+  ///
+  /// macOS switches that display and leaves your attention where it was, so
+  /// choosing a Space on the other screen looked like nothing at all: the switch
+  /// happened, out of sight. The display under the pointer is the one the system
+  /// treats as yours, so moving it is what makes the choice mean "go there".
+  private static func followTheEye(to displayID: CGDirectDisplayID) {
+    guard let screen = DisplayInfo.screen(for: displayID),
+      !screen.frame.contains(NSEvent.mouseLocation)
+    else {
+      return
+    }
+
+    // Cocoa counts from the bottom of the main screen, the warp counts from the
+    // top of it, which is the one conversion this needs.
+    let centre = CGPoint(x: screen.frame.midX, y: screen.frame.midY)
+    let flipped = CGPoint(
+      x: centre.x,
+      y: (NSScreen.screens.first?.frame.maxY ?? centre.y) - centre.y
+    )
+
+    CGWarpMouseCursorPosition(flipped)
+    CGAssociateMouseAndMouseCursorPosition(1)
   }
 
   private static func uuidsByDisplayID() -> [CGDirectDisplayID: String] {

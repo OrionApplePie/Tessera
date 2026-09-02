@@ -72,6 +72,14 @@ The highlight moves over both. A window and an empty Space are one list —
 reach it; an empty one carries the highlight itself, having no tile to carry it.
 It is never where the highlight starts, though: you are always in a window.
 
+Showing a Space on another display is invisible unless you look at it: macOS
+switches that display and leaves your attention where it was, so the choice looked
+like nothing at all — the switch had happened, out of sight. The pointer is
+therefore moved to that display, because the display under the pointer is the one
+the system treats as yours. Measured: the external display went from Space 5847 to
+4556 on a choice made from the laptop screen, which is exactly the switch that
+looked like a failure.
+
 Raising a window and showing a Space are two different things, and the difference
 matters. Raising asks Accessibility or a menu for a window, and the Space changes
 only because that is where the window lives. Showing a Space asks
