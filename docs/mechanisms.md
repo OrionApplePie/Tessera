@@ -626,6 +626,15 @@ for as long as the overlay is up, so a step can activate an application, cross a
 Space, and still have the next press arrive here. Measured: six steps in a row, all
 with the panel not key.
 
+The panel is not a non-activating one, though that sounds like exactly what a
+switcher wants. Non-activating means the application never becomes active, and
+macOS routes ordinary key events to whichever application is — so the panel was
+key inside a process nobody was typing at, and the arrows and Return went to the
+window standing behind the overlay. It was added to fix keys over a fullscreen
+application and quietly broke them everywhere else. What covers the fullscreen case
+is the handful of keys held as Carbon hotkeys while the overlay is up, which arrive
+whoever is frontmost.
+
 The keyboard is also taken straight back. Reaching a window on another Space means
 activating its application, and macOS hands the keyboard to whichever application
 is active — but a non-activating panel can be made key without its own application

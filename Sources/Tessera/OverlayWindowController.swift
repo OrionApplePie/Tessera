@@ -66,11 +66,14 @@ final class OverlayWindowController: NSWindowController, NSWindowDelegate {
 
     let panel = OverlayPanel(
       contentRect: NSRect(x: 0, y: 0, width: 800, height: 260),
-      // Non-activating: the panel takes the keyboard without the application
-      // becoming active, which over a fullscreen application it cannot do — macOS
-      // refuses that activation, and the arrows went to the fullscreen application
-      // instead of to the overlay standing in front of it.
-      styleMask: [.borderless, .fullSizeContentView, .nonactivatingPanel],
+      // Not a non-activating panel, though that sounds like what a switcher wants.
+      // Non-activating means the application never becomes active, and macOS routes
+      // ordinary keys to whichever application is — so the panel was key inside a
+      // process nobody was typing at, and the arrows and Return went to the window
+      // behind it. What covers the fullscreen case instead is the handful of keys
+      // held as Carbon hotkeys while the overlay is up, which arrive whoever is
+      // frontmost.
+      styleMask: [.borderless, .fullSizeContentView],
       backing: .buffered,
       defer: false
     )
