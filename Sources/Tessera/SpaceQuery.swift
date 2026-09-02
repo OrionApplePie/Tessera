@@ -233,6 +233,23 @@ final class SpaceQuery {
     return byUUID
   }
 
+  /// The display the system treats as active: the one showing the active Space.
+  ///
+  /// `NSScreen.main` is not that display. It answers the screen of the window with
+  /// keyboard focus, and the two disagree exactly where it matters — measured, with
+  /// the work happening in a fullscreen window on the external display,
+  /// `NSScreen.main` still said the built-in one. The pointer is no better: showing
+  /// a Space moves it to that display and it stays there after the attention has
+  /// gone back. The active Space follows the focus across displays, and it is what
+  /// decides where Spotlight opens.
+  func activeDisplay() -> CGDirectDisplayID? {
+    guard let active = activeSpace() else {
+      return nil
+    }
+
+    return currentSpaces().first { $0.value == active }?.key
+  }
+
   /// The Space showing now, which is what orders the groups: the one you are on
   /// comes first.
   func activeSpace() -> Int? {

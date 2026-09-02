@@ -219,7 +219,7 @@ final class OverlayWindowController: NSWindowController, NSWindowDelegate {
     // list is frozen for as long as the overlay is up.
     // Where you are standing, worked out before the marks are placed: on a Space of
     // its own it decides both of them.
-    let screen = NSScreen.main
+    let screen = screenInFront
     let display = DisplayInfo.displayID(of: screen)
     let here = windowCoordinator.sections.first { $0.isCurrent && $0.id.displayID == display }
     let standing = here?.tiles.isEmpty == true ? here?.id : nil
@@ -248,6 +248,21 @@ final class OverlayWindowController: NSWindowController, NSWindowDelegate {
         + "frontmost=\(NSWorkspace.shared.frontmostApplication?.localizedName ?? "?") "
         + "selection=\(selection.index) (\(selectedApplicationName))"
     )
+  }
+
+  /// The display the overlay opens on: the one showing the Space the system calls
+  /// active.
+  ///
+  /// Neither of the obvious two answers survives both directions. `NSScreen.main` is
+  /// the screen of the window with keyboard focus, and after showing a Space on
+  /// another display it still names the display just left — the overlay opened on a
+  /// Space nobody was looking at, and which display that was depended on the
+  /// application in front, which is why it looked intermittent. The pointer, moved
+  /// to the display whose Space was shown, then fails the other way: it stays there
+  /// after the attention has gone back to a window elsewhere. The active Space
+  /// follows the focus across displays in both cases.
+  private var screenInFront: NSScreen? {
+    windowCoordinator.activeDisplay.flatMap(DisplayInfo.screen(for:)) ?? NSScreen.main
   }
 
   /// Centres the panel on a screen, at the size that screen's room allows.

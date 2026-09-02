@@ -131,6 +131,18 @@ Space has no windows on it — that is why it is drawn as a place rather than as
 tiles — so there is nothing under the pointer but the desktop. The click is skipped
 while the overlay is up and being stepped through, where it would land on the panel.
 
+The overlay opens on the display showing the **active Space**, which is neither of
+the two obvious answers. `NSScreen.main` is the screen of the window with keyboard
+focus: measured, with the work happening in a fullscreen window on the external
+display it still said the built-in one, and after showing a Space it names the
+display just left — so the overlay opened on a Space nobody was looking at, and
+which display that was depended on the application in front, which is why it looked
+intermittent. The pointer is no better, and fails the other way: showing a Space
+moves it to that display and it stays there after the attention has gone back to a
+window elsewhere. `SLSGetActiveSpace` follows the focus across displays in both
+cases — measured, activating an application on the built-in moved it there and back
+again — and it is the same notion that decides where Spotlight opens.
+
 Standing on a desktop with nothing on it, no tile is marked as the window you are
 in, because there is none. The mark would otherwise sit on a Finder window on
 another display every time, since Finder is what ends up in front.

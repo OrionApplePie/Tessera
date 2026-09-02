@@ -848,6 +848,11 @@ extension WindowCoordinator {
     )
   }
 
+  /// The display the system treats as active, for deciding where the overlay opens.
+  var activeDisplay: CGDirectDisplayID? {
+    spaceQuery.activeDisplay()
+  }
+
   /// The desktop picture of a display, for drawing a Space with nothing on it.
   func desktopImage(for displayID: CGDirectDisplayID, fitting size: CGSize) -> CGImage? {
     wallpaper.image(for: displayID, fitting: size)
