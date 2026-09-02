@@ -131,6 +131,10 @@ Space has no windows on it — that is why it is drawn as a place rather than as
 tiles — so there is nothing under the pointer but the desktop. The click is skipped
 while the overlay is up and being stepped through, where it would land on the panel.
 
+Standing on a desktop with nothing on it, no tile is marked as the window you are
+in, because there is none. The mark would otherwise sit on a Finder window on
+another display every time, since Finder is what ends up in front.
+
 The identifiers themselves are large and grow over time, so they are turned into
 the small per-display numbers the overlay groups by, ordered by identifier — which
 is the order the Spaces were made in, so a heading does not move about between

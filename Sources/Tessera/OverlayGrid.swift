@@ -66,8 +66,20 @@ enum OverlayGrid {
   /// there makes the two marks agree and gives the arrow keys an obvious origin —
   /// you move away from where you are, rather than from wherever the list happens
   /// to begin.
-  static func initialIndex(for targets: [OverlayTarget]) -> Int {
-    targets.firstIndex { $0.window?.isActive == true } ?? 0
+  /// A Space with nothing on it is the other place you can be standing, and then
+  /// there is no window to mark. Opening the overlay from an empty desktop used to
+  /// highlight the first tile in the list — some window on another Space — so the
+  /// frame said "you are here" and the highlight said somewhere else.
+  /// Where you stand comes first, and only then the active window. Standing on an
+  /// empty desktop there is still an active window somewhere — the front
+  /// application keeps one on the Space you came from, and it can even be a
+  /// minimized one — and highlighting that put the mark on another Space entirely.
+  static func initialIndex(for targets: [OverlayTarget], standingOn here: WindowSectionID?) -> Int {
+    if let here, let index = targets.firstIndex(where: { $0.space == here }) {
+      return index
+    }
+
+    return targets.firstIndex { $0.window?.isActive == true } ?? 0
   }
 
   /// What a letter is matched against.

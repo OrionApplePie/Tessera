@@ -74,27 +74,57 @@ struct OverlayGridTests {
     let targets = [makeTile(id: 1), makeTile(id: 2, isActive: true), makeTile(id: 3)]
       .map(OverlayTarget.window)
 
-    #expect(OverlayGrid.initialIndex(for: targets) == 1)
+    #expect(OverlayGrid.initialIndex(for: targets, standingOn: nil) == 1)
   }
 
   @Test("With no window frontmost the highlight falls back to the first tile")
   func initialIndexFallsBackToZero() {
     let targets = [makeTile(id: 1), makeTile(id: 2)].map(OverlayTarget.window)
 
-    #expect(OverlayGrid.initialIndex(for: targets) == 0)
-    #expect(OverlayGrid.initialIndex(for: []) == 0)
+    #expect(OverlayGrid.initialIndex(for: targets, standingOn: nil) == 0)
+    #expect(OverlayGrid.initialIndex(for: [], standingOn: nil) == 0)
   }
 
-  /// An empty Space is somewhere to go, so it is somewhere the highlight can be —
-  /// but never where it starts, because you are always in a window, not in a gap.
-  @Test("An empty Space is a place the highlight can reach but not start on")
-  func initialIndexSkipsEmptySpaces() {
-    let section = WindowSectionID(displayID: 1, spaceIndex: 2)
+  /// While you are in a window there is no Space to stand on: the Space you are in
+  /// holds that window, so it is drawn as tiles and never as a place of its own.
+  @Test("In a window, the highlight starts on the window")
+  func initialIndexPrefersTheActiveWindow() {
+    let elsewhere = WindowSectionID(displayID: 1, spaceIndex: 2)
     let targets: [OverlayTarget] = [
-      .space(section), .window(makeTile(id: 1, isActive: true)),
+      .space(elsewhere), .window(makeTile(id: 1, isActive: true)),
     ]
 
-    #expect(OverlayGrid.initialIndex(for: targets) == 1)
+    #expect(OverlayGrid.initialIndex(for: targets, standingOn: nil) == 1)
+  }
+
+  /// Standing on an empty desktop there is still an active window somewhere — the
+  /// front application keeps one on the Space you came from, and it can even be
+  /// minimized. Marking that one put "you are here" on another Space.
+  @Test("Standing on an empty Space beats an active window somewhere else")
+  func initialIndexBeatsAnActiveWindowElsewhere() {
+    let here = WindowSectionID(displayID: 1, spaceIndex: 2)
+    let targets: [OverlayTarget] = [
+      .window(makeTile(id: 1, isActive: true)), .space(here),
+    ]
+
+    #expect(OverlayGrid.initialIndex(for: targets, standingOn: here) == 1)
+  }
+
+  /// This test used to assert the opposite, on the grounds that you are always in a
+  /// window and never in a gap. That stopped being true when an empty desktop
+  /// became somewhere you can go: standing on one, there is no window to mark, and
+  /// the highlight belongs on the Space you are actually on rather than on the
+  /// first tile of the list, which is a window on some other Space.
+  @Test("Standing on an empty Space, the highlight starts there")
+  func initialIndexIsTheSpaceYouStandOn() {
+    let here = WindowSectionID(displayID: 1, spaceIndex: 2)
+    let elsewhere = WindowSectionID(displayID: 1, spaceIndex: 3)
+    let targets: [OverlayTarget] = [
+      .window(makeTile(id: 1)), .space(elsewhere), .space(here),
+    ]
+
+    #expect(OverlayGrid.initialIndex(for: targets, standingOn: here) == 2)
+    #expect(OverlayGrid.initialIndex(for: targets, standingOn: nil) == 0)
   }
 
   @Test("Left and right step through the tiles in reading order and wrap")

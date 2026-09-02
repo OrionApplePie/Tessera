@@ -100,6 +100,13 @@ struct DisplayInfo: Identifiable, Hashable, Sendable {
   /// same display as a window. Matched on the number AppKit publishes, which is the
   /// id ScreenCaptureKit uses.
   @MainActor
+  /// The display a screen is, for the two AppKit answers that come as screens.
+  static func displayID(of screen: NSScreen?) -> CGDirectDisplayID? {
+    let number = screen?.deviceDescription[NSDeviceDescriptionKey("NSScreenNumber")] as? NSNumber
+
+    return number.map { CGDirectDisplayID($0.uint32Value) }
+  }
+
   static func screen(for displayID: CGDirectDisplayID) -> NSScreen? {
     NSScreen.screens.first { screen in
       let number = screen.deviceDescription[NSDeviceDescriptionKey("NSScreenNumber")] as? NSNumber

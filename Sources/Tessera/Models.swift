@@ -86,6 +86,14 @@ enum OverlayTarget: Identifiable {
 
     return tile
   }
+
+  var space: WindowSectionID? {
+    guard case .space(let section) = self else {
+      return nil
+    }
+
+    return section
+  }
 }
 
 /// The tiles of one Space of one display, as the overlay lays them out under a

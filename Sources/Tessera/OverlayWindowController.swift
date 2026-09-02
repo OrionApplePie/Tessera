@@ -217,17 +217,25 @@ final class OverlayWindowController: NSWindowController, NSWindowDelegate {
     // Which window you came from is worked out now rather than taken from the last
     // background refresh, which can be a refresh interval out of date. Then the
     // list is frozen for as long as the overlay is up.
-    windowCoordinator.refreshActiveWindow()
+    // Where you are standing, worked out before the marks are placed: on a Space of
+    // its own it decides both of them.
+    let screen = NSScreen.main
+    let display = DisplayInfo.displayID(of: screen)
+    let here = windowCoordinator.sections.first { $0.isCurrent && $0.id.displayID == display }
+    let standing = here?.tiles.isEmpty == true ? here?.id : nil
+
+    windowCoordinator.refreshActiveWindow(onADesktop: standing != nil)
     windowCoordinator.holdList()
 
     // The highlight is placed fresh every time: the window list has moved on since
     // the overlay was last open, and a stale index would point at another window.
-    selection.index = OverlayGrid.initialIndex(for: windowCoordinator.targets)
+    selection.index = OverlayGrid.initialIndex(
+      for: windowCoordinator.targets, standingOn: standing)
 
     // The screen is chosen here rather than left to `center()`, which would use
     // whichever screen the window was last on. Measuring against one screen and
     // opening on another is how the fitting appeared to work only the second time.
-    let fittingSize = place(window, on: NSScreen.main)
+    let fittingSize = place(window, on: screen)
     window.makeKeyAndOrderFront(nil)
     stepHotkeys?.start()
     NSApp.activate(ignoringOtherApps: true)

@@ -152,9 +152,11 @@ final class WindowCoordinator: ObservableObject {
   /// else. After a Space is shown the front application is Finder — that is what
   /// makes the switch stick — so the mark would otherwise land on a Finder window on
   /// another display every time, saying "you are here" about a place you are not.
-  func refreshActiveWindow() {
+  func refreshActiveWindow(onADesktop: Bool = false) {
+    // No application in front means no window to mark, which `identify` already
+    // answers with nothing.
     let frontmostWindowID = FrontmostWindow.identify(
-      processID: frontmostApplicationProcessID(),
+      processID: onADesktop ? nil : frontmostApplicationProcessID(),
       among: Set(tiles.map(\.id)),
       frontToBack: FrontmostWindow.onScreenFrontToBack()
     )
