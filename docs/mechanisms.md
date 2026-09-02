@@ -125,11 +125,19 @@ does nothing at all — measured, pressing it changes neither the Space nor the 
 — yet choosing it from the overlay still means "take me there", and when it is on
 another display that is a real move. macOS shifts its attention on a click or an
 activation and never on the pointer alone: measured, moving the pointer to that
-display left the active Space where it was, and a click on the desktop moved it. So
-the pointer goes there and the desktop is clicked, which is what a person does. The
-Space has no windows on it — that is why it is drawn as a place rather than as
-tiles — so there is nothing under the pointer but the desktop. The click is skipped
-while the overlay is up and being stepped through, where it would land on the panel.
+display left the active Space exactly where it was.
+
+**The click lands on the menu bar, not on the desktop.** Clicking the wallpaper is
+what "Click wallpaper to reveal desktop" listens for, and that setting is on by
+default: measured, a click on an empty desktop slid every window on the other
+display aside, and two Finder windows ended up parked at its bottom edge — which is
+what "the windows slide down" was, and it was ours. The menu bar is the one part of
+a display that is always there, belongs to no window, and answers a click by making
+that display active — measured, the active Space moved across while every window
+stayed where it was. The point is a third of the way in: past the application menus,
+short of the status items, and clear of the notch in the middle of a built-in
+display. The click is skipped while the overlay is up and being stepped through,
+where it would land on the panel.
 
 The overlay opens on the display showing the **active Space**, which is neither of
 the two obvious answers. `NSScreen.main` is the screen of the window with keyboard

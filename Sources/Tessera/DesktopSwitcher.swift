@@ -35,6 +35,13 @@ struct DesktopSwitcher {
   /// them switched it. The window server wants the key held, briefly.
   private static let keyDownHold = Duration.milliseconds(20)
 
+  /// How long the pointer is given to arrive before it is clicked with, and how long
+  /// the button is held. Both are thresholds rather than tuned delays: without the
+  /// first the press lands where the pointer used to be, without the second there is
+  /// no click at all.
+  private static let pointerSettle = Duration.milliseconds(120)
+  private static let clickHold = Duration.milliseconds(60)
+
   private let logger: AppLogger
   /// How long the handover below is given before the keystroke goes out anyway.
   private let settle: Duration
@@ -83,7 +90,7 @@ struct DesktopSwitcher {
       logger.info("Desktop \(number) is already showing; going there instead of switching")
 
       if handingBack {
-        Self.goToTheDesktop(on: displayID)
+        await Self.goToTheDesktop(on: displayID)
       } else {
         Self.followTheEye(to: displayID)
       }
@@ -118,6 +125,16 @@ struct DesktopSwitcher {
 
     let arrived = await waitUntil(showing)
     logger.info("Desktop \(number) on display \(displayID): arrived=\(arrived)")
+
+    // Arriving is not the same as being there. The keyboard was handed to Finder to
+    // make the switch stick, and Finder's front window can be on another display —
+    // measured, switching to an empty desktop on the display you are already on
+    // left the other one active, menu bar and all. The desktop just shown has
+    // nothing on it, so the same click that goes to a desktop already shown puts
+    // the attention where it was asked to go.
+    if arrived && handingBack {
+      await Self.goToTheDesktop(on: displayID)
+    }
   }
 
   /// Gives the keyboard to the application that owns the desktop, and waits until
@@ -234,25 +251,26 @@ struct DesktopSwitcher {
     return flags
   }
 
-  /// Moves to a display that is already showing the desktop asked for.
+  /// Moves the attention to a display, by clicking its menu bar.
   ///
   /// The pointer alone is not enough: measured, moving it leaves the active Space —
-  /// the one that decides where Spotlight opens and which display the menu bar is
-  /// on — exactly where it was, while a click on the desktop moves it. The Space
-  /// has no windows on it, which is what makes the click safe: there is nothing
-  /// under the pointer but the desktop.
-  private static func goToTheDesktop(on displayID: CGDirectDisplayID) {
+  /// the one that decides where Spotlight opens and which display carries the menu
+  /// bar — exactly where it was. A click moves it, but not just any click: clicking
+  /// the wallpaper is what "Click wallpaper to reveal desktop" listens for, and that
+  /// setting is on by default. Measured, our click on an empty desktop slid every
+  /// window on the other display aside — two Finder windows ended up parked at its
+  /// bottom edge, which is what "the windows slide down" was.
+  ///
+  /// The menu bar is the one part of a display that is always there, belongs to no
+  /// window, and answers a click by making that display the active one — measured,
+  /// it moved the active Space across while every window stayed where it was. The
+  /// point is a third of the way in: past the application menus, short of the status
+  /// items on the right, and clear of the notch in the middle of a built-in display.
+  private static func goToTheDesktop(on displayID: CGDirectDisplayID) async {
     followTheEye(to: displayID)
 
-    guard let screen = DisplayInfo.screen(for: displayID) else {
-      return
-    }
-
-    let centre = CGPoint(x: screen.frame.midX, y: screen.frame.midY)
-    let point = CGPoint(
-      x: centre.x,
-      y: (NSScreen.screens.first?.frame.maxY ?? centre.y) - centre.y
-    )
+    let bounds = CGDisplayBounds(displayID)
+    let point = CGPoint(x: bounds.minX + bounds.width * 0.3, y: bounds.minY + 6)
 
     let click = { (type: CGEventType) in
       CGEvent(
@@ -267,7 +285,17 @@ struct DesktopSwitcher {
       return
     }
 
+    // Emptied rather than left alone. An event built without a source of its own
+    // carries the modifier state as it stands, and the keystroke this file posts
+    // holds control: measured, the click that followed arrived as a control-click
+    // and opened a contextual menu instead of going anywhere. Nobody was holding a
+    // key — the flag was ours.
+    down.flags = []
+    up.flags = []
+
+    try? await Task.sleep(for: pointerSettle)
     down.post(tap: .cghidEventTap)
+    try? await Task.sleep(for: clickHold)
     up.post(tap: .cghidEventTap)
   }
 
