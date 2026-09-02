@@ -31,6 +31,7 @@ final class AppCoordinator: NSObject, NSApplicationDelegate {
       columns: config.overlayColumns,
       dimsStaleThumbnails: config.dimsStaleThumbnails,
       closeHotkey: config.closeHotkey,
+      settleSeconds: config.activationSettleSeconds,
       debugMode: config.debugMode
     )
 

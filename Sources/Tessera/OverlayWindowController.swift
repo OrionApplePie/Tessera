@@ -20,6 +20,10 @@ final class OverlayWindowController: NSWindowController, NSWindowDelegate {
   /// that survives another application activating, because bringing windows forward
   /// while the overlay stays up is the whole of what it does.
   private var steppingActivation: pid_t?
+  /// Until when an application coming forward counts as a consequence of a step
+  /// rather than as the user leaving.
+  private var steppingUntil: ContinuousClock.Instant?
+  private let stepSettle: Duration
 
   /// Holds the arrow keys system-wide while the overlay is up, so that stepping
   /// survives the application it just brought forward taking the keyboard.
@@ -41,6 +45,7 @@ final class OverlayWindowController: NSWindowController, NSWindowDelegate {
     columns: Int = AppConfig.default.overlayColumns,
     dimsStaleThumbnails: Bool = AppConfig.default.dimsStaleThumbnails,
     closeHotkey: HotkeyBinding? = AppConfig.default.closeHotkey,
+    settleSeconds: Double = AppConfig.default.activationSettleSeconds,
     debugMode: Bool = false
   ) {
     self.windowCoordinator = windowCoordinator
@@ -49,6 +54,7 @@ final class OverlayWindowController: NSWindowController, NSWindowDelegate {
     self.columns = columns
     self.dimsStaleThumbnails = dimsStaleThumbnails
     self.closeHotkey = closeHotkey
+    self.stepSettle = .seconds(settleSeconds)
     self.fittedColumns = columns
     self.logger = AppLogger(debugMode: debugMode, category: .overlay)
     self.hostingView = TransparentHostingView(
@@ -546,6 +552,19 @@ extension OverlayWindowController {
           return
         }
 
+        // A step changes the Space, and macOS answers that by bringing forward
+        // whichever application owns the Space arrived at — measured, a step put
+        // Code in front and the overlay took that for the user walking away and
+        // ordered itself out mid-ride. Only the application this asked for can be
+        // named in advance; the system's own choice cannot, so a step is instead
+        // given a moment in which any arrival belongs to it.
+        if let until = self.steppingUntil, ContinuousClock.now < until {
+          self.logger.debug(
+            "Keeping the overlay: \(activated?.localizedName ?? "?") came forward mid-step")
+          self.reclaimTheKeyboard()
+          return
+        }
+
         self.logger.debug(
           "Hiding: \(activated?.localizedName ?? "?") came forward (pid \(arrived))")
         self.hideOverlay()
@@ -603,6 +622,7 @@ extension OverlayWindowController {
   /// take the screen away from the overlay.
   fileprivate func stepAndActivate(_ direction: OverlayGrid.Direction) {
     let startedAt = Date()
+    steppingUntil = ContinuousClock.now + stepSettle
     // Switching to a window on another Space runs a system animation of about half
     // a second, and presses arriving faster than that queue up behind each other —
     // which is what makes a held-down arrow look like the overlay has hung. A step
@@ -617,9 +637,17 @@ extension OverlayWindowController {
     guard let stepped = target.window else {
       // Stepping onto an empty Space shows it: there is no window there to raise.
       if case .space(let section) = target, let index = section.spaceIndex {
+        // Showing a Space hands the keyboard to Finder, and that arrival would
+        // otherwise put the overlay away. It is marked as one to survive, exactly
+        // as an activation caused by stepping onto a window is — without the
+        // handover the switch does not hold: this application stays in front of a
+        // desktop it owns no window on, and macOS takes the Space back.
+        steppingActivation = DesktopSwitcher.desktopOwner?.processIdentifier
+
         Task { @MainActor [weak self] in
           await self?.windowCoordinator.showSpace(
-            at: index, on: section.displayID, handingBack: false)
+            at: index, on: section.displayID, handingBack: true)
+          self?.followTheStep(toDisplay: section.displayID)
         }
       }
 
@@ -655,8 +683,12 @@ extension OverlayWindowController {
   /// re-placing it on every step would shift it by whatever the new screen's room
   /// allows, for no reason.
   private func followTheStep(to tile: WindowTileModel) {
+    followTheStep(toDisplay: tile.displayID)
+  }
+
+  private func followTheStep(toDisplay displayID: CGDirectDisplayID) {
     guard let window,
-      let screen = DisplayInfo.screen(for: tile.displayID),
+      let screen = DisplayInfo.screen(for: displayID),
       screen !== window.screen
     else {
       return

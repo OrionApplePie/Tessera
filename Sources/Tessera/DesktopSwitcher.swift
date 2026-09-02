@@ -180,7 +180,7 @@ struct DesktopSwitcher {
 
   /// Finder draws the desktop and its icons, and no API says as much — its bundle
   /// identifier is the only way to name the application that owns a desktop.
-  private static var desktopOwner: NSRunningApplication? {
+  static var desktopOwner: NSRunningApplication? {
     NSRunningApplication.runningApplications(withBundleIdentifier: "com.apple.finder").first
   }
 
