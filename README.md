@@ -241,8 +241,8 @@ tile text, light enough that it does not read as a hole in the screen. It is one
 config key:
 
 ```toml
-overlay_background = "#2B2E33"   # #RRGGBB
-overlay_background = "#000000C2" # #RRGGBBAA — an alpha channel lets the desktop through
+overlay_background = "#2B2E33C2" # the default: #RRGGBBAA, the alpha lets the desktop through
+overlay_background = "#2B2E33"   # #RRGGBB — a solid panel
 ```
 
 The tiles themselves are painted relative to that surface, so a lighter or darker
@@ -566,7 +566,7 @@ ignored_apps = ""
 overlay_columns = 4
 window_order = "title"
 overlay_grouping = "displays"
-overlay_background = "#2B2E33"
+overlay_background = "#2B2E33C2"
 
 close_after_activation = true
 show_menu_bar_icon = true

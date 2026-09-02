@@ -47,6 +47,6 @@ struct OverlayColorTests {
 
   @Test("The default overlay colour is a matte graphite, fully opaque")
   func defaultIsOpaque() {
-    #expect(AppConfig.default.overlayBackground.hexDescription == "#2B2E33FF")
+    #expect(AppConfig.default.overlayBackground.hexDescription == "#2B2E33C2")
   }
 }

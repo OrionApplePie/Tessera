@@ -56,9 +56,9 @@ window_order = "title"
 # axis gets its own heading and its own row.
 overlay_grouping = "displays"
 
-# Overlay surface, #RRGGBB or #RRGGBBAA. Add an alpha channel to let the desktop
-# show through, for example "#000000C2".
-overlay_background = "#2B2E33"
+# Overlay surface, #RRGGBB or #RRGGBBAA. The default lets the desktop through;
+# drop the alpha channel, as in "#2B2E33", for a solid panel.
+overlay_background = "#2B2E33C2"
 
 # Closes the highlighted window from the overlay. "" turns the shortcut off.
 # close_action = "quit" ends the whole application, "window" closes just the window

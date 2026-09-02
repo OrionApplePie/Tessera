@@ -99,7 +99,8 @@ struct AppConfig: Equatable {
     overlayGrouping: .displays,
     // Matte graphite: dark enough for white tile text, light enough not to read as
     // a hole in the screen.
-    overlayBackground: OverlayColor(red: 43 / 255, green: 46 / 255, blue: 51 / 255),
+    overlayBackground: OverlayColor(
+      red: 43 / 255, green: 46 / 255, blue: 51 / 255, alpha: 194 / 255),
     // Deliberately not cmd- or alt+space: those belong to Spotlight and to every
     // launcher that replaces it.
     hotkey: HotkeyBinding(modifiers: [.control, .option], key: .space)
