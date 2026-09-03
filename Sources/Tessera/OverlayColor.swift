@@ -15,6 +15,12 @@ struct OverlayColor: Equatable, Sendable {
     self.alpha = alpha
   }
 
+  /// The same colour with nothing showing through it, for a surface that has to
+  /// hide what it covers.
+  var opaque: OverlayColor {
+    OverlayColor(red: red, green: green, blue: blue)
+  }
+
   init(parsing text: String) throws {
     var digits = Substring(text.trimmingCharacters(in: .whitespaces))
     if digits.hasPrefix("#") {

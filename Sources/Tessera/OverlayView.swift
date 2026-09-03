@@ -14,9 +14,22 @@ enum TileMetrics {
   /// The group's corner. Between the tile's and the panel's, so the three read as
   /// nested rather than repeated.
   static let groupCornerRadius: CGFloat = 12
-  /// How many tiles a group holds across before it starts a second row of its own.
-  /// Small, because a group is meant to read as one block among several.
-  static let groupColumns = 3
+  /// How far each card of a deck peeks out from the one in front of it, and how
+  /// many cards deep that goes before the rest hide behind the last. Enough of a
+  /// corner to count them at a glance, little enough that a Space of six windows
+  /// still reads as one block.
+  static let deckStep = CGSize(width: 20, height: 15)
+  static let deckDepth = 4
+
+  /// The room a deck of `count` windows takes.
+  static func deckSize(forCards count: Int) -> CGSize {
+    let steps = CGFloat(min(max(count, 1) - 1, deckDepth))
+
+    return CGSize(
+      width: width + deckStep.width * steps,
+      height: width + deckStep.height * steps
+    )
+  }
 
   /// The width a row of `count` tiles takes, gaps included.
   static func width(forColumns count: Int) -> CGFloat {
@@ -61,15 +74,6 @@ struct OverlayView: View {
   let onFocusSpace: (WindowSectionID) -> Void
   let onMove: (CGWindowID, CGWindowID) -> Void
   let onClose: () -> Void
-
-  /// A group is at most `groupColumns` tiles across, and narrower when it holds
-  /// fewer — so a Space with one window is a small block, not a wide empty one.
-  private func groupColumns(for tileCount: Int) -> [GridItem] {
-    Array(
-      repeating: GridItem(.fixed(TileMetrics.width), spacing: TileMetrics.spacing),
-      count: min(max(tileCount, 1), TileMetrics.groupColumns)
-    )
-  }
 
   private var gridColumns: [GridItem] {
     let count = OverlayGrid.columnCount(
@@ -117,30 +121,14 @@ struct OverlayView: View {
                   fitting: CGSize(width: TileMetrics.width, height: TileMetrics.width))
                 : nil,
               content: {
-                LazyVGrid(
-                  columns: groupColumns(for: entry.section.tiles.count),
-                  alignment: .leading,
-                  spacing: TileMetrics.spacing
-                ) {
-                  ForEach(Array(entry.section.tiles.enumerated()), id: \.element.id) { item in
-                    WindowTileButton(
-                      tile: item.element,
-                      shortcutIndex: entry.offset + item.offset,
-                      isSelected: entry.offset + item.offset == selectedIndex,
-                      dimsStaleThumbnails: dimsStaleThumbnails,
-                      onMove: onMove
-                    ) {
-                      onSelect(item.element.id)
-                    }
-                  }
-                }
-                // Exactly as wide as the tiles it holds: a group of two windows is two
-                // windows wide, and nothing is left over to make it look emptier than
-                // it is.
-                .frame(
-                  width: TileMetrics.width(
-                    forColumns: min(entry.section.tiles.count, TileMetrics.groupColumns)),
-                  alignment: .leading
+                WindowDeck(
+                  tiles: entry.section.tiles,
+                  offset: entry.offset,
+                  selectedIndex: selectedIndex,
+                  base: entry.section.tiles.count > 1 ? Color(background.opaque) : nil,
+                  dimsStaleThumbnails: dimsStaleThumbnails,
+                  onMove: onMove,
+                  onSelect: onSelect
                 )
               }
             )
@@ -311,6 +299,65 @@ extension Color {
   }
 }
 
+/// The windows of one Space, laid out as a deck of cards rather than as a row of
+/// tiles: each one peeks out from behind the one in front of it, so a Space of
+/// several windows says so in the room of about one, and the map stays readable
+/// when there are a dozen Spaces on it.
+///
+/// The highlighted card is drawn on top of the rest, which is what makes stepping
+/// through a Space read as dealing through a deck: the windows stay where they
+/// are and the chosen one comes to the front.
+private struct WindowDeck: View {
+  let tiles: [WindowTileModel]
+  /// The flat index of the first card, which is what the highlight and the number
+  /// keys address.
+  let offset: Int
+  let selectedIndex: Int
+  /// What a card is painted on when it has another one behind it. The tiles are
+  /// translucent by design and the panel is too, so stacked without a backing they
+  /// showed each other's titles through their own.
+  let base: Color?
+  let dimsStaleThumbnails: Bool
+  let onMove: (CGWindowID, CGWindowID) -> Void
+  let onSelect: (CGWindowID) -> Void
+
+  var body: some View {
+    let size = TileMetrics.deckSize(forCards: tiles.count)
+
+    return ZStack(alignment: .topLeading) {
+      ForEach(Array(tiles.enumerated()), id: \.element.id) { item in
+        card(at: item.offset, tile: item.element)
+      }
+    }
+    .frame(width: size.width, height: size.height, alignment: .topLeading)
+  }
+
+  private func card(at position: Int, tile: WindowTileModel) -> some View {
+    let isSelected = offset + position == selectedIndex
+    // Past the last step the cards sit on the one before them: they are hidden
+    // either way, and a deck that kept growing would be no more compact than a row.
+    let step = CGFloat(min(position, TileMetrics.deckDepth))
+
+    return WindowTileButton(
+      tile: tile,
+      shortcutIndex: offset + position,
+      isSelected: isSelected,
+      base: base,
+      dimsStaleThumbnails: dimsStaleThumbnails,
+      onMove: onMove
+    ) {
+      onSelect(tile.id)
+    }
+    .shadow(
+      color: .black.opacity(isSelected ? 0.5 : 0.3),
+      radius: isSelected ? 14 : 6,
+      y: isSelected ? 6 : 2
+    )
+    .offset(x: TileMetrics.deckStep.width * step, y: TileMetrics.deckStep.height * step)
+    .zIndex(isSelected ? Double(tiles.count) : Double(position))
+  }
+}
+
 private struct SectionLayout: Identifiable {
   let section: WindowTileSection
   let offset: Int
@@ -338,6 +385,8 @@ private struct WindowTileButton: View {
   let tile: WindowTileModel
   let shortcutIndex: Int
   let isSelected: Bool
+  /// Painted under the tile's own translucent fill when the tile sits in a deck.
+  var base: Color?
   let dimsStaleThumbnails: Bool
   let onMove: (CGWindowID, CGWindowID) -> Void
   let onSelect: () -> Void
@@ -423,7 +472,11 @@ private struct WindowTileButton: View {
 
   private var tileBackground: some View {
     RoundedRectangle(cornerRadius: TileMetrics.tileCornerRadius, style: .continuous)
-      .fill(backgroundOpacity)
+      .fill(base ?? .clear)
+      .overlay(
+        RoundedRectangle(cornerRadius: TileMetrics.tileCornerRadius, style: .continuous)
+          .fill(backgroundOpacity)
+      )
   }
 
   private var backgroundOpacity: Color {
