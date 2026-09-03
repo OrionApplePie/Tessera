@@ -13,11 +13,21 @@ private let stepSignature = OSType(0x5453_5450)
 ///
 /// A Carbon hotkey is delivered whoever is frontmost, which is exactly the
 /// property needed. They are registered when the overlay opens and released when
-/// it closes, so nothing outside the overlay is held: `⌃⌥⇧` with an arrow means
+/// it closes, so nothing outside the overlay is held: `⌃⌥` with an arrow means
 /// nothing to this application the rest of the time.
 @MainActor
 final class StepHotkeyController {
-  private static let modifiers: HotkeyModifiers = [.control, .option, .shift]
+  /// Two combinations, and they do different things. `⌃⌥⇧` steps: it shows the
+  /// Space and raises the window, which activates another application. `⌃⌥` only
+  /// moves the highlight, and is held for the same reason the arrows are — an arrow
+  /// nobody handles is what macOS answers with a beep, and held down that is the
+  /// trilling sound this was reported as. It was briefly made to step as well; that
+  /// turned every press into an activation, and the overlay went away under the
+  /// user's hands while they were still pressing.
+  private static let variants: [(modifiers: HotkeyModifiers, steps: Bool)] = [
+    ([.control, .option], false),
+    ([.control, .option, .shift], true),
+  ]
 
   private static let directions: [(direction: OverlayGrid.Direction, key: String)] = [
     (.left, "left"), (.right, "right"), (.up, "up"), (.down, "down"),
@@ -47,20 +57,24 @@ final class StepHotkeyController {
 
   private let logger: AppLogger
   private let onStep: @MainActor (OverlayGrid.Direction) -> Void
+  private let onMove: @MainActor (OverlayGrid.Direction) -> Void
   private let onDismiss: @MainActor () -> Void
   private let onConfirm: @MainActor () -> Void
   private var hotKeyRefs: [EventHotKeyRef] = []
   private var eventHandler: EventHandlerRef?
   private var directionsByID: [UInt32: OverlayGrid.Direction] = [:]
+  private var stepsByID: [UInt32: Bool] = [:]
 
   init(
     debugMode: Bool,
     onStep: @escaping @MainActor (OverlayGrid.Direction) -> Void,
+    onMove: @escaping @MainActor (OverlayGrid.Direction) -> Void,
     onDismiss: @escaping @MainActor () -> Void,
     onConfirm: @escaping @MainActor () -> Void
   ) {
     self.logger = AppLogger(debugMode: debugMode, category: .trigger)
     self.onStep = onStep
+    self.onMove = onMove
     self.onDismiss = onDismiss
     self.onConfirm = onConfirm
   }
@@ -98,9 +112,16 @@ final class StepHotkeyController {
         continue
       }
 
-      let id = UInt32(index + 1)
-      if register(keyCode: key.carbonKeyCode, modifiers: Self.modifiers, id: id, name: entry.key) {
-        directionsByID[id] = entry.direction
+      for (variant, kind) in Self.variants.enumerated() {
+        let id = UInt32(index + 1 + variant * Self.directions.count)
+
+        let held = register(
+          keyCode: key.carbonKeyCode, modifiers: kind.modifiers, id: id, name: entry.key)
+
+        if held {
+          directionsByID[id] = entry.direction
+          stepsByID[id] = kind.steps
+        }
       }
     }
 
@@ -146,6 +167,7 @@ final class StepHotkeyController {
 
     hotKeyRefs = []
     directionsByID = [:]
+    stepsByID = [:]
 
     if let eventHandler {
       RemoveEventHandler(eventHandler)
@@ -168,7 +190,11 @@ final class StepHotkeyController {
       return
     }
 
-    onStep(direction)
+    if stepsByID[id] == true {
+      onStep(direction)
+    } else {
+      onMove(direction)
+    }
   }
 }
 

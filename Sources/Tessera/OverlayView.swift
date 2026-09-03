@@ -15,15 +15,20 @@ enum TileMetrics {
   /// nested rather than repeated.
   static let groupCornerRadius: CGFloat = 12
   /// How far each card of a deck peeks out from the one in front of it, and how
-  /// many cards deep that goes before the rest hide behind the last. Enough of a
-  /// corner to count them at a glance, little enough that a Space of six windows
-  /// still reads as one block.
-  static let deckStep = CGSize(width: 20, height: 15)
+  /// many cards deep that goes before the rest hide behind the last. Sideways only,
+  /// and by an edge rather than a corner: a diagonal deck was wider and taller than
+  /// the Space needed to be, and a strip down the side says "there are more" just
+  /// as plainly.
+  static let deckStep = CGSize(width: 10, height: 0)
   static let deckDepth = 4
 
-  /// The room a deck of `count` windows takes.
-  static func deckSize(forCards count: Int) -> CGSize {
-    let steps = CGFloat(min(max(count, 1) - 1, deckDepth))
+  /// The room one Space takes, the same for every Space on the map.
+  ///
+  /// Sized for the deepest deck rather than for the cards actually in it: a group
+  /// as wide as its own contents made every row a different shape, and a Space
+  /// gaining a window pushed its neighbours along.
+  static func deckSize() -> CGSize {
+    let steps = CGFloat(deckDepth)
 
     return CGSize(
       width: width + deckStep.width * steps,
@@ -85,6 +90,67 @@ struct OverlayView: View {
       count: count)
   }
 
+  /// The map itself: a row of Spaces per band, drawn in the order the displays
+  /// stand in.
+  private var map: some View {
+    VStack(alignment: .leading, spacing: TileMetrics.spacing) {
+      ForEach(Array(rows.enumerated()), id: \.offset) { row in
+        HStack(alignment: .top, spacing: TileMetrics.spacing) {
+          ForEach(row.element) { entry in
+            group(for: entry)
+          }
+
+          // A row of two Spaces beside a row of five would otherwise stretch to
+          // match it: the group's heading is happy to take any width it is given,
+          // and the extra belongs to the row, not to the Space.
+          Spacer(minLength: 0)
+        }
+      }
+    }
+  }
+
+  private func group(for entry: SectionLayout) -> some View {
+    WindowGroup(
+      title: entry.section.title,
+      isCurrent: entry.section.isCurrent,
+      isFullscreen: entry.section.isFullscreen,
+      isEmpty: entry.section.tiles.isEmpty,
+      isSelected: entry.section.tiles.isEmpty && entry.offset == selectedIndex,
+      onFocus: { onFocusSpace(entry.section.id) },
+      desktop: entry.section.tiles.isEmpty
+        ? windowCoordinator.desktopImage(
+          for: entry.section.id.displayID,
+          fitting: TileMetrics.deckSize())
+        : nil,
+      content: {
+        WindowDeck(
+          tiles: entry.section.tiles,
+          offset: entry.offset,
+          selectedIndex: selectedIndex,
+          base: entry.section.tiles.count > 1 ? Color(background.opaque) : nil,
+          dimsStaleThumbnails: dimsStaleThumbnails,
+          onMove: onMove,
+          onSelect: onSelect
+        )
+      }
+    )
+    // Its own width and no more: the heading inside a group takes any width it is
+    // offered, so in a row shorter than the widest one the groups grew to fill it.
+    .fixedSize(horizontal: true, vertical: false)
+  }
+
+  /// The map's rows, built by the same rule the arrow keys move by, so that what
+  /// the eye sees and what the keyboard walks are one thing.
+  private var rows: [[SectionLayout]] {
+    let entries = layout
+
+    return OverlayGrid.spaceRows(
+      ofDisplays: entries.map(\.section.id.displayID),
+      perRow: columns
+    )
+    .map { row in row.compactMap { entries[safe: $0] } }
+  }
+
   /// Sections paired with the flat index their first tile has, which is what the
   /// number keys and the arrow-key highlight address.
   private var layout: [SectionLayout] {
@@ -106,37 +172,9 @@ struct OverlayView: View {
       if windowCoordinator.tiles.isEmpty {
         EmptyOverlayContent()
       } else {
-        GroupFlow(spacing: TileMetrics.spacing) {
-          ForEach(layout) { entry in
-            WindowGroup(
-              title: entry.section.title,
-              isCurrent: entry.section.isCurrent,
-              isFullscreen: entry.section.isFullscreen,
-              isEmpty: entry.section.tiles.isEmpty,
-              isSelected: entry.section.tiles.isEmpty && entry.offset == selectedIndex,
-              onFocus: { onFocusSpace(entry.section.id) },
-              desktop: entry.section.tiles.isEmpty
-                ? windowCoordinator.desktopImage(
-                  for: entry.section.id.displayID,
-                  fitting: CGSize(width: TileMetrics.width, height: TileMetrics.width))
-                : nil,
-              content: {
-                WindowDeck(
-                  tiles: entry.section.tiles,
-                  offset: entry.offset,
-                  selectedIndex: selectedIndex,
-                  base: entry.section.tiles.count > 1 ? Color(background.opaque) : nil,
-                  dimsStaleThumbnails: dimsStaleThumbnails,
-                  onMove: onMove,
-                  onSelect: onSelect
-                )
-              }
-            )
-          }
-        }
+        map
       }
     }
-    .frame(width: TileMetrics.width(forColumns: columns), alignment: .leading)
     .padding(TileMetrics.surfacePadding)
     .background(
       RoundedRectangle(cornerRadius: TileMetrics.surfaceCornerRadius, style: .continuous)
@@ -147,64 +185,6 @@ struct OverlayView: View {
         .stroke(Color.white.opacity(0.12), lineWidth: 1)
     )
     .onExitCommand(perform: onClose)
-  }
-}
-
-/// Places the groups left to right and starts a new row when the next one does not
-/// fit. Side by side is what makes them read as places on a map rather than as
-/// paragraphs in a list, which is what a stack of them read as.
-private struct GroupFlow: Layout {
-  let spacing: CGFloat
-
-  func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
-    let limit = proposal.width ?? .infinity
-    var total = CGSize.zero
-    var rowWidth: CGFloat = 0
-    var rowHeight: CGFloat = 0
-
-    for view in subviews {
-      let size = view.sizeThatFits(.unspecified)
-
-      if rowWidth > 0, rowWidth + spacing + size.width > limit {
-        total.width = max(total.width, rowWidth)
-        total.height += rowHeight + spacing
-        rowWidth = 0
-        rowHeight = 0
-      }
-
-      rowWidth += (rowWidth > 0 ? spacing : 0) + size.width
-      rowHeight = max(rowHeight, size.height)
-    }
-
-    total.width = max(total.width, rowWidth)
-    total.height += rowHeight
-
-    return total
-  }
-
-  func placeSubviews(
-    in bounds: CGRect,
-    proposal: ProposedViewSize,
-    subviews: Subviews,
-    cache: inout ()
-  ) {
-    var x = bounds.minX
-    var y = bounds.minY
-    var rowHeight: CGFloat = 0
-
-    for view in subviews {
-      let size = view.sizeThatFits(.unspecified)
-
-      if x > bounds.minX, x + size.width > bounds.maxX {
-        x = bounds.minX
-        y += rowHeight + spacing
-        rowHeight = 0
-      }
-
-      view.place(at: CGPoint(x: x, y: y), proposal: ProposedViewSize(size))
-      x += size.width + spacing
-      rowHeight = max(rowHeight, size.height)
-    }
   }
 }
 
@@ -240,6 +220,7 @@ private struct WindowGroup<Content: View>: View {
 
           SectionHeading(title: title)
             .lineLimit(1)
+
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .contentShape(Rectangle())
@@ -322,11 +303,18 @@ private struct WindowDeck: View {
   let onSelect: (CGWindowID) -> Void
 
   var body: some View {
-    let size = TileMetrics.deckSize(forCards: tiles.count)
+    let size = TileMetrics.deckSize()
 
     return ZStack(alignment: .topLeading) {
       ForEach(Array(tiles.enumerated()), id: \.element.id) { item in
         card(at: item.offset, tile: item.element)
+          // Past the last step the cards sit on the one before them: they are
+          // hidden either way, and a deck that kept growing would be no more
+          // compact than a row.
+          .offset(
+            x: TileMetrics.deckStep.width * CGFloat(min(item.offset, TileMetrics.deckDepth)),
+            y: TileMetrics.deckStep.height * CGFloat(min(item.offset, TileMetrics.deckDepth))
+          )
       }
     }
     .frame(width: size.width, height: size.height, alignment: .topLeading)
@@ -334,9 +322,6 @@ private struct WindowDeck: View {
 
   private func card(at position: Int, tile: WindowTileModel) -> some View {
     let isSelected = offset + position == selectedIndex
-    // Past the last step the cards sit on the one before them: they are hidden
-    // either way, and a deck that kept growing would be no more compact than a row.
-    let step = CGFloat(min(position, TileMetrics.deckDepth))
 
     return WindowTileButton(
       tile: tile,
@@ -353,7 +338,6 @@ private struct WindowDeck: View {
       radius: isSelected ? 14 : 6,
       y: isSelected ? 6 : 2
     )
-    .offset(x: TileMetrics.deckStep.width * step, y: TileMetrics.deckStep.height * step)
     .zIndex(isSelected ? Double(tiles.count) : Double(position))
   }
 }
@@ -488,9 +472,7 @@ private struct WindowTileButton: View {
   }
 
   /// Two marks that must not be confused: the accent fill says which window is
-  /// frontmost, the ring says which one Return will activate. The ring is white
-  /// rather than another accent, so it reads on the accent fill as well as on an
-  /// ordinary tile.
+  /// frontmost, the ring says which one Return will activate.
   private var tileBorder: some View {
     RoundedRectangle(cornerRadius: TileMetrics.tileCornerRadius, style: .continuous)
       .stroke(borderColor, lineWidth: isSelected ? 2 : 1)

@@ -145,6 +145,7 @@ final class OverlayWindowController: NSWindowController, NSWindowDelegate {
     stepHotkeys = StepHotkeyController(
       debugMode: debugMode,
       onStep: { [weak self] direction in self?.stepAndActivate(direction) },
+      onMove: { [weak self] direction in self?.moveSelection(direction) },
       onDismiss: { [weak self] in self?.hideOverlay() },
       onConfirm: { [weak self] in self?.activateSelection() }
     )
@@ -323,6 +324,7 @@ final class OverlayWindowController: NSWindowController, NSWindowDelegate {
 
   func hideOverlay() {
     stepHotkeys?.stop()
+
     steppingActivation = nil
     window?.orderOut(nil)
     windowCoordinator.releaseList()
@@ -413,10 +415,9 @@ final class OverlayWindowController: NSWindowController, NSWindowDelegate {
     selection.index = OverlayGrid.index(
       from: selection.index,
       moving: direction,
-      rows: OverlayGrid.rows(
-        forSectionSizes: windowCoordinator.sections.map(\.targets.count),
-        maximum: fittedColumns
-      )
+      sizes: windowCoordinator.sections.map(\.targets.count),
+      rows: OverlayGrid.spaceRows(
+        ofDisplays: windowCoordinator.sections.map(\.id.displayID), perRow: fittedColumns)
     )
   }
 
@@ -424,10 +425,9 @@ final class OverlayWindowController: NSWindowController, NSWindowDelegate {
     let target = OverlayGrid.index(
       from: selection.index,
       moving: direction,
-      rows: OverlayGrid.rows(
-        forSectionSizes: windowCoordinator.sections.map(\.targets.count),
-        maximum: fittedColumns
-      )
+      sizes: windowCoordinator.sections.map(\.targets.count),
+      rows: OverlayGrid.spaceRows(
+        ofDisplays: windowCoordinator.sections.map(\.id.displayID), perRow: fittedColumns)
     )
 
     guard windowCoordinator.swapTiles(at: selection.index, with: target) else {
@@ -583,6 +583,11 @@ extension OverlayWindowController {
       return
     }
 
+    // The application has to come back with it. A panel of an inactive application
+    // cannot be made key, so ordering it front alone left the keys going to whoever
+    // was in front — and an arrow nobody handles is what macOS answers with a beep,
+    // over and over while the key is held. That was the sound.
+    NSApp.activate(ignoringOtherApps: true)
     window.makeKeyAndOrderFront(nil)
     logger.debug("Took the keyboard back after a step; key=\(window.isKeyWindow)")
   }
@@ -667,6 +672,7 @@ extension OverlayWindowController {
       windowCoordinator.activateWindow(id: tile.id)
       raised = true
     }
+
     followTheStep(to: tile)
     logger.debug(
       "Stepped to index \(selection.index) in \(Int(Date().timeIntervalSince(startedAt) * 1000))ms; "

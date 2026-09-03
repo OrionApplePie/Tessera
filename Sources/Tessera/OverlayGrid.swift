@@ -1,3 +1,4 @@
+import CoreGraphics
 import Foundation
 
 /// Keyboard navigation over the overlay's wrapped grid of tiles.
@@ -38,26 +39,99 @@ enum OverlayGrid {
     max(1, min(sizes.max() ?? 0, max(1, maximum)))
   }
 
-  /// Flat tile indices laid out row by row, one section after another. A section
-  /// always starts a new row, which is what makes a section boundary invisible to
-  /// the movement rules below: it is simply the next row down.
-  static func rows(forSectionSizes sizes: [Int], maximum: Int) -> [[Int]] {
-    let columns = columnCount(forSectionSizes: sizes, maximum: maximum)
+  /// The map's rows, as lists of Space numbers.
+  ///
+  /// The map is a grid whose cell is a Space, not a window: a row ends where the
+  /// display ends, so each screen keeps its own band, and it ends again after
+  /// `perRow` Spaces. Nothing is drawn between the bands — a display is where its
+  /// Spaces are, which is what makes the map read like the desk the screens stand
+  /// on.
+  static func spaceRows(ofDisplays displays: [CGDirectDisplayID], perRow: Int) -> [[Int]] {
     var rows: [[Int]] = []
-    var next = 0
+    let limit = max(1, perRow)
 
-    for size in sizes where size > 0 {
-      var remaining = size
+    for (index, display) in displays.enumerated() {
+      let sameDisplay = rows.last.flatMap { $0.last }.map { displays[$0] == display } ?? false
 
-      while remaining > 0 {
-        let taken = min(columns, remaining)
-        rows.append(Array(next..<(next + taken)))
-        next += taken
-        remaining -= taken
+      if var row = rows.last, sameDisplay, row.count < limit {
+        row.append(index)
+        rows[rows.count - 1] = row
+      } else {
+        rows.append([index])
       }
     }
 
     return rows
+  }
+
+  /// Where the highlight goes, on a map whose cells are Spaces.
+  ///
+  /// Left and right deal through the cards of a Space and then step to the Space
+  /// beside it; up and down move to the Space above or below, keeping the column
+  /// and landing at the same depth in its deck where there is one. Both wrap: the
+  /// map is a loop in each direction, so no arrow ever refuses to move.
+  static func index(
+    from index: Int,
+    moving direction: Direction,
+    sizes: [Int],
+    rows: [[Int]]
+  ) -> Int {
+    var starts: [Int] = []
+    var next = 0
+    for size in sizes {
+      starts.append(next)
+      next += size
+    }
+
+    guard next > 0 else {
+      return index
+    }
+
+    let bounded = min(max(index, 0), next - 1)
+
+    guard
+      let space = sizes.indices.last(where: { starts[$0] <= bounded && sizes[$0] > 0 }),
+      let row = rows.firstIndex(where: { $0.contains(space) }),
+      let column = rows[row].firstIndex(of: space)
+    else {
+      return bounded
+    }
+
+    let depth = bounded - starts[space]
+
+    switch direction {
+    case .left:
+      if depth > 0 {
+        return bounded - 1
+      }
+
+      // Off the front of a row is the end of the row above, not the end of this
+      // one: left and right read the whole map in order and meet at its ends, so
+      // the arrows never need the other axis to get anywhere.
+      let previous =
+        column > 0
+        ? rows[row][column - 1]
+        : rows[(row + rows.count - 1) % rows.count].last ?? space
+
+      return starts[previous] + max(0, sizes[previous] - 1)
+    case .right:
+      if depth < sizes[space] - 1 {
+        return bounded + 1
+      }
+
+      let next =
+        column + 1 < rows[row].count
+        ? rows[row][column + 1]
+        : rows[(row + 1) % rows.count].first ?? space
+
+      return starts[next]
+    case .up, .down:
+      let step = direction == .up ? rows.count - 1 : 1
+      let other = rows[(row + step) % rows.count]
+      let neighbour = other[min(column, other.count - 1)]
+
+      return starts[neighbour] + min(depth, max(0, sizes[neighbour] - 1))
+    }
   }
 
   /// Where the highlight sits when the overlay opens: on the window you are in.
@@ -125,42 +199,4 @@ enum OverlayGrid {
     return matches.first { $0 > current } ?? matches[0]
   }
 
-  /// Left and right walk the tiles in reading order and wrap around the ends,
-  /// crossing section boundaries as if the list were flat. Up and down move one
-  /// row — into the neighbouring section when that is what is above or below — and
-  /// stop at the very top and bottom: wrapping vertically over rows of different
-  /// widths teleports the highlight somewhere the eye cannot follow.
-  ///
-  /// A shorter target row keeps the highlight in its last column rather than
-  /// leaving it nowhere.
-  static func index(from index: Int, moving direction: Direction, rows: [[Int]]) -> Int {
-    let tileCount = rows.reduce(0) { $0 + $1.count }
-    guard tileCount > 0 else {
-      return 0
-    }
-
-    let current = min(max(index, 0), tileCount - 1)
-    guard let row = rows.firstIndex(where: { $0.contains(current) }) else {
-      return current
-    }
-
-    switch direction {
-    case .left:
-      return (current - 1 + tileCount) % tileCount
-
-    case .right:
-      return (current + 1) % tileCount
-
-    // Wrapping, like left and right, because the alternative is a dead end: holding
-    // an arrow at the last row left the overlay looking as though it had stopped
-    // responding, which is exactly what it was reported as.
-    case .up:
-      let above = (row - 1 + rows.count) % rows.count
-      return rows[above][min(current - rows[row][0], rows[above].count - 1)]
-
-    case .down:
-      let below = (row + 1) % rows.count
-      return rows[below][min(current - rows[row][0], rows[below].count - 1)]
-    }
-  }
 }

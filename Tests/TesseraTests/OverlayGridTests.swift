@@ -21,38 +21,30 @@ struct OverlayGridTests {
     #expect(OverlayGrid.columnCount(forSectionSizes: [13], maximum: -2) == 1)
   }
 
-  @Test("A narrower maximum wraps a section sooner")
-  func maximumWrapsSectionsSooner() {
+  /// The map's cell is a Space, and a row is a band of one display: measured on a
+  /// machine whose built-in screen holds six Spaces and whose external holds three.
+  @Test("A row is a band of one display, up to the row length")
+  func spacesAreBandedByDisplay() {
+    let displays: [CGDirectDisplayID] = [1, 1, 1, 1, 1, 1, 2, 2, 2]
+
     #expect(
-      OverlayGrid.rows(forSectionSizes: [5], maximum: 4) == [[0, 1, 2, 3], [4]])
-    #expect(
-      OverlayGrid.rows(forSectionSizes: [5], maximum: 2) == [[0, 1], [2, 3], [4]])
+      OverlayGrid.spaceRows(ofDisplays: displays, perRow: 5) == [
+        [0, 1, 2, 3, 4], [5], [6, 7, 8],
+      ]
+    )
+  }
+
+  @Test("A display never shares a row with another one")
+  func displaysKeepTheirOwnRows() {
+    #expect(OverlayGrid.spaceRows(ofDisplays: [1, 2], perRow: 5) == [[0], [1]])
+    #expect(OverlayGrid.spaceRows(ofDisplays: [], perRow: 5).isEmpty)
+    #expect(OverlayGrid.spaceRows(ofDisplays: [1, 1], perRow: 0) == [[0], [1]])
   }
 
   @Test("Every section shares the widest section's column count")
   func columnCountIsSharedAcrossSections() {
     #expect(OverlayGrid.columnCount(forSectionSizes: [2, 5], maximum: 6) == 5)
     #expect(OverlayGrid.columnCount(forSectionSizes: [2, 9], maximum: 6) == 6)
-  }
-
-  @Test("A section always starts a new row")
-  func sectionsStartNewRows() {
-    #expect(OverlayGrid.rows(forSectionSizes: [3, 2], maximum: 6) == [[0, 1, 2], [3, 4]])
-  }
-
-  @Test("A section longer than a row wraps")
-  func longSectionsWrap() {
-    #expect(
-      OverlayGrid.rows(forSectionSizes: [8, 2], maximum: 6) == [
-        [0, 1, 2, 3, 4, 5], [6, 7], [8, 9],
-      ]
-    )
-  }
-
-  @Test("Empty sections take up no rows")
-  func emptySectionsAreSkipped() {
-    #expect(OverlayGrid.rows(forSectionSizes: [0, 2], maximum: 6) == [[0, 1]])
-    #expect(OverlayGrid.rows(forSectionSizes: [], maximum: 6).isEmpty)
   }
 
   @Test("A screen fits as many tiles across as there is room for")
@@ -127,87 +119,101 @@ struct OverlayGridTests {
     #expect(OverlayGrid.initialIndex(for: targets, standingOn: nil) == 0)
   }
 
-  @Test("Left and right step through the tiles in reading order and wrap")
-  func horizontalMovementWalksTheList() {
-    let rows = OverlayGrid.rows(forSectionSizes: [13], maximum: 6)
+  /// One Space of thirteen windows: left and right deal through its deck and wrap
+  /// at its ends, because a row of one Space has nowhere else to go.
+  @Test("Left and right deal through a Space and wrap")
+  func horizontalMovementWalksADeck() {
+    let rows = OverlayGrid.spaceRows(ofDisplays: [1], perRow: 5)
 
-    #expect(OverlayGrid.index(from: 0, moving: .right, rows: rows) == 1)
-    #expect(OverlayGrid.index(from: 7, moving: .left, rows: rows) == 6)
-    #expect(OverlayGrid.index(from: 12, moving: .right, rows: rows) == 0)
-    #expect(OverlayGrid.index(from: 0, moving: .left, rows: rows) == 12)
+    #expect(OverlayGrid.index(from: 0, moving: .right, sizes: [13], rows: rows) == 1)
+    #expect(OverlayGrid.index(from: 7, moving: .left, sizes: [13], rows: rows) == 6)
+    #expect(OverlayGrid.index(from: 12, moving: .right, sizes: [13], rows: rows) == 0)
+    #expect(OverlayGrid.index(from: 0, moving: .left, sizes: [13], rows: rows) == 12)
   }
 
-  @Test("Left and right cross a section boundary without noticing it")
-  func horizontalMovementCrossesSections() {
-    let rows = OverlayGrid.rows(forSectionSizes: [3, 2], maximum: 6)
+  /// Past the last card of a Space is the Space beside it, and coming back the
+  /// other way lands on that neighbour's last card rather than its first.
+  @Test("Left and right step to the Space beside this one")
+  func horizontalMovementStepsBetweenSpaces() {
+    let sizes = [3, 2]
+    let rows = OverlayGrid.spaceRows(ofDisplays: [1, 1], perRow: 5)
 
-    #expect(OverlayGrid.index(from: 2, moving: .right, rows: rows) == 3)
-    #expect(OverlayGrid.index(from: 3, moving: .left, rows: rows) == 2)
+    #expect(OverlayGrid.index(from: 2, moving: .right, sizes: sizes, rows: rows) == 3)
+    #expect(OverlayGrid.index(from: 3, moving: .left, sizes: sizes, rows: rows) == 2)
   }
 
-  @Test("Up and down move a whole row")
-  func verticalMovementMovesARow() {
-    let rows = OverlayGrid.rows(forSectionSizes: [13], maximum: 6)
+  /// The end of a row is the start of the next one, and the end of the last row is
+  /// the start of the first: right and left walk the whole map and close the loop.
+  /// Confined to its own row, right stopped at the edge of a band and only down
+  /// carried on, which is not what an arrow that has always wrapped should do.
+  @Test("Right off the end of a row lands at the start of the next one")
+  func horizontalMovementCrossesRows() {
+    let sizes = [2, 2, 2]
+    let rows = OverlayGrid.spaceRows(ofDisplays: [1, 1, 2], perRow: 2)
 
-    #expect(OverlayGrid.index(from: 1, moving: .down, rows: rows) == 7)
-    #expect(OverlayGrid.index(from: 7, moving: .up, rows: rows) == 1)
+    #expect(rows == [[0, 1], [2]])
+    #expect(OverlayGrid.index(from: 3, moving: .right, sizes: sizes, rows: rows) == 4)
+    #expect(OverlayGrid.index(from: 4, moving: .left, sizes: sizes, rows: rows) == 3)
+    #expect(OverlayGrid.index(from: 5, moving: .right, sizes: sizes, rows: rows) == 0)
+    #expect(OverlayGrid.index(from: 0, moving: .left, sizes: sizes, rows: rows) == 5)
   }
 
-  @Test("Down from the last row of a section lands in the next section")
-  func verticalMovementEntersTheNextSection() {
-    let rows = OverlayGrid.rows(forSectionSizes: [3, 3], maximum: 6)
+  /// Up and down are the other axis of the map: the Space above or below, in the
+  /// same column, at the same depth in its deck.
+  @Test("Up and down move to the Space above or below")
+  func verticalMovementMovesBetweenBands() {
+    let sizes = [3, 3, 3, 3]
+    let rows = OverlayGrid.spaceRows(ofDisplays: [1, 1, 2, 2], perRow: 5)
 
-    #expect(OverlayGrid.index(from: 1, moving: .down, rows: rows) == 4)
-    #expect(OverlayGrid.index(from: 4, moving: .up, rows: rows) == 1)
+    #expect(rows == [[0, 1], [2, 3]])
+    #expect(OverlayGrid.index(from: 1, moving: .down, sizes: sizes, rows: rows) == 7)
+    #expect(OverlayGrid.index(from: 7, moving: .up, sizes: sizes, rows: rows) == 1)
+    #expect(OverlayGrid.index(from: 4, moving: .down, sizes: sizes, rows: rows) == 10)
   }
 
-  @Test("A shorter row keeps the highlight in its last column")
-  func verticalMovementClampsToAShorterRow() {
-    let rows = OverlayGrid.rows(forSectionSizes: [4, 2], maximum: 6)
+  /// A band with fewer Spaces has no column to match, so the highlight lands in its
+  /// last one; a shallower deck has no card at that depth, so it lands on its last.
+  @Test("A shorter band and a shallower deck both keep the highlight inside")
+  func verticalMovementClampsToWhatIsThere() {
+    let sizes = [2, 2, 1]
+    let rows = OverlayGrid.spaceRows(ofDisplays: [1, 1, 2], perRow: 5)
 
-    // Column 3 has nothing under it, so the highlight lands on the row's last tile.
-    #expect(OverlayGrid.index(from: 3, moving: .down, rows: rows) == 5)
-  }
-
-  @Test("Coming back up returns to the column the highlight actually sits in")
-  func verticalMovementHasNoColumnMemory() {
-    let rows = OverlayGrid.rows(forSectionSizes: [4, 2], maximum: 6)
-
-    // Down from column 3 clamped to column 1, so up goes to column 1, not back to 3.
-    #expect(OverlayGrid.index(from: 5, moving: .up, rows: rows) == 1)
+    #expect(OverlayGrid.index(from: 3, moving: .down, sizes: sizes, rows: rows) == 4)
+    #expect(OverlayGrid.index(from: 4, moving: .up, sizes: sizes, rows: rows) == 0)
   }
 
   /// This used to stop at the edges. Held down, that reads as an overlay which has
   /// stopped responding — which is how it was reported — and it disagreed with left
   /// and right, which have always wrapped.
-  @Test("The top and bottom rows wrap into each other, so an arrow never dead-ends")
+  @Test("The top and bottom bands wrap into each other, so an arrow never dead-ends")
   func verticalMovementWrapsAtTheEdges() {
-    let rows = OverlayGrid.rows(forSectionSizes: [3, 3], maximum: 6)
+    let sizes = [3, 3]
+    let rows = OverlayGrid.spaceRows(ofDisplays: [1, 2], perRow: 5)
 
-    #expect(OverlayGrid.index(from: 1, moving: .up, rows: rows) == 4)
-    #expect(OverlayGrid.index(from: 4, moving: .down, rows: rows) == 1)
+    #expect(OverlayGrid.index(from: 0, moving: .up, sizes: sizes, rows: rows) == 3)
+    #expect(OverlayGrid.index(from: 3, moving: .down, sizes: sizes, rows: rows) == 0)
   }
 
-  @Test("A single row wraps onto itself rather than refusing to move")
-  func verticalMovementInOneRow() {
-    let rows = OverlayGrid.rows(forSectionSizes: [3], maximum: 6)
+  @Test("A single band wraps onto itself rather than refusing to move")
+  func verticalMovementInOneBand() {
+    let rows = OverlayGrid.spaceRows(ofDisplays: [1], perRow: 5)
 
-    #expect(OverlayGrid.index(from: 1, moving: .down, rows: rows) == 1)
-    #expect(OverlayGrid.index(from: 1, moving: .up, rows: rows) == 1)
+    #expect(OverlayGrid.index(from: 1, moving: .down, sizes: [3], rows: rows) == 1)
+    #expect(OverlayGrid.index(from: 1, moving: .up, sizes: [3], rows: rows) == 1)
   }
 
   @Test("An out-of-range starting index is brought back in bounds")
   func clampsAnOutOfRangeIndex() {
-    let rows = OverlayGrid.rows(forSectionSizes: [3], maximum: 6)
+    let rows = OverlayGrid.spaceRows(ofDisplays: [1], perRow: 5)
 
-    #expect(OverlayGrid.index(from: 99, moving: .right, rows: rows) == 0)
-    #expect(OverlayGrid.index(from: -4, moving: .right, rows: rows) == 1)
+    #expect(OverlayGrid.index(from: 99, moving: .right, sizes: [3], rows: rows) == 0)
+    #expect(OverlayGrid.index(from: -4, moving: .right, sizes: [3], rows: rows) == 1)
   }
 
   @Test("With no tiles every direction is a no-op")
   func emptyGridDoesNotMove() {
     for direction in [OverlayGrid.Direction.left, .right, .up, .down] {
-      #expect(OverlayGrid.index(from: 0, moving: direction, rows: []) == 0)
+      #expect(OverlayGrid.index(from: 0, moving: direction, sizes: [], rows: []) == 0)
     }
   }
 
