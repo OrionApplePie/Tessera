@@ -752,11 +752,7 @@ extension WindowCoordinator {
     // finish what it was doing, and one that is quitting may take a second. Taking
     // the tile away now is the honest reading of what was asked for; if the
     // application refuses, the next refresh puts it back.
-    sections = sections.compactMap { section in
-      var section = section
-      section.tiles.removeAll { $0.id == windowID }
-      return section.tiles.isEmpty ? nil : section
-    }
+    sections = WindowTileSection.removing(windowID, from: sections)
     logger.debug("Took the tile away at once; \(tiles.count) left")
   }
 }
@@ -854,6 +850,16 @@ extension WindowCoordinator {
       showing: { [spaceQuery] in spaceQuery.currentSpaces()[displayID] == space.id }
     )
   }
+
+  /// How many desktops are past the last one macOS binds a shortcut to.
+  ///
+  /// Showing a Space is pressing the system's own "Switch to Desktop N", and macOS
+  /// binds eight of those and no more. A ninth desktop can be drawn on the map and
+  /// stepped onto with a window, but it cannot be shown when it is empty — and
+  /// silently doing nothing is the one answer this should never give.
+  var unreachableDesktops: Int { max(0, desktopCount - DesktopSwitcher.desktopLimit) }
+
+  private var desktopCount: Int { spaceQuery.desktopNumbers().count }
 
   /// The display the system treats as active, for deciding where the overlay opens.
   var activeDisplay: CGDirectDisplayID? {

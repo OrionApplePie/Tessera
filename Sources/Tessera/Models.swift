@@ -115,6 +115,24 @@ struct WindowTileSection: Identifiable {
   /// behaves differently: it holds one window and cannot hold another.
   var isFullscreen: Bool = false
 
+  /// Takes one window off the map, keeping the place it was on.
+  ///
+  /// A Space with nothing left on it is an empty desktop, and the map draws it as
+  /// one: closing the last window there does not make the place stop existing. Only
+  /// a group standing for no Space at all — windows whose Space the window server
+  /// would not name — has nothing left to be once its tiles are gone.
+  static func removing(
+    _ windowID: CGWindowID,
+    from sections: [WindowTileSection]
+  ) -> [WindowTileSection] {
+    sections.compactMap { section in
+      var section = section
+      section.tiles.removeAll { $0.id == windowID }
+
+      return section.tiles.isEmpty && section.id.spaceIndex == nil ? nil : section
+    }
+  }
+
   /// Splits an already ordered tile list into sections.
   ///
   /// The order is taken as given: `WindowListService` keeps a display's Spaces

@@ -18,6 +18,9 @@ final class MenuBarController: NSObject {
     title: "Resume Background Refresh", action: nil, keyEquivalent: "")
   private let accessibilityItem = NSMenuItem(
     title: "Grant Accessibility Permission…", action: nil, keyEquivalent: "")
+  /// Shown only when there are more desktops than macOS binds shortcuts to, because
+  /// those last ones cannot be switched to when they are empty.
+  private let tooManySpacesItem = NSMenuItem(title: "", action: nil, keyEquivalent: "")
 
   init(
     windowCoordinator: WindowCoordinator,
@@ -47,6 +50,11 @@ final class MenuBarController: NSObject {
     resumeItem.isEnabled = windowCoordinator.isRefreshPaused
     // Nothing to grant once the permission is already there.
     accessibilityItem.isHidden = windowCoordinator.isAccessibilityTrusted
+
+    let unreachable = windowCoordinator.unreachableDesktops
+    tooManySpacesItem.isHidden = unreachable == 0
+    tooManySpacesItem.title = String(
+      localized: "\(unreachable) desktop(s) past the eighth have no macOS shortcut")
   }
 
   private func configureStatusItem() {
@@ -72,6 +80,8 @@ final class MenuBarController: NSObject {
     menu.addItem(resumeItem)
     menu.addItem(NSMenuItem.separator())
     menu.addItem(accessibilityItem)
+    tooManySpacesItem.isEnabled = false
+    menu.addItem(tooManySpacesItem)
     menu.addItem(NSMenuItem.separator())
     menu.addItem(
       NSMenuItem(title: "Settings…", action: #selector(openSettingsAction), keyEquivalent: ","))

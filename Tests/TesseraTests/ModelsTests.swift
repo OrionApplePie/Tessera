@@ -272,12 +272,12 @@ struct WindowTileSectionSwapTests {
     WindowTileSection(
       id: WindowSectionID(displayID: 1, spaceIndex: nil),
       title: "Color LCD",
-      tiles: [makeTile(id: 1), makeTile(id: 2), makeTile(id: 3)]
+      tiles: [Self.makeTile(id: 1), Self.makeTile(id: 2), Self.makeTile(id: 3)]
     ),
     WindowTileSection(
       id: WindowSectionID(displayID: 2, spaceIndex: nil),
       title: "VG27AQL1A",
-      tiles: [makeTile(id: 4), makeTile(id: 5)]
+      tiles: [Self.makeTile(id: 4), Self.makeTile(id: 5)]
     ),
   ]
 
@@ -328,5 +328,49 @@ struct WindowTileSectionSwapTests {
       thumbnail: nil,
       isThumbnailStale: false
     )
+  }
+
+  /// Reported as "closed a window and the empty desktops disappeared": every group
+  /// left without tiles was dropped, and an empty Space has no tiles by definition.
+  @Test("Closing a window leaves the empty Spaces where they were")
+  func closingAWindowKeepsEmptySpaces() {
+    let empty = WindowTileSection(
+      id: WindowSectionID(displayID: 1, spaceIndex: 1), title: "Desktop 2", tiles: [])
+    let occupied = WindowTileSection(
+      id: WindowSectionID(displayID: 1, spaceIndex: 0),
+      title: "Desktop 1",
+      tiles: [Self.makeTile(id: 7)]
+    )
+
+    let left = WindowTileSection.removing(7, from: [occupied, empty])
+
+    #expect(left.count == 2)
+    #expect(left.allSatisfy { $0.tiles.isEmpty })
+  }
+
+  /// A Space that has just lost its last window is an empty desktop, and stays on
+  /// the map as one — the place did not go anywhere.
+  @Test("A Space emptied by the close stays as a place")
+  func closingTheLastWindowLeavesTheSpace() {
+    let section = WindowTileSection(
+      id: WindowSectionID(displayID: 1, spaceIndex: 2),
+      title: "Desktop 3",
+      tiles: [Self.makeTile(id: 3)]
+    )
+
+    #expect(WindowTileSection.removing(3, from: [section]).count == 1)
+  }
+
+  /// A group standing for no Space at all is the exception: with its tiles gone
+  /// there is nothing left for it to mean.
+  @Test("A group of windows on no known Space goes when its last tile does")
+  func closingTheLastWindowOfAnUnknownSpaceDropsTheGroup() {
+    let section = WindowTileSection(
+      id: WindowSectionID(displayID: 1, spaceIndex: nil),
+      title: "Other",
+      tiles: [Self.makeTile(id: 4)]
+    )
+
+    #expect(WindowTileSection.removing(4, from: [section]).isEmpty)
   }
 }
