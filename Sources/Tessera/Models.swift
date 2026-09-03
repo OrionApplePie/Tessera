@@ -295,7 +295,17 @@ struct WindowTileSection: Identifiable {
 
     // An empty part is a Space that declines to name itself — a fullscreen one — and
     // it must not leave the separator hanging behind the display's name.
-    return parts.filter { !$0.isEmpty }.joined(separator: " · ")
+    let named = parts.filter { !$0.isEmpty }
+
+    // With only one display there is no name to hang it behind either, and the
+    // heading came out empty: no frame, no fullscreen mark, and no heading to tap
+    // the Space into view. Unplugging a display is enough to get there, since its
+    // fullscreen Spaces move to the one that is left. It says what it is instead.
+    guard !named.isEmpty else {
+      return namesSpace ? String(localized: "Fullscreen") : ""
+    }
+
+    return named.joined(separator: " · ")
   }
 }
 

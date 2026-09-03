@@ -116,6 +116,49 @@ struct WindowTileSectionTests {
     #expect(sections.map(\.title) == ["Color LCD", "VG27AQL1A"])
   }
 
+  /// Unplugging the external display moved its fullscreen Spaces onto the built-in,
+  /// and with one display left there was nothing in the heading but the Space's own
+  /// name — which a fullscreen Space declines to give. The group lost its heading,
+  /// its frame and the tap that shows it.
+  @Test("A fullscreen Space is named when nothing else names it")
+  func namesAFullscreenSpaceWhenItIsAllThereIs() {
+    let fullscreen = WindowSectionID(displayID: 1, spaceIndex: 1)
+
+    let sections = WindowTileSection.sections(
+      from: [
+        makeTile(id: 1, displayID: 1, spaceIndex: 0),
+        makeTile(id: 2, displayID: 1, spaceIndex: 1),
+      ],
+      displayNames: [1: "Color LCD"],
+      grouping: [.displays, .spaces],
+      spaceNames: [WindowSectionID(displayID: 1, spaceIndex: 0): "Desktop 1", fullscreen: ""],
+      fullscreenSpaces: [fullscreen]
+    )
+
+    #expect(sections.map(\.title) == ["Desktop 1", "Fullscreen"])
+  }
+
+  /// With a display's name beside it the Space still says nothing: the mark and the
+  /// tile under it already say which window is fullscreen, and naming the
+  /// application there was the same word twice.
+  @Test("A fullscreen Space beside another display keeps the display's name alone")
+  func leavesAFullscreenSpaceUnnamedBesideADisplay() {
+    let fullscreen = WindowSectionID(displayID: 2, spaceIndex: 0)
+
+    let sections = WindowTileSection.sections(
+      from: [
+        makeTile(id: 1, displayID: 1, spaceIndex: 0),
+        makeTile(id: 2, displayID: 2, spaceIndex: 0),
+      ],
+      displayNames: [1: "Color LCD", 2: "VG27AQL1A"],
+      grouping: [.displays, .spaces],
+      spaceNames: [fullscreen: ""],
+      fullscreenSpaces: [fullscreen]
+    )
+
+    #expect(sections.map(\.title) == ["Color LCD", "VG27AQL1A"])
+  }
+
   @Test("Display and Space are both named when both distinguish the section")
   func namesDisplayAndSpaceTogether() {
     let sections = WindowTileSection.sections(
