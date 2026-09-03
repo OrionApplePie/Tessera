@@ -113,6 +113,10 @@ struct AppConfigLoader {
       values["overlay_background"],
       default: config.overlayBackground
     )
+    config.overlayDeck = try deckStyle(
+      values["overlay_deck"],
+      default: config.overlayDeck
+    )
   }
 
   /// What the app does, rather than what it shows.
@@ -362,6 +366,22 @@ extension AppConfigLoader {
     } catch {
       logger.error("Invalid overlay_grouping in config: \(error)")
       throw AppConfigError.invalidValue(key: "overlay_grouping")
+    }
+  }
+
+  private func deckStyle(
+    _ rawValue: String?,
+    default defaultValue: OverlayDeckStyle
+  ) throws -> OverlayDeckStyle {
+    guard let rawValue else {
+      return defaultValue
+    }
+
+    do {
+      return try OverlayDeckStyle(parsing: unquoted(rawValue))
+    } catch {
+      logger.error("Invalid overlay_deck in config: \(error)")
+      throw AppConfigError.invalidValue(key: "overlay_deck")
     }
   }
 

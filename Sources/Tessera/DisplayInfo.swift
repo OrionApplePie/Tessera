@@ -115,6 +115,20 @@ struct DisplayInfo: Identifiable, Hashable, Sendable {
     }
   }
 
+  /// A display name with the words that say nothing taken out.
+  ///
+  /// macOS calls the laptop's own screen "Built-in Retina Display", which is three
+  /// words to say what one says, and next to an external display called "VQ27AQL1A"
+  /// it made every heading on that side of the map twice as wide. What is left is
+  /// what tells the displays apart.
+  static func shortened(_ name: String) -> String {
+    let noise: Set<String> = ["display", "displays", "retina", "monitor", "дисплей", "монитор"]
+    let kept = name.split(separator: " ").filter { !noise.contains($0.lowercased()) }
+    let short = kept.joined(separator: " ")
+
+    return short.isEmpty ? name : short
+  }
+
   /// ScreenCaptureKit knows displays only by number. The name a person recognises
   /// comes from AppKit, matched on the same display id.
   @MainActor
@@ -127,7 +141,7 @@ struct DisplayInfo: Identifiable, Hashable, Sendable {
         continue
       }
 
-      names[CGDirectDisplayID(number.uint32Value)] = screen.localizedName
+      names[CGDirectDisplayID(number.uint32Value)] = shortened(screen.localizedName)
     }
 
     return names

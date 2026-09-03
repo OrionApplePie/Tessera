@@ -275,7 +275,9 @@ struct WindowTileSection: Identifiable {
       parts.append(spaceName ?? id.spaceIndex.map { "Space \($0 + 1)" } ?? "Other Spaces")
     }
 
-    return parts.joined(separator: " · ")
+    // An empty part is a Space that declines to name itself — a fullscreen one — and
+    // it must not leave the separator hanging behind the display's name.
+    return parts.filter { !$0.isEmpty }.joined(separator: " · ")
   }
 }
 

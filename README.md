@@ -94,6 +94,12 @@ Which Space a window is on comes from the window server when
 `use_private_space_api` allows it, and from what has been seen on screen together
 when it does not.
 
+The windows of a Space are stacked, not spread out: one card on top, a mark saying
+how many are behind it, and a turn of the card as you step through them. A Space
+then takes the room of one window however many it holds, which is what keeps a map
+of a dozen Spaces readable. `overlay_deck = "fan"` spreads them instead, each card
+peeking out from behind the one in front of it.
+
 Choosing a Space rather than a window — the only way onto a desktop with nothing on
 it — presses the shortcut macOS binds to that desktop, the same ⌃1…⌃8 you would
 press yourself. It follows that a desktop whose shortcut you have switched off in

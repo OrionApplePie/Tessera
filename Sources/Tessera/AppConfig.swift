@@ -55,6 +55,7 @@ struct AppConfig: Equatable {
   /// The overlay's own surface. Opaque by default; give it an alpha channel to
   /// let the desktop back through.
   var overlayBackground: OverlayColor
+  var overlayDeck: OverlayDeckStyle
   /// The global hotkey that toggles the overlay, or `nil` when the config
   /// disables it and triggering is left to the CLI.
   var hotkey: HotkeyBinding?
@@ -101,6 +102,7 @@ struct AppConfig: Equatable {
     // a hole in the screen.
     overlayBackground: OverlayColor(
       red: 43 / 255, green: 46 / 255, blue: 51 / 255, alpha: 194 / 255),
+    overlayDeck: .stack,
     // Deliberately not cmd- or alt+space: those belong to Spotlight and to every
     // launcher that replaces it.
     hotkey: HotkeyBinding(modifiers: [.control, .option], key: .space)

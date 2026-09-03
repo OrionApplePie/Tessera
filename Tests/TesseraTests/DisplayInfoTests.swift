@@ -125,4 +125,21 @@ struct DisplayInfoTests {
 
     #expect(forwards == backwards)
   }
+
+  /// macOS calls the laptop's own screen "Built-in Retina Display" — three words to
+  /// say what one says, and twice the width of an external display's name next to
+  /// it on the map.
+  @Test("A display name keeps only what tells it apart")
+  func shortensDisplayNames() {
+    #expect(DisplayInfo.shortened("Built-in Retina Display") == "Built-in")
+    #expect(DisplayInfo.shortened("LG UltraFine Display") == "LG UltraFine")
+    #expect(DisplayInfo.shortened("VQ27AQL1A") == "VQ27AQL1A")
+  }
+
+  /// A name made of nothing but those words is left alone: something has to be
+  /// drawn, and the original says more than an empty heading.
+  @Test("A name with nothing left is kept whole")
+  func keepsANameWithNothingLeft() {
+    #expect(DisplayInfo.shortened("Display") == "Display")
+  }
 }

@@ -265,9 +265,7 @@ final class SpaceQuery {
   /// because "Space 4" for a fullscreen window would be a number nothing else uses.
   static func names(
     for ordered: [SpaceQuery.Space],
-    on displayID: CGDirectDisplayID,
-    windows: [WindowInfo],
-    spaces: [CGWindowID: Int]
+    on displayID: CGDirectDisplayID
   ) -> [WindowSectionID: String] {
     var names: [WindowSectionID: String] = [:]
     var desktopNumber = 0
@@ -281,8 +279,11 @@ final class SpaceQuery {
         continue
       }
 
-      let occupant = windows.first { spaces[$0.id] == space.id }
-      names[id] = occupant?.appName ?? String(localized: "Fullscreen")
+      // Named after nothing: the Space of a fullscreen window holds that one
+      // window, and the tile under the heading already says which. The mark beside
+      // the heading says it is fullscreen, so the application's name in the heading
+      // was the same word twice.
+      names[id] = ""
     }
 
     return names

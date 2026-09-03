@@ -8,6 +8,7 @@ final class OverlayWindowController: NSWindowController, NSWindowDelegate {
   private let closeAfterActivation: Bool
   private let background: OverlayColor
   private let columns: Int
+  private let deck: OverlayDeckStyle
   private let dimsStaleThumbnails: Bool
   private let closeHotkey: HotkeyBinding?
   private var isPresenting = false
@@ -43,6 +44,7 @@ final class OverlayWindowController: NSWindowController, NSWindowDelegate {
     closeAfterActivation: Bool = true,
     background: OverlayColor = AppConfig.default.overlayBackground,
     columns: Int = AppConfig.default.overlayColumns,
+    deck: OverlayDeckStyle = AppConfig.default.overlayDeck,
     dimsStaleThumbnails: Bool = AppConfig.default.dimsStaleThumbnails,
     closeHotkey: HotkeyBinding? = AppConfig.default.closeHotkey,
     settleSeconds: Double = AppConfig.default.activationSettleSeconds,
@@ -52,6 +54,7 @@ final class OverlayWindowController: NSWindowController, NSWindowDelegate {
     self.closeAfterActivation = closeAfterActivation
     self.background = background
     self.columns = columns
+    self.deck = deck
     self.dimsStaleThumbnails = dimsStaleThumbnails
     self.closeHotkey = closeHotkey
     self.stepSettle = .seconds(settleSeconds)
@@ -63,6 +66,7 @@ final class OverlayWindowController: NSWindowController, NSWindowDelegate {
         selection: OverlaySelection(),
         background: background,
         columns: columns,
+        deck: deck,
         dimsStaleThumbnails: dimsStaleThumbnails,
         onSelect: { _ in },
         onFocusSpace: { _ in },
@@ -669,16 +673,44 @@ extension OverlayWindowController {
     var raised = windowCoordinator.raiseWindow(id: tile.id)
     if !raised {
       steppingActivation = tile.processID
-      windowCoordinator.activateWindow(id: tile.id)
+
+      Task { @MainActor [weak self] in
+        guard let self else {
+          return
+        }
+
+        // A desktop is shown by its own shortcut and the window raised once it is
+        // there; a fullscreen Space has no shortcut, and its one window is reached
+        // the only way left, by activating the application that fills it.
+        //
+        // Activation cannot do the first case: macOS refuses to bring an
+        // application forward over a fullscreen Space, so stepping left off
+        // Spotify's Space stayed on Spotify however often it was pressed, while
+        // stepping the other way worked.
+        if let space = tile.spaceIndex, !self.showsTheSpace(of: tile) {
+          await self.windowCoordinator.showSpace(
+            at: space, on: tile.displayID, handingBack: true)
+          _ = self.windowCoordinator.raiseWindow(id: tile.id)
+        } else {
+          self.windowCoordinator.activateWindow(id: tile.id)
+        }
+      }
+
       raised = true
     }
-
     followTheStep(to: tile)
     logger.debug(
       "Stepped to index \(selection.index) in \(Int(Date().timeIntervalSince(startedAt) * 1000))ms; "
         + "raised=\(raised) "
         + "key=\(window?.isKeyWindow == true) appActive=\(NSApp.isActive) "
         + "frontmost=\(NSWorkspace.shared.frontmostApplication?.localizedName ?? "?")")
+  }
+
+  /// Whether the display is already showing the Space this window is on.
+  private func showsTheSpace(of tile: WindowTileModel) -> Bool {
+    windowCoordinator.sections.contains {
+      $0.isCurrent && $0.id.displayID == tile.displayID && $0.id.spaceIndex == tile.spaceIndex
+    }
   }
 
   /// Moves the overlay to the display the window just stepped onto lives on.
@@ -759,6 +791,7 @@ extension OverlayWindowController {
       selection: selection,
       background: background,
       columns: count ?? fittedColumns,
+      deck: deck,
       dimsStaleThumbnails: dimsStaleThumbnails,
       onSelect: { [weak self] windowID in
         self?.selectWindow(id: windowID)

@@ -27,7 +27,11 @@ enum TileMetrics {
   /// Sized for the deepest deck rather than for the cards actually in it: a group
   /// as wide as its own contents made every row a different shape, and a Space
   /// gaining a window pushed its neighbours along.
-  static func deckSize() -> CGSize {
+  static func deckSize(for style: OverlayDeckStyle) -> CGSize {
+    guard style == .fan else {
+      return CGSize(width: width, height: width)
+    }
+
     let steps = CGFloat(deckDepth)
 
     return CGSize(
@@ -62,6 +66,15 @@ enum TileMetrics {
   }
 }
 
+/// The colour the overlay marks a choice with.
+///
+/// Warm rather than the system accent: the accent is already spoken for — it fills
+/// the tile of the window you are in — and a second blue mark beside it was two
+/// marks in one colour saying different things.
+enum OverlayPalette {
+  static let highlight = Color(red: 0xD9 / 255, green: 0x77 / 255, blue: 0x57 / 255)
+}
+
 /// Which tile the keyboard is on. Owned by `OverlayWindowController`, which moves
 /// it in response to the arrow keys.
 @MainActor
@@ -74,6 +87,7 @@ struct OverlayView: View {
   @ObservedObject var selection: OverlaySelection
   let background: OverlayColor
   let columns: Int
+  let deck: OverlayDeckStyle
   let dimsStaleThumbnails: Bool
   let onSelect: (CGWindowID) -> Void
   let onFocusSpace: (WindowSectionID) -> Void
@@ -110,23 +124,28 @@ struct OverlayView: View {
   }
 
   private func group(for entry: SectionLayout) -> some View {
-    WindowGroup(
+    let range = entry.offset..<(entry.offset + entry.section.targets.count)
+
+    return WindowGroup(
       title: entry.section.title,
       isCurrent: entry.section.isCurrent,
       isFullscreen: entry.section.isFullscreen,
+      cards: deck == .stack ? entry.section.tiles.count : 1,
       isEmpty: entry.section.tiles.isEmpty,
       isSelected: entry.section.tiles.isEmpty && entry.offset == selectedIndex,
+      holdsSelection: range.contains(selectedIndex),
       onFocus: { onFocusSpace(entry.section.id) },
       desktop: entry.section.tiles.isEmpty
         ? windowCoordinator.desktopImage(
           for: entry.section.id.displayID,
-          fitting: TileMetrics.deckSize())
+          fitting: TileMetrics.deckSize(for: deck))
         : nil,
       content: {
         WindowDeck(
           tiles: entry.section.tiles,
           offset: entry.offset,
           selectedIndex: selectedIndex,
+          style: deck,
           base: entry.section.tiles.count > 1 ? Color(background.opaque) : nil,
           dimsStaleThumbnails: dimsStaleThumbnails,
           onMove: onMove,
@@ -197,9 +216,15 @@ private struct WindowGroup<Content: View>: View {
   let title: String
   var isCurrent: Bool = false
   var isFullscreen: Bool = false
+  /// How many windows the deck holds, when the deck is drawn as one card and the
+  /// others are behind it. One means there is nothing to count.
+  var cards: Int = 1
   var isEmpty: Bool = false
   /// An empty Space carries the highlight itself: there is no tile in it to carry.
   var isSelected: Bool = false
+  /// The Space the highlight is in, which is not the Space you are on: one says
+  /// where the keyboard is, the other where you are.
+  var holdsSelection: Bool = false
   var onFocus: () -> Void = {}
   var desktop: CGImage?
   @ViewBuilder let content: Content
@@ -221,6 +246,19 @@ private struct WindowGroup<Content: View>: View {
           SectionHeading(title: title)
             .lineLimit(1)
 
+          if cards > 1 {
+            Spacer(minLength: 6)
+
+            // The card on top hides the rest, so the count is what says they are
+            // there at all.
+            HStack(spacing: 3) {
+              Image(systemName: "square.stack")
+                .font(.system(size: 9, weight: .semibold))
+              Text("\(cards)")
+                .font(.system(size: 10, weight: .semibold, design: .rounded))
+            }
+            .foregroundStyle(Color.white.opacity(0.62))
+          }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .contentShape(Rectangle())
@@ -247,7 +285,7 @@ private struct WindowGroup<Content: View>: View {
             }
             .overlay(
               RoundedRectangle(cornerRadius: TileMetrics.tileCornerRadius, style: .continuous)
-                .stroke(Color.accentColor, lineWidth: isSelected ? 3 : 0)
+                .stroke(OverlayPalette.highlight, lineWidth: isSelected ? 3 : 0)
             )
             .contentShape(Rectangle())
             .onTapGesture(perform: onFocus)
@@ -258,11 +296,20 @@ private struct WindowGroup<Content: View>: View {
       .padding(TileMetrics.groupPadding)
       .background(
         RoundedRectangle(cornerRadius: TileMetrics.groupCornerRadius, style: .continuous)
-          .fill(Color.white.opacity(isCurrent ? 0.12 : 0.04))
+          .fill(
+            holdsSelection
+              ? OverlayPalette.highlight.opacity(0.14)
+              : Color.white.opacity(isCurrent ? 0.12 : 0.04)
+          )
       )
       .overlay(
         RoundedRectangle(cornerRadius: TileMetrics.groupCornerRadius, style: .continuous)
-          .stroke(Color.white.opacity(isCurrent ? 0.38 : 0.10), lineWidth: isCurrent ? 1.5 : 1)
+          .stroke(
+            holdsSelection
+              ? OverlayPalette.highlight
+              : Color.white.opacity(isCurrent ? 0.38 : 0.10),
+            lineWidth: holdsSelection ? 2 : (isCurrent ? 1.5 : 1)
+          )
       )
     }
   }
@@ -294,6 +341,7 @@ private struct WindowDeck: View {
   /// keys address.
   let offset: Int
   let selectedIndex: Int
+  let style: OverlayDeckStyle
   /// What a card is painted on when it has another one behind it. The tiles are
   /// translucent by design and the panel is too, so stacked without a backing they
   /// showed each other's titles through their own.
@@ -303,7 +351,17 @@ private struct WindowDeck: View {
   let onSelect: (CGWindowID) -> Void
 
   var body: some View {
-    let size = TileMetrics.deckSize()
+    switch style {
+    case .fan:
+      fanned
+    case .stack:
+      stacked
+    }
+  }
+
+  /// Every card visible, each behind the one in front of it by a strip.
+  private var fanned: some View {
+    let size = TileMetrics.deckSize(for: .fan)
 
     return ZStack(alignment: .topLeading) {
       ForEach(Array(tiles.enumerated()), id: \.element.id) { item in
@@ -318,6 +376,42 @@ private struct WindowDeck: View {
       }
     }
     .frame(width: size.width, height: size.height, alignment: .topLeading)
+  }
+
+  /// One card, and the group stays one window wide however many it holds. Stepping
+  /// through the Space turns the card over instead of moving the stack: with the
+  /// cards squarely on top of each other there is nothing else to see move, and a
+  /// swap with no motion at all reads as a redraw rather than as a step.
+  private var stacked: some View {
+    ZStack {
+      if let front {
+        card(at: front.position, tile: front.tile)
+          .id(front.tile.id)
+          .transition(
+            .asymmetric(
+              insertion: .modifier(active: CardTurn(degrees: -84), identity: CardTurn(degrees: 0)),
+              removal: .modifier(active: CardTurn(degrees: 84), identity: CardTurn(degrees: 0))
+            )
+          )
+      }
+    }
+    .frame(
+      width: TileMetrics.deckSize(for: .stack).width,
+      height: TileMetrics.deckSize(for: .stack).height
+    )
+    .animation(.easeInOut(duration: 0.2), value: selectedIndex)
+  }
+
+  /// The card on top: the highlighted one while the highlight is in this Space, and
+  /// the first otherwise.
+  private var front: (position: Int, tile: WindowTileModel)? {
+    let here = selectedIndex - offset
+
+    if tiles.indices.contains(here) {
+      return (here, tiles[here])
+    }
+
+    return tiles.first.map { (0, $0) }
   }
 
   private func card(at position: Int, tile: WindowTileModel) -> some View {
@@ -339,6 +433,18 @@ private struct WindowDeck: View {
       y: isSelected ? 6 : 2
     )
     .zIndex(isSelected ? Double(tiles.count) : Double(position))
+  }
+}
+
+/// A card mid-turn: rotated about its own vertical axis and gone by the time it is
+/// edge-on, so two cards never show through each other.
+private struct CardTurn: ViewModifier {
+  let degrees: Double
+
+  func body(content: Content) -> some View {
+    content
+      .rotation3DEffect(.degrees(degrees), axis: (x: 0, y: 1, z: 0), perspective: 0.55)
+      .opacity(degrees == 0 ? 1 : 0)
   }
 }
 
@@ -475,12 +581,12 @@ private struct WindowTileButton: View {
   /// frontmost, the ring says which one Return will activate.
   private var tileBorder: some View {
     RoundedRectangle(cornerRadius: TileMetrics.tileCornerRadius, style: .continuous)
-      .stroke(borderColor, lineWidth: isSelected ? 2 : 1)
+      .stroke(borderColor, lineWidth: isSelected ? 3 : 1)
   }
 
   private var borderColor: Color {
     if isSelected {
-      return Color.white.opacity(0.95)
+      return OverlayPalette.highlight
     }
 
     return tile.isActive ? Self.accent : Color.white.opacity(0.16)

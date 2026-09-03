@@ -65,6 +65,7 @@ enum AppConfigWriter {
     # "corner" (1:1), "corner2x" (twice as much) or "quarter" (about a quarter of
     # the window).
     window_thumbnail_mode = "\(config.windowThumbnailMode.name)"
+    overlay_deck = "\(config.overlayDeck.name)"
 
     # Tile grouping: "displays", "spaces", "displays+spaces" or "none".
     overlay_grouping = "\(config.overlayGrouping.name)"

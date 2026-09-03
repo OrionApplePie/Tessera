@@ -24,6 +24,7 @@ struct AppConfigLoaderTests {
     "window_thumbnail_mode",
     "overlay_grouping",
     "overlay_background",
+    "overlay_deck",
     "close_after_activation",
     "show_menu_bar_icon",
     "debug_mode",
@@ -376,4 +377,21 @@ extension AppConfigLoaderTests {
     )
   }
 
+  @Test("A deck style nobody offers is an error, not a silent default")
+  func rejectsAnUnknownDeckStyle() throws {
+    try withConfigFile("overlay_deck = \"shuffle\"") { loader in
+      #expect(loader.load().overlayDeck == AppConfig.default.overlayDeck)
+    }
+  }
+
+  @Test("Both ways of stacking a Space are read")
+  func readsBothDeckStyles() throws {
+    try withConfigFile("overlay_deck = \"stack\"") { loader in
+      #expect(loader.load().overlayDeck == .stack)
+    }
+
+    try withConfigFile("overlay_deck = \"fan\"") { loader in
+      #expect(loader.load().overlayDeck == .fan)
+    }
+  }
 }

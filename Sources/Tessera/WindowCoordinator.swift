@@ -393,7 +393,14 @@ extension WindowCoordinator {
   /// nothing can raise is a step and not a jump to somewhere unexpected.
   @discardableResult
   func raiseWindow(id windowID: CGWindowID) -> Bool {
-    guard let tile = tiles.first(where: { $0.id == windowID }) else {
+    // Accessibility reaches only the Space on screen, and never says so: asked for a
+    // window on another Space it finds it, raises it and reports success while
+    // nothing moves. A step then believed the window was up and never fell through
+    // to the activation that would have brought its Space — which is why stepping
+    // off a fullscreen Space landed every other time.
+    guard let tile = tiles.first(where: { $0.id == windowID }),
+      tile.spaceIndex == nil || currentSpaces[tile.displayID] == tile.spaceIndex
+    else {
       return false
     }
 
@@ -618,7 +625,7 @@ extension WindowCoordinator {
       }
 
       names.merge(
-        SpaceQuery.names(for: ordered, on: displayID, windows: onDisplay, spaces: spaces)
+        SpaceQuery.names(for: ordered, on: displayID)
       ) { first, _ in first }
 
       for (index, space) in ordered.enumerated() where space.isFullscreen {
