@@ -24,9 +24,11 @@ final class StepHotkeyController {
   /// trilling sound this was reported as. It was briefly made to step as well; that
   /// turned every press into an activation, and the overlay went away under the
   /// user's hands while they were still pressing.
+  /// Only the stepping combination is held here. ⌃⌥ with an arrow is held by
+  /// `RideHotkeyController` instead, and held always rather than only while the
+  /// overlay is up: it is what opens the overlay in the first place.
   private static let variants: [(modifiers: HotkeyModifiers, steps: Bool)] = [
-    ([.control, .option], false),
-    ([.control, .option, .shift], true),
+    ([.control, .option, .shift], true)
   ]
 
   private static let directions: [(direction: OverlayGrid.Direction, key: String)] = [

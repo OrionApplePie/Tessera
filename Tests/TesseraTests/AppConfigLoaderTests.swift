@@ -22,9 +22,13 @@ struct AppConfigLoaderTests {
     "overlay_columns",
     "window_order",
     "window_thumbnail_mode",
+    "window_thumbnail_quality",
     "overlay_grouping",
     "overlay_background",
+    "overlay_arrows",
+    "overlay_layout",
     "overlay_deck",
+    "overlay_fills_screen",
     "close_after_activation",
     "show_menu_bar_icon",
     "debug_mode",
@@ -392,6 +396,21 @@ extension AppConfigLoaderTests {
 
     try withConfigFile("overlay_deck = \"fan\"") { loader in
       #expect(loader.load().overlayDeck == .fan)
+    }
+  }
+
+  @Test("Both thumbnail qualities are read, and an unknown one is refused")
+  func readsThumbnailQuality() throws {
+    try withConfigFile("window_thumbnail_quality = \"max\"") { loader in
+      #expect(loader.load().thumbnailQuality == .max)
+    }
+
+    try withConfigFile("window_thumbnail_quality = \"hd\"") { loader in
+      #expect(loader.load().thumbnailQuality == .hd)
+    }
+
+    try withConfigFile("window_thumbnail_quality = \"ultra\"") { loader in
+      #expect(loader.load().thumbnailQuality == AppConfig.default.thumbnailQuality)
     }
   }
 }

@@ -117,6 +117,18 @@ struct AppConfigLoader {
       values["overlay_deck"],
       default: config.overlayDeck
     )
+    config.thumbnailQuality = try quality(
+      values["window_thumbnail_quality"],
+      default: config.thumbnailQuality
+    )
+    config.overlayLayout = try layout(
+      values["overlay_layout"],
+      default: config.overlayLayout
+    )
+    config.overlayArrows = try arrowStep(
+      values["overlay_arrows"],
+      default: config.overlayArrows
+    )
   }
 
   /// What the app does, rather than what it shows.
@@ -137,6 +149,11 @@ struct AppConfigLoader {
       key: "ignore_menu_bar_apps"
     )
     config.ignoredApplications = applicationNames(values["ignored_apps"])
+    config.overlayFillsScreen = try bool(
+      values["overlay_fills_screen"],
+      default: config.overlayFillsScreen,
+      key: "overlay_fills_screen"
+    )
     config.closeAfterActivation = try bool(
       values["close_after_activation"],
       default: config.closeAfterActivation,
@@ -366,6 +383,54 @@ extension AppConfigLoader {
     } catch {
       logger.error("Invalid overlay_grouping in config: \(error)")
       throw AppConfigError.invalidValue(key: "overlay_grouping")
+    }
+  }
+
+  private func quality(
+    _ rawValue: String?,
+    default defaultValue: ThumbnailQuality
+  ) throws -> ThumbnailQuality {
+    guard let rawValue else {
+      return defaultValue
+    }
+
+    do {
+      return try ThumbnailQuality(parsing: unquoted(rawValue))
+    } catch {
+      logger.error("Invalid window_thumbnail_quality in config: \(error)")
+      throw AppConfigError.invalidValue(key: "window_thumbnail_quality")
+    }
+  }
+
+  private func layout(
+    _ rawValue: String?,
+    default defaultValue: OverlayLayout
+  ) throws -> OverlayLayout {
+    guard let rawValue else {
+      return defaultValue
+    }
+
+    do {
+      return try OverlayLayout(parsing: unquoted(rawValue))
+    } catch {
+      logger.error("Invalid overlay_layout in config: \(error)")
+      throw AppConfigError.invalidValue(key: "overlay_layout")
+    }
+  }
+
+  private func arrowStep(
+    _ rawValue: String?,
+    default defaultValue: OverlayArrowStep
+  ) throws -> OverlayArrowStep {
+    guard let rawValue else {
+      return defaultValue
+    }
+
+    do {
+      return try OverlayArrowStep(parsing: unquoted(rawValue))
+    } catch {
+      logger.error("Invalid overlay_arrows in config: \(error)")
+      throw AppConfigError.invalidValue(key: "overlay_arrows")
     }
   }
 

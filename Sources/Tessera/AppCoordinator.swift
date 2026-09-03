@@ -9,6 +9,7 @@ final class AppCoordinator: NSObject, NSApplicationDelegate {
   private var overlayWindowController: OverlayWindowController?
   private var menuBarController: MenuBarController?
   private var hotkeyController: HotkeyController?
+  private var holdHotkeys: HoldToSwitchController?
   private var settingsWindowController: SettingsWindowController?
   private var isStopped = false
 
@@ -29,12 +30,24 @@ final class AppCoordinator: NSObject, NSApplicationDelegate {
       closeAfterActivation: config.closeAfterActivation,
       background: config.overlayBackground,
       columns: config.overlayColumns,
+      fillsScreen: config.overlayFillsScreen,
       deck: config.overlayDeck,
+      arrows: config.overlayArrows,
+      layout: config.overlayLayout,
       dimsStaleThumbnails: config.dimsStaleThumbnails,
       closeHotkey: config.closeHotkey,
       settleSeconds: config.activationSettleSeconds,
       debugMode: config.debugMode
     )
+
+    holdHotkeys = HoldToSwitchController(
+      debugMode: config.debugMode,
+      onMove: { [weak self] direction in self?.overlayWindowController?.moveWhileHeld(direction) },
+      onCycle: { [weak self] forward in self?.overlayWindowController?.cycleWindow(forward: forward)
+      },
+      onRelease: { [weak self] in self?.overlayWindowController?.switchOnRelease() }
+    )
+    holdHotkeys?.start()
 
     if config.showMenuBarIcon {
       menuBarController = MenuBarController(

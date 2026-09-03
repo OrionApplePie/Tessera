@@ -15,11 +15,23 @@ final class WindowThumbnailService {
   private let captureTimeout: Duration
 
   private let targetThumbnailSize: CGSize
+  /// The tile a capture is sized for.
+  private let captureTile: TileMetrics
+  private let quality: ThumbnailQuality
   private let mode: WindowThumbnailMode
   private let logger: AppLogger
   private var unresponsiveWindows = UnresponsiveWindowTracker()
 
   init(config: AppConfig = .default) {
+    // A screen-filling overlay draws tiles as large as the screen allows, so the
+    // capture is made for the largest tile there can be. Sized for the small tile,
+    // the picture was soft the moment the overlay filled a 27-inch display.
+    // Sized for a large tile rather than for the largest one there can be: the
+    // biggest layouts are two or three tiles filling a screen, and capturing every
+    // window for that case costs memory on every window that is never drawn that
+    // large. `window_thumbnail_quality` is the knob for those who want it sharper.
+    self.captureTile = config.overlayFillsScreen ? TileMetrics(width: 360) : .base
+    self.quality = config.thumbnailQuality
     self.targetThumbnailSize = config.windowThumbnailTargetSize
     self.mode = config.windowThumbnailMode
     self.captureTimeout = .seconds(config.unresponsiveAfterSeconds)
@@ -153,11 +165,15 @@ final class WindowThumbnailService {
       configuration.width = Int(outputSize.width)
       configuration.height = Int(outputSize.height)
       configuration.scalesToFit = true
-    case .corner, .cornerDouble, .quarter:
-      let crop = Self.cornerCrop(forWindowSize: windowSize, mode: mode)
+    case .corner, .cornerDouble, .quarter, .threeQuarters:
+      let crop = Self.cornerCrop(forWindowSize: windowSize, mode: mode, tile: captureTile)
+      // Asked for in pixels rather than in points: the piece of the window is the
+      // same either way, and how sharp it lands on a large tile is exactly what the
+      // quality setting decides.
+      let scale = quality.scale(forCrop: crop, onScreenScale: backingScaleFactor)
       configuration.sourceRect = CGRect(origin: .zero, size: crop)
-      configuration.width = Int(max(1, crop.width * backingScaleFactor))
-      configuration.height = Int(max(1, crop.height * backingScaleFactor))
+      configuration.width = Int(max(1, crop.width * scale))
+      configuration.height = Int(max(1, crop.height * scale))
       configuration.scalesToFit = false
     }
 
@@ -171,11 +187,37 @@ final class WindowThumbnailService {
   /// honest multiple of it.
   nonisolated static func cornerCrop(
     forWindowSize size: CGSize,
-    mode: WindowThumbnailMode
+    mode: WindowThumbnailMode,
+    tile: TileMetrics = .base
   ) -> CGSize {
     mode.crop(
       ofWindow: size,
-      tile: CGSize(width: TileMetrics.contentWidth, height: TileMetrics.thumbnailHeight)
+      // Captured for the largest tile the overlay can draw rather than for the one
+      // it happens to be drawing: the tile is a function of the screen, and a
+      // capture made for a small tile is a soft picture on a large one — while the
+      // same capture scaled down loses nothing.
+      tile: CGSize(width: tile.contentWidth, height: tile.thumbnailHeight)
+    )
+  }
+
+  /// The configured target, widened to whatever the quality setting asks for.
+  ///
+  /// The config says how large a whole-window thumbnail should be, in points, and
+  /// the quality says how many pixels it is worth spending on it. The larger of the
+  /// two wins, and the shape the config asked for is kept.
+  private var targetForQuality: CGSize {
+    let longest = max(targetThumbnailSize.width, targetThumbnailSize.height)
+    let wanted = quality.longSide / backingScaleFactor
+
+    guard longest > 0, wanted > longest else {
+      return targetThumbnailSize
+    }
+
+    let factor = wanted / longest
+
+    return CGSize(
+      width: targetThumbnailSize.width * factor,
+      height: targetThumbnailSize.height * factor
     )
   }
 
@@ -191,11 +233,9 @@ final class WindowThumbnailService {
   /// bytes.
   private func outputSize(for sourceSize: CGSize) -> CGSize {
     let scale = backingScaleFactor
+    let target = targetForQuality
     guard sourceSize.width > 0, sourceSize.height > 0 else {
-      return CGSize(
-        width: targetThumbnailSize.width * scale,
-        height: targetThumbnailSize.height * scale
-      )
+      return CGSize(width: target.width * scale, height: target.height * scale)
     }
 
     let sourcePixels = CGSize(
@@ -203,8 +243,8 @@ final class WindowThumbnailService {
       height: sourceSize.height * scale
     )
     let ratio = min(
-      targetThumbnailSize.width * scale / sourcePixels.width,
-      targetThumbnailSize.height * scale / sourcePixels.height,
+      target.width * scale / sourcePixels.width,
+      target.height * scale / sourcePixels.height,
       1
     )
 

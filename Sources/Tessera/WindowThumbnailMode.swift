@@ -19,6 +19,10 @@ enum WindowThumbnailMode: Equatable, Sendable, CaseIterable {
   /// Roughly a quarter of the window's area, in the tile's shape, scaled to fit.
   /// Enough to recognise a document by its layout rather than by its first line.
   case quarter
+  /// Three quarters of the window's area: nearly the whole thing, with the last
+  /// quarter — usually the empty right and bottom edges — left out, so what is left
+  /// is drawn that much larger.
+  case threeQuarters
 
   init(parsing text: String) throws {
     switch text.trimmingCharacters(in: .whitespaces).lowercased() {
@@ -30,6 +34,8 @@ enum WindowThumbnailMode: Equatable, Sendable, CaseIterable {
       self = .cornerDouble
     case "quarter", "fourth":
       self = .quarter
+    case "75", "75%", "three-quarters", "three_quarters":
+      self = .threeQuarters
     default:
       throw WindowThumbnailModeError.unknown(text)
     }
@@ -45,6 +51,8 @@ enum WindowThumbnailMode: Equatable, Sendable, CaseIterable {
       return "corner2x"
     case .quarter:
       return "quarter"
+    case .threeQuarters:
+      return "75"
     }
   }
 
@@ -77,10 +85,11 @@ enum WindowThumbnailMode: Equatable, Sendable, CaseIterable {
       return 1
     case .cornerDouble:
       return 2
-    case .quarter:
+    case .quarter, .threeQuarters:
+      let share = self == .quarter ? 0.25 : 0.75
       let tileArea = max(tile.width * tile.height, 1)
-      let quarterArea = max(window.width * window.height, 0) / 4
-      return max(1, (quarterArea / tileArea).squareRoot())
+      let wantedArea = max(window.width * window.height, 0) * share
+      return max(1, (wantedArea / tileArea).squareRoot())
     }
   }
 }

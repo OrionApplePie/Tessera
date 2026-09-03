@@ -42,6 +42,8 @@ struct AppConfig: Equatable {
   var usesPrivateSpaceAPI: Bool
   /// What a tile shows of a window: the whole of it, or its corner at full size.
   var windowThumbnailMode: WindowThumbnailMode
+  /// How many pixels a thumbnail is captured with.
+  var thumbnailQuality: ThumbnailQuality
   /// How long the system is given to finish a switch — a Space to change, an
   /// application to come forward — before a window that has not appeared is one
   /// that is not coming.
@@ -56,6 +58,13 @@ struct AppConfig: Equatable {
   /// let the desktop back through.
   var overlayBackground: OverlayColor
   var overlayDeck: OverlayDeckStyle
+  /// What an arrow counts in: Spaces, or the windows inside them.
+  var overlayArrows: OverlayArrowStep
+  /// How the Spaces are arranged on the map.
+  var overlayLayout: OverlayLayout
+  /// Whether the overlay takes the screen it opens on, less a margin, and draws
+  /// its tiles as large as that room allows.
+  var overlayFillsScreen: Bool
   /// The global hotkey that toggles the overlay, or `nil` when the config
   /// disables it and triggering is left to the CLI.
   var hotkey: HotkeyBinding?
@@ -89,6 +98,7 @@ struct AppConfig: Equatable {
     // decided that is what they want to see.
     usesPrivateSpaceAPI: true,
     windowThumbnailMode: .fit,
+    thumbnailQuality: .tile,
     // Long enough for a Space switch and its animation to finish, so a window is
     // not condemned for being slow. Nothing is polled while it passes: the system
     // announces the switch, and this is only the point at which waiting stops.
@@ -103,6 +113,9 @@ struct AppConfig: Equatable {
     overlayBackground: OverlayColor(
       red: 43 / 255, green: 46 / 255, blue: 51 / 255, alpha: 194 / 255),
     overlayDeck: .stack,
+    overlayArrows: .spaces,
+    overlayLayout: .fitted,
+    overlayFillsScreen: false,
     // Deliberately not cmd- or alt+space: those belong to Spotlight and to every
     // launcher that replaces it.
     hotkey: HotkeyBinding(modifiers: [.control, .option], key: .space)

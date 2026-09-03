@@ -23,13 +23,29 @@ struct OverlayGridTests {
 
   /// The map's cell is a Space, and a row is a band of one display: measured on a
   /// machine whose built-in screen holds six Spaces and whose external holds three.
-  @Test("A row is a band of one display, up to the row length")
+  ///
+  /// The six are split three and three rather than five and one. A band reads as a
+  /// block, and a block with one Space stranded under a full row reads as a mistake
+  /// rather than as a layout — and with two displays the even split is what makes
+  /// the two bands look like each other.
+  @Test("A row is a band of one display, split evenly")
   func spacesAreBandedByDisplay() {
     let displays: [CGDirectDisplayID] = [1, 1, 1, 1, 1, 1, 2, 2, 2]
 
     #expect(
       OverlayGrid.spaceRows(ofDisplays: displays, perRow: 5) == [
-        [0, 1, 2, 3, 4], [5], [6, 7, 8],
+        [0, 1, 2], [3, 4, 5], [6, 7, 8],
+      ]
+    )
+  }
+
+  @Test("A band longer than two rows still divides evenly")
+  func longBandsDivideEvenly() {
+    let displays: [CGDirectDisplayID] = Array(repeating: 1, count: 7)
+
+    #expect(
+      OverlayGrid.spaceRows(ofDisplays: displays, perRow: 3) == [
+        [0, 1, 2], [3, 4, 5], [6],
       ]
     )
   }
@@ -50,15 +66,15 @@ struct OverlayGridTests {
   @Test("A screen fits as many tiles across as there is room for")
   func countsTheColumnsAScreenFits() {
     // 190pt tiles, 14pt apart, inside 28pt of surface on each side.
-    #expect(TileMetrics.columnsFitting(availableWidth: 1512) == 7)
-    #expect(TileMetrics.columnsFitting(availableWidth: 2560) == 12)
-    #expect(TileMetrics.columnsFitting(availableWidth: 860) == 4)
+    #expect(TileMetrics.base.columnsFitting(availableWidth: 1512) == 7)
+    #expect(TileMetrics.base.columnsFitting(availableWidth: 2560) == 12)
+    #expect(TileMetrics.base.columnsFitting(availableWidth: 860) == 4)
   }
 
   @Test("A screen too narrow for one tile still gets one")
   func neverFitsFewerThanOneColumn() {
-    #expect(TileMetrics.columnsFitting(availableWidth: 100) == 1)
-    #expect(TileMetrics.columnsFitting(availableWidth: 0) == 1)
+    #expect(TileMetrics.base.columnsFitting(availableWidth: 100) == 1)
+    #expect(TileMetrics.base.columnsFitting(availableWidth: 0) == 1)
   }
 
   @Test("The highlight starts on the window you are in")
@@ -357,5 +373,41 @@ struct OverlayGridPlacementTests {
   @Test("A panel with no size places nothing")
   func reportsNothingForAnEmptySize() {
     #expect(OverlayGrid.placement(for: .zero, in: Self.external) == nil)
+  }
+
+  /// Filling the screen is one division, not a search: a row of Spaces, their gaps
+  /// and the surface's padding all scale with the tile, so the tile can be solved
+  /// for. Wider screen, larger tile — and never past the range a thumbnail stays
+  /// useful in.
+  @Test("A tile grows into the screen it is given")
+  func tileFillsTheScreen() {
+    let narrow = TileMetrics.filling(width: 1200, columns: 5, style: .stack)
+    let wide = TileMetrics.filling(width: 2400, columns: 5, style: .stack)
+
+    #expect(narrow.width < wide.width)
+    #expect(TileMetrics.range.contains(narrow.width))
+    #expect(TileMetrics.range.contains(wide.width))
+  }
+
+  @Test("Every measurement follows the tile")
+  func measurementsScaleWithTheTile() {
+    let large = TileMetrics(width: 300)
+
+    #expect(large.spacing > TileMetrics.base.spacing)
+    #expect(large.thumbnailHeight > TileMetrics.base.thumbnailHeight)
+    #expect(large.contentWidth == 300 - large.padding * 2)
+  }
+
+  /// Without bands the Spaces are one sequence: nine of them under a row of four
+  /// are four, four and one, whichever display each belongs to.
+  @Test("A flowing map ignores where a Space lives")
+  func flowIgnoresDisplays() {
+    let displays: [CGDirectDisplayID] = [1, 1, 1, 1, 1, 1, 2, 2, 2]
+
+    #expect(
+      OverlayGrid.spaceRows(ofDisplays: displays, perRow: 4, banded: false) == [
+        [0, 1, 2, 3], [4, 5, 6, 7], [8],
+      ]
+    )
   }
 }

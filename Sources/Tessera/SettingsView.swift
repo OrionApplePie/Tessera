@@ -219,6 +219,7 @@ struct SettingsView: View {
           text: $model.ignoredApplications,
           prompt: Text("AmneziaVPN, Some Tray App")
         )
+        Toggle("Fill the screen", isOn: $model.overlayFillsScreen)
         Toggle("Close the overlay after switching", isOn: $model.closeAfterActivation)
       }
 

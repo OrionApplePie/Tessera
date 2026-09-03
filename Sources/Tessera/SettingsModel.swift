@@ -25,6 +25,7 @@ final class SettingsModel: ObservableObject {
   @Published var refreshIntervalSeconds: Double
   @Published var windowThumbnailsStaleSeconds: Double
   @Published var dimsStaleThumbnails: Bool
+  @Published var overlayFillsScreen: Bool
   @Published var thumbnailWidth: Double
   @Published var thumbnailHeight: Double
   @Published var maxWindows: Int
@@ -49,6 +50,7 @@ final class SettingsModel: ObservableObject {
     refreshIntervalSeconds = config.refreshIntervalSeconds
     windowThumbnailsStaleSeconds = config.windowThumbnailsStaleSeconds
     dimsStaleThumbnails = config.dimsStaleThumbnails
+    overlayFillsScreen = config.overlayFillsScreen
     thumbnailWidth = config.windowThumbnailTargetSize.width
     thumbnailHeight = config.windowThumbnailTargetSize.height
     maxWindows = config.maxWindows
@@ -100,6 +102,7 @@ final class SettingsModel: ObservableObject {
     config.refreshIntervalSeconds = max(0.5, refreshIntervalSeconds)
     config.windowThumbnailsStaleSeconds = max(1, windowThumbnailsStaleSeconds)
     config.dimsStaleThumbnails = dimsStaleThumbnails
+    config.overlayFillsScreen = overlayFillsScreen
     config.windowThumbnailTargetSize = CGSize(
       width: max(40, thumbnailWidth),
       height: max(40, thumbnailHeight)

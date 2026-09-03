@@ -8,7 +8,10 @@ final class OverlayWindowController: NSWindowController, NSWindowDelegate {
   private let closeAfterActivation: Bool
   private let background: OverlayColor
   private let columns: Int
+  private let fillsScreen: Bool
   private let deck: OverlayDeckStyle
+  private let arrows: OverlayArrowStep
+  private let layout: OverlayLayout
   private let dimsStaleThumbnails: Bool
   private let closeHotkey: HotkeyBinding?
   private var isPresenting = false
@@ -35,6 +38,8 @@ final class OverlayWindowController: NSWindowController, NSWindowDelegate {
 
   private var activationObserver: NSObjectProtocol?
   private var fittedColumns: Int
+  /// The geometry the overlay is drawn at, which depends on the screen it opens on.
+  private var metrics: TileMetrics = .base
   private let logger: AppLogger
   private let hostingView: TransparentHostingView<OverlayView>
   private let selection = OverlaySelection()
@@ -44,7 +49,10 @@ final class OverlayWindowController: NSWindowController, NSWindowDelegate {
     closeAfterActivation: Bool = true,
     background: OverlayColor = AppConfig.default.overlayBackground,
     columns: Int = AppConfig.default.overlayColumns,
+    fillsScreen: Bool = AppConfig.default.overlayFillsScreen,
     deck: OverlayDeckStyle = AppConfig.default.overlayDeck,
+    arrows: OverlayArrowStep = AppConfig.default.overlayArrows,
+    layout: OverlayLayout = AppConfig.default.overlayLayout,
     dimsStaleThumbnails: Bool = AppConfig.default.dimsStaleThumbnails,
     closeHotkey: HotkeyBinding? = AppConfig.default.closeHotkey,
     settleSeconds: Double = AppConfig.default.activationSettleSeconds,
@@ -54,7 +62,10 @@ final class OverlayWindowController: NSWindowController, NSWindowDelegate {
     self.closeAfterActivation = closeAfterActivation
     self.background = background
     self.columns = columns
+    self.fillsScreen = fillsScreen
     self.deck = deck
+    self.arrows = arrows
+    self.layout = layout
     self.dimsStaleThumbnails = dimsStaleThumbnails
     self.closeHotkey = closeHotkey
     self.stepSettle = .seconds(settleSeconds)
@@ -62,11 +73,13 @@ final class OverlayWindowController: NSWindowController, NSWindowDelegate {
     self.logger = AppLogger(debugMode: debugMode, category: .overlay)
     self.hostingView = TransparentHostingView(
       rootView: OverlayView(
+        metrics: .base,
         windowCoordinator: windowCoordinator,
         selection: OverlaySelection(),
         background: background,
         columns: columns,
         deck: deck,
+        arrangement: layout,
         dimsStaleThumbnails: dimsStaleThumbnails,
         onSelect: { _ in },
         onFocusSpace: { _ in },
@@ -91,11 +104,7 @@ final class OverlayWindowController: NSWindowController, NSWindowDelegate {
     super.init(window: panel)
 
     panel.delegate = self
-    panel.isOpaque = false
-    panel.backgroundColor = .clear
-    panel.hasShadow = true
-    panel.level = .floating
-    panel.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary, .transient]
+    Self.dress(panel)
 
     // The panel does not hide itself when the application is deactivated, because
     // AppKit remembers such a panel and puts it back the moment the application is
@@ -125,7 +134,7 @@ final class OverlayWindowController: NSWindowController, NSWindowDelegate {
 
     // The shape is also cut at the layer, so the window is the rounded rectangle
     // whatever the view inside believes its size to be.
-    hostingView.layer?.cornerRadius = TileMetrics.surfaceCornerRadius
+    hostingView.layer?.cornerRadius = TileMetrics.base.surfaceCornerRadius
     hostingView.layer?.cornerCurve = .continuous
     hostingView.layer?.masksToBounds = true
 
@@ -176,6 +185,9 @@ final class OverlayWindowController: NSWindowController, NSWindowDelegate {
     }
     panel.onJumpToName = { [weak self] readings in
       self?.jumpToName(readings)
+    }
+    panel.onCycleWindow = { [weak self] forward in
+      self?.cycleWindow(forward: forward)
     }
     panel.onActivateSelection = { [weak self] in
       self?.activateSelection()
@@ -259,21 +271,6 @@ final class OverlayWindowController: NSWindowController, NSWindowDelegate {
         + "frontmost=\(NSWorkspace.shared.frontmostApplication?.localizedName ?? "?") "
         + "selection=\(selection.index) (\(selectedApplicationName))"
     )
-  }
-
-  /// The display the overlay opens on: the one showing the Space the system calls
-  /// active.
-  ///
-  /// Neither of the obvious two answers survives both directions. `NSScreen.main` is
-  /// the screen of the window with keyboard focus, and after showing a Space on
-  /// another display it still names the display just left — the overlay opened on a
-  /// Space nobody was looking at, and which display that was depended on the
-  /// application in front, which is why it looked intermittent. The pointer, moved
-  /// to the display whose Space was shown, then fails the other way: it stays there
-  /// after the attention has gone back to a window elsewhere. The active Space
-  /// follows the focus across displays in both cases.
-  private var screenInFront: NSScreen? {
-    windowCoordinator.activeDisplay.flatMap(DisplayInfo.screen(for:)) ?? NSScreen.main
   }
 
   /// Centres the panel on a screen, at the size that screen's room allows.
@@ -410,37 +407,6 @@ final class OverlayWindowController: NSWindowController, NSWindowDelegate {
     windowCoordinator.activateWindow(id: windowID)
   }
 
-  private func moveSelection(_ direction: OverlayGrid.Direction) {
-    // At info level rather than debug: this is the line that says where the
-    // highlight actually went, and a report of "it did nothing" is answered by
-    // reading it back afterwards, which only works for what the system keeps.
-    defer { logger.info("Overlay selection moved \(direction) to index \(selection.index)") }
-
-    selection.index = OverlayGrid.index(
-      from: selection.index,
-      moving: direction,
-      sizes: windowCoordinator.sections.map(\.targets.count),
-      rows: OverlayGrid.spaceRows(
-        ofDisplays: windowCoordinator.sections.map(\.id.displayID), perRow: fittedColumns)
-    )
-  }
-
-  private func moveTile(_ direction: OverlayGrid.Direction) {
-    let target = OverlayGrid.index(
-      from: selection.index,
-      moving: direction,
-      sizes: windowCoordinator.sections.map(\.targets.count),
-      rows: OverlayGrid.spaceRows(
-        ofDisplays: windowCoordinator.sections.map(\.id.displayID), perRow: fittedColumns)
-    )
-
-    guard windowCoordinator.swapTiles(at: selection.index, with: target) else {
-      return
-    }
-
-    selection.index = target
-  }
-
   private func closeSelectedWindow() {
     guard let tile = windowCoordinator.targets[safe: selection.index]?.window else {
       return
@@ -488,7 +454,7 @@ final class OverlayWindowController: NSWindowController, NSWindowDelegate {
   /// forward and the overlay goes away, whatever `close_after_activation` says
   /// about picking a tile with the mouse or a number. Pressing the confirm key is
   /// the moment someone says they are done looking.
-  private func activateSelection() {
+  func activateSelection() {
     selectWindow(at: selection.index)
     hideOverlay()
   }
@@ -504,6 +470,73 @@ final class OverlayWindowController: NSWindowController, NSWindowDelegate {
     case nil:
       return
     }
+  }
+}
+
+extension OverlayWindowController {
+  /// The panel's own look: transparent, shadowed, floating above ordinary windows
+  /// and present on every Space, because the overlay is drawn over whatever is
+  /// there rather than being a window among them.
+  fileprivate static func dress(_ panel: OverlayPanel) {
+    panel.isOpaque = false
+    panel.backgroundColor = .clear
+    panel.hasShadow = true
+    panel.level = .floating
+    panel.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary, .transient]
+  }
+}
+
+// MARK: - Choosing
+
+/// Where the highlight goes and what it lands on.
+extension OverlayWindowController {
+
+  /// One window on inside the Space the highlight is in, and no further: this is
+  /// the key that reaches the windows behind the front card when the arrows count
+  /// in Spaces.
+  func cycleWindow(forward: Bool) {
+    defer { logger.info("Overlay cycled to index \(selection.index)") }
+
+    selection.index = OverlayGrid.window(
+      from: selection.index,
+      forward: forward,
+      sizes: windowCoordinator.sections.map(\.targets.count)
+    )
+  }
+
+  func moveSelection(_ direction: OverlayGrid.Direction) {
+    // At info level rather than debug: this is the line that says where the
+    // highlight actually went, and a report of "it did nothing" is answered by
+    // reading it back afterwards, which only works for what the system keeps.
+    defer { logger.info("Overlay selection moved \(direction) to index \(selection.index)") }
+
+    let sizes = windowCoordinator.sections.map(\.targets.count)
+    let rows = OverlayGrid.spaceRows(
+      ofDisplays: windowCoordinator.sections.map(\.id.displayID),
+      perRow: fittedColumns,
+      banded: layout.isBanded
+    )
+
+    selection.index =
+      arrows == .spaces
+      ? OverlayGrid.space(from: selection.index, moving: direction, sizes: sizes, rows: rows)
+      : OverlayGrid.index(from: selection.index, moving: direction, sizes: sizes, rows: rows)
+  }
+
+  private func moveTile(_ direction: OverlayGrid.Direction) {
+    let target = OverlayGrid.index(
+      from: selection.index,
+      moving: direction,
+      sizes: windowCoordinator.sections.map(\.targets.count),
+      rows: OverlayGrid.spaceRows(
+        ofDisplays: windowCoordinator.sections.map(\.id.displayID), perRow: fittedColumns)
+    )
+
+    guard windowCoordinator.swapTiles(at: selection.index, with: target) else {
+      return
+    }
+
+    selection.index = target
   }
 }
 
@@ -629,7 +662,7 @@ extension OverlayWindowController {
   /// aim. It also does not cross Spaces: a window on another Space comes forward
   /// within its own, which is as far as this can go without a switch that would
   /// take the screen away from the overlay.
-  fileprivate func stepAndActivate(_ direction: OverlayGrid.Direction) {
+  func stepAndActivate(_ direction: OverlayGrid.Direction) {
     let startedAt = Date()
     steppingUntil = ContinuousClock.now + stepSettle
     // Switching to a window on another Space runs a system animation of about half
@@ -742,6 +775,21 @@ extension OverlayWindowController {
 /// Choosing how wide the grid is and how large the panel must be to hold it.
 extension OverlayWindowController {
 
+  /// The display the overlay opens on: the one showing the Space the system calls
+  /// active.
+  ///
+  /// Neither of the obvious two answers survives both directions. `NSScreen.main` is
+  /// the screen of the window with keyboard focus, and after showing a Space on
+  /// another display it still names the display just left — the overlay opened on a
+  /// Space nobody was looking at, and which display that was depended on the
+  /// application in front, which is why it looked intermittent. The pointer, moved
+  /// to the display whose Space was shown, then fails the other way: it stays there
+  /// after the attention has gone back to a window elsewhere. The active Space
+  /// follows the focus across displays in both cases.
+  private var screenInFront: NSScreen? {
+    windowCoordinator.activeDisplay.flatMap(DisplayInfo.screen(for:)) ?? NSScreen.main
+  }
+
   /// Widens the grid until it is no taller than the screen, or until no more tiles
   /// fit across it.
   ///
@@ -759,7 +807,13 @@ extension OverlayWindowController {
       return lastFit.size
     }
 
-    let widest = TileMetrics.columnsFitting(availableWidth: usable.width)
+    if fillsScreen {
+      return fillTheScreen(usable)
+    }
+
+    metrics = .base
+
+    let widest = metrics.columnsFitting(availableWidth: usable.width)
 
     var chosen = columns
     var size = measure(columns: chosen)
@@ -775,6 +829,66 @@ extension OverlayWindowController {
     return size
   }
 
+  /// The overlay at the size of the screen, less a margin, with tiles grown into
+  /// the room.
+  ///
+  /// The tile is solved for rather than chosen: a row of `columns` Spaces, their
+  /// gaps and the surface's own padding all scale together, so filling the screen
+  /// means one division rather than a search. A margin is left because a panel
+  /// flush to the edges reads as a mode the Mac has entered rather than as
+  /// something drawn over what is already there.
+  private func fillTheScreen(_ usable: CGSize) -> CGSize {
+    let margin = max(24, min(usable.width, usable.height) * 0.04).rounded()
+    let size = CGSize(width: usable.width - margin * 2, height: usable.height - margin * 2)
+
+    if layout == .fitted {
+      chooseTheLayout(filling: size)
+    } else {
+      fittedColumns = columns
+      metrics = TileMetrics.filling(width: size.width, columns: columns, style: deck)
+    }
+
+    hostingView.rootView = makeOverlayView()
+    hostingView.layer?.cornerRadius = metrics.surfaceCornerRadius
+    lastFit = (usable, size)
+
+    return size
+  }
+
+  /// How many Spaces go in a row, chosen by trying them all.
+  ///
+  /// Wider rows mean smaller tiles and fewer rows; narrower rows mean larger tiles
+  /// and more of them. Which way round wins depends on how many Spaces there are
+  /// and how tall the screen is, so it is measured rather than assumed: every row
+  /// length is laid out, the ones that do not fit the height are dropped, and the
+  /// largest tile among the rest wins.
+  ///
+  /// This is what fills the screen with two displays holding one Space each — one
+  /// tile above another, as large as the room allows — where a fixed row length
+  /// left the map in a column with the screen empty on both sides.
+  private func chooseTheLayout(filling size: CGSize) {
+    let spaces = max(1, windowCoordinator.sections.count)
+    var best: (columns: Int, metrics: TileMetrics)?
+
+    for candidate in 1...spaces {
+      fittedColumns = candidate
+      metrics = TileMetrics.filling(width: size.width, columns: candidate, style: deck)
+
+      guard measure(columns: candidate).height <= size.height else {
+        continue
+      }
+
+      if metrics.width > (best?.metrics.width ?? 0) {
+        best = (candidate, metrics)
+      }
+    }
+
+    // Nothing fits when the Spaces outrun the screen: the widest row is then the
+    // least bad, because it is the shortest.
+    fittedColumns = best?.columns ?? spaces
+    metrics = best?.metrics ?? TileMetrics.filling(width: size.width, columns: spaces, style: deck)
+  }
+
   /// Measured on a throwaway view rather than on the one on screen: an
   /// `NSHostingView` does not re-report its fitting size synchronously when its
   /// root view is replaced, so asking the live view in a loop returns the first
@@ -787,11 +901,13 @@ extension OverlayWindowController {
 
   private func makeOverlayView(columns count: Int? = nil) -> OverlayView {
     OverlayView(
+      metrics: metrics,
       windowCoordinator: windowCoordinator,
       selection: selection,
       background: background,
       columns: count ?? fittedColumns,
       deck: deck,
+      arrangement: layout,
       dimsStaleThumbnails: dimsStaleThumbnails,
       onSelect: { [weak self] windowID in
         self?.selectWindow(id: windowID)
@@ -830,128 +946,5 @@ final class TransparentHostingView<Content: View>: NSHostingView<Content> {
   @available(*, unavailable)
   required init(coder: NSCoder) {
     fatalError("init(coder:) has not been implemented")
-  }
-}
-
-final class OverlayPanel: NSPanel {
-  var onSelectIndex: ((Int) -> Void)?
-  var onMoveSelection: ((OverlayGrid.Direction) -> Void)?
-  var onMoveTile: ((OverlayGrid.Direction) -> Void)?
-  var onStepAndActivate: ((OverlayGrid.Direction) -> Void)?
-  var onJumpToName: (([Character]) -> Void)?
-  var onCloseWindow: (() -> Void)?
-  var closeHotkey: HotkeyBinding?
-  var onActivateSelection: (() -> Void)?
-  var onDismiss: (() -> Void)?
-
-  /// Space activates alongside Return: after ctrl+alt+space opened the overlay it
-  /// is the key already under the thumb.
-  private static let activationKeyCodes: Set<UInt16> = [
-    UInt16(kVK_Return),
-    UInt16(kVK_ANSI_KeypadEnter),
-    UInt16(kVK_Space),
-  ]
-
-  private static let directionsByKeyCode: [UInt16: OverlayGrid.Direction] = [
-    UInt16(kVK_LeftArrow): .left,
-    UInt16(kVK_RightArrow): .right,
-    UInt16(kVK_UpArrow): .up,
-    UInt16(kVK_DownArrow): .down,
-  ]
-
-  override var canBecomeKey: Bool {
-    true
-  }
-
-  /// A shortcut with a command or control key never reaches `keyDown`: AppKit
-  /// offers it to the responder chain as a key equivalent first, and beeps if
-  /// nobody claims it. Which is exactly what the first attempt at closing a window
-  /// from here did.
-  override func performKeyEquivalent(with event: NSEvent) -> Bool {
-    guard matchesCloseHotkey(event) else {
-      return super.performKeyEquivalent(with: event)
-    }
-
-    onCloseWindow?()
-    return true
-  }
-
-  private func matchesCloseHotkey(_ event: NSEvent) -> Bool {
-    closeHotkey?.matches(keyCode: event.keyCode, modifiers: event.modifierFlags) == true
-  }
-
-  /// A bare letter, if that is what this is.
-  ///
-  /// Shift and caps lock are ignored rather than excluded: they change the letter,
-  /// not the intent. Any other modifier means the key belongs to somebody else.
-  private static func jumpCharacter(for event: NSEvent) -> Character? {
-    let modifiers = event.modifierFlags
-      .intersection(.deviceIndependentFlagsMask)
-      .subtracting([.shift, .capsLock])
-
-    guard modifiers.isEmpty,
-      let character = event.charactersIgnoringModifiers?.first,
-      character.isLetter
-    else {
-      return nil
-    }
-
-    return character
-  }
-
-  override func keyDown(with event: NSEvent) {
-    if event.keyCode == UInt16(kVK_Escape) || event.charactersIgnoringModifiers == "\u{1b}" {
-      onDismiss?()
-      return
-    }
-
-    if let direction = Self.directionsByKeyCode[event.keyCode] {
-      // Arrow keys always carry the function and numeric pad flags, so only shift
-      // distinguishes moving a tile from moving the highlight.
-      let modifiers = event.modifierFlags
-        .intersection(.deviceIndependentFlagsMask)
-        .subtracting([.capsLock, .function, .numericPad])
-
-      switch modifiers {
-      case [.shift]:
-        onMoveTile?(direction)
-      case [.control, .option, .shift]:
-        onStepAndActivate?(direction)
-      default:
-        onMoveSelection?(direction)
-      }
-
-      return
-    }
-
-    if Self.activationKeyCodes.contains(event.keyCode) {
-      onActivateSelection?()
-      return
-    }
-
-    let digit = event.charactersIgnoringModifiers.flatMap { Int($0) }
-    if let digit, (1...9).contains(digit) {
-      onSelectIndex?(digit - 1)
-      return
-    }
-
-    // A binding without a command or control key arrives here rather than as a key
-    // equivalent, so both doors are watched.
-    if matchesCloseHotkey(event) {
-      onCloseWindow?()
-      return
-    }
-
-    if let character = Self.jumpCharacter(for: event) {
-      onJumpToName?(
-        KeyboardLayouts.readings(
-          typed: character,
-          latin: HotkeyKey.latinLetter(forKeyCode: event.keyCode),
-          onOtherLayouts: KeyboardLayouts.characters(forKeyCode: event.keyCode)
-        ))
-      return
-    }
-
-    super.keyDown(with: event)
   }
 }

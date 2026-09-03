@@ -46,22 +46,139 @@ enum OverlayGrid {
   /// `perRow` Spaces. Nothing is drawn between the bands — a display is where its
   /// Spaces are, which is what makes the map read like the desk the screens stand
   /// on.
-  static func spaceRows(ofDisplays displays: [CGDirectDisplayID], perRow: Int) -> [[Int]] {
-    var rows: [[Int]] = []
+  static func spaceRows(
+    ofDisplays displays: [CGDirectDisplayID],
+    perRow: Int,
+    banded: Bool = true
+  ) -> [[Int]] {
     let limit = max(1, perRow)
 
-    for (index, display) in displays.enumerated() {
-      let sameDisplay = rows.last.flatMap { $0.last }.map { displays[$0] == display } ?? false
-
-      if var row = rows.last, sameDisplay, row.count < limit {
-        row.append(index)
-        rows[rows.count - 1] = row
-      } else {
-        rows.append([index])
+    // Without bands the Spaces are one sequence that wraps when the row is full:
+    // where a window is stops being said by where it sits, which is the trade this
+    // layout makes for fitting more of them in.
+    guard banded else {
+      return stride(from: 0, to: displays.count, by: limit).map {
+        Array($0..<min($0 + limit, displays.count))
       }
     }
 
+    var rows: [[Int]] = []
+    var start = 0
+
+    while start < displays.count {
+      let display = displays[start]
+      var end = start
+      while end < displays.count, displays[end] == display {
+        end += 1
+      }
+
+      rows.append(contentsOf: balanced(Array(start..<end), perRow: limit))
+      start = end
+    }
+
     return rows
+  }
+
+  /// A display's Spaces split into rows of as equal a length as they divide into.
+  ///
+  /// Six Spaces under a limit of five are three and three, not five and one: a band
+  /// is read as a block, and a block with one lonely Space under a full row reads as
+  /// a mistake rather than as a layout. With two displays it also keeps the two
+  /// bands looking like each other, which is what makes the map symmetrical.
+  private static func balanced(_ indices: [Int], perRow limit: Int) -> [[Int]] {
+    guard indices.count > limit else {
+      return indices.isEmpty ? [] : [indices]
+    }
+
+    let rows = Int((Double(indices.count) / Double(limit)).rounded(.up))
+    let perRow = Int((Double(indices.count) / Double(rows)).rounded(.up))
+
+    return stride(from: 0, to: indices.count, by: perRow).map {
+      Array(indices[$0..<min($0 + perRow, indices.count)])
+    }
+  }
+
+  /// The same map walked by Space rather than by window: the arrow lands on the
+  /// first window of the Space it moves to, whatever was chosen in the Space it
+  /// left.
+  ///
+  /// Which is what makes a map of Spaces navigable at all once a Space holds five
+  /// windows: with the arrows walking windows, crossing the map meant pressing
+  /// through every one of them.
+  static func space(
+    from index: Int,
+    moving direction: Direction,
+    sizes: [Int],
+    rows: [[Int]]
+  ) -> Int {
+    let starts = starts(of: sizes)
+
+    guard let total = starts.last.map({ $0 + (sizes.last ?? 0) }), total > 0 else {
+      return index
+    }
+
+    let bounded = min(max(index, 0), total - 1)
+
+    guard let space = sizes.indices.last(where: { starts[$0] <= bounded && sizes[$0] > 0 }),
+      let row = rows.firstIndex(where: { $0.contains(space) }),
+      let column = rows[row].firstIndex(of: space)
+    else {
+      return bounded
+    }
+
+    switch direction {
+    case .left, .right:
+      let step = direction == .right ? 1 : -1
+      let next = column + step
+
+      if rows[row].indices.contains(next) {
+        return starts[rows[row][next]]
+      }
+
+      let other = rows[(row + rows.count + step) % rows.count]
+
+      return starts[direction == .right ? other[0] : other[other.count - 1]]
+    case .up, .down:
+      let step = direction == .up ? rows.count - 1 : 1
+      let other = rows[(row + step) % rows.count]
+
+      return starts[other[min(column, other.count - 1)]]
+    }
+  }
+
+  /// The next window inside the Space the highlight is already in, wrapping there
+  /// rather than stepping out of it. This is what the cycling key does, and the only
+  /// way to reach the windows behind the first one when the arrows count in Spaces.
+  static func window(from index: Int, forward: Bool, sizes: [Int]) -> Int {
+    let starts = starts(of: sizes)
+
+    guard let total = starts.last.map({ $0 + (sizes.last ?? 0) }), total > 0 else {
+      return index
+    }
+
+    let bounded = min(max(index, 0), total - 1)
+
+    guard let space = sizes.indices.last(where: { starts[$0] <= bounded && sizes[$0] > 0 }) else {
+      return bounded
+    }
+
+    let count = sizes[space]
+    let depth = bounded - starts[space]
+
+    return starts[space] + (depth + (forward ? 1 : count - 1)) % count
+  }
+
+  /// Where each Space's windows begin in the flat list the highlight indexes.
+  private static func starts(of sizes: [Int]) -> [Int] {
+    var starts: [Int] = []
+    var next = 0
+
+    for size in sizes {
+      starts.append(next)
+      next += size
+    }
+
+    return starts
   }
 
   /// Where the highlight goes, on a map whose cells are Spaces.

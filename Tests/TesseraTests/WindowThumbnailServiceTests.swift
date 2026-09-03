@@ -72,8 +72,8 @@ struct UnresponsiveWindowTrackerTests {
     let crop = WindowThumbnailService.cornerCrop(
       forWindowSize: CGSize(width: 1512, height: 944), mode: .corner)
 
-    #expect(crop.width == TileMetrics.contentWidth)
-    #expect(crop.height == TileMetrics.thumbnailHeight)
+    #expect(crop.width == TileMetrics.base.contentWidth)
+    #expect(crop.height == TileMetrics.base.thumbnailHeight)
   }
 
   @Test("A wider mode asks for more of the window, in the same proportions")

@@ -80,4 +80,27 @@ struct WindowThumbnailModeTests {
       #expect(crop.height >= 1)
     }
   }
+
+  @Test("Three quarters is read by name and by number")
+  func readsThreeQuarters() throws {
+    #expect(try WindowThumbnailMode(parsing: "75") == .threeQuarters)
+    #expect(try WindowThumbnailMode(parsing: "three-quarters") == .threeQuarters)
+    #expect(WindowThumbnailMode.threeQuarters.name == "75")
+  }
+
+  /// Three quarters of a window is a larger piece than a quarter of it, so it is
+  /// scaled down further to reach the same tile — which is the whole difference
+  /// between the two: how much of the window survives, and how small it ends up.
+  @Test("Three quarters takes more of the window than a quarter")
+  func takesMoreThanAQuarter() {
+    let window = CGSize(width: 1600, height: 1000)
+    let tile = CGSize(width: 166, height: 120)
+
+    let quarter = WindowThumbnailMode.quarter.crop(ofWindow: window, tile: tile)
+    let three = WindowThumbnailMode.threeQuarters.crop(ofWindow: window, tile: tile)
+
+    #expect(three.width > quarter.width)
+    #expect(three.height > quarter.height)
+    #expect(three.width <= window.width)
+  }
 }

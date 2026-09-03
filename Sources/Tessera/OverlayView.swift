@@ -3,66 +3,114 @@ import SwiftUI
 
 /// The overlay's fixed geometry, in one place: the thumbnail has to be told its
 /// width explicitly, and the window has to know how many tiles fit across a screen.
-enum TileMetrics {
-  static let width: CGFloat = 190
-  static let padding: CGFloat = 12
-  static let spacing: CGFloat = 14
-  static let surfacePadding: CGFloat = 20
+/// The overlay's geometry, in one place and in one unit: everything is a fraction
+/// of the tile, so a bigger tile makes a bigger overlay rather than a bigger tile
+/// in the same layout.
+///
+/// The tile is not a constant any more because a 27-inch display and a laptop
+/// screen do not want the same one: on the big screen the same 190 points read as
+/// a contact sheet of stamps, and on the laptop anything larger does not fit.
+struct TileMetrics: Equatable, Sendable {
+  /// What every other measurement here is derived from.
+  let width: CGFloat
+
+  /// What the overlay has always looked like, and what it still looks like when it
+  /// is sized to its contents rather than to the screen.
+  static let base = TileMetrics(width: 190)
+
+  /// Below this a thumbnail says nothing. The upper end is only reached by an
+  /// overlay filling a large screen with few Spaces on it — two displays holding
+  /// one Space each, say, where the map is two tiles and the room is the screen.
+  static let range: ClosedRange<CGFloat> = 150...560
+
+  init(width: CGFloat) {
+    self.width = min(max(width, Self.range.lowerBound), Self.range.upperBound)
+  }
+
+  private var scale: CGFloat { width / Self.base.width }
+
+  var padding: CGFloat { (4 * scale).rounded() }
+  var spacing: CGFloat { (6 * scale).rounded() }
+  var surfacePadding: CGFloat { (10 * scale).rounded() }
   /// Room inside a group's frame, so its tiles do not touch the line drawn round
   /// them.
-  static let groupPadding: CGFloat = 8
+  var groupPadding: CGFloat { (3 * scale).rounded() }
   /// The group's corner. Between the tile's and the panel's, so the three read as
   /// nested rather than repeated.
-  static let groupCornerRadius: CGFloat = 12
+  var groupCornerRadius: CGFloat { (6 * scale).rounded() }
+  /// What is left of the tile once its label and its own padding are taken out.
+  ///
+  /// The picture of the window is the tile's reason to exist, so it gets the room
+  /// rather than a share of it: a fixed height left a third of every tile empty.
+  var thumbnailHeight: CGFloat { width - padding * 2 - labelHeight - labelGap }
+  /// Between the picture and the two lines under it.
+  var labelGap: CGFloat { (4 * scale).rounded() }
+  /// The tile's own corner. Smaller than the panel's, so a tile reads as sitting
+  /// inside it rather than repeating it.
+  var tileCornerRadius: CGFloat { (4 * scale).rounded() }
+  /// The panel's corner, in the register macOS uses for a floating surface of this
+  /// size.
+  var surfaceCornerRadius: CGFloat { (10 * scale).rounded() }
+  /// The height of the two lines of text under a thumbnail.
+  var labelHeight: CGFloat { (30 * scale).rounded() }
+
   /// How far each card of a deck peeks out from the one in front of it, and how
-  /// many cards deep that goes before the rest hide behind the last. Sideways only,
-  /// and by an edge rather than a corner: a diagonal deck was wider and taller than
-  /// the Space needed to be, and a strip down the side says "there are more" just
-  /// as plainly.
-  static let deckStep = CGSize(width: 10, height: 0)
-  static let deckDepth = 4
+  /// many cards deep that goes before the rest hide behind the last.
+  var deckStep: CGSize { CGSize(width: (10 * scale).rounded(), height: 0) }
+  var deckDepth: Int { 4 }
+
+  var contentWidth: CGFloat { width - padding * 2 }
+
+  /// The width a row of `count` tiles takes, gaps included.
+  func width(forColumns count: Int) -> CGFloat {
+    let columns = CGFloat(max(count, 1))
+
+    return columns * width + (columns - 1) * spacing
+  }
 
   /// The room one Space takes, the same for every Space on the map.
   ///
   /// Sized for the deepest deck rather than for the cards actually in it: a group
   /// as wide as its own contents made every row a different shape, and a Space
   /// gaining a window pushed its neighbours along.
-  static func deckSize(for style: OverlayDeckStyle) -> CGSize {
+  func deckSize(for style: OverlayDeckStyle) -> CGSize {
     guard style == .fan else {
       return CGSize(width: width, height: width)
     }
 
-    let steps = CGFloat(deckDepth)
-
     return CGSize(
-      width: width + deckStep.width * steps,
-      height: width + deckStep.height * steps
+      width: width + deckStep.width * CGFloat(deckDepth),
+      height: width + deckStep.height * CGFloat(deckDepth)
     )
-  }
-
-  /// The width a row of `count` tiles takes, gaps included.
-  static func width(forColumns count: Int) -> CGFloat {
-    let columns = CGFloat(max(count, 1))
-    return columns * width + (columns - 1) * spacing
-  }
-  static let thumbnailHeight: CGFloat = 100
-  /// The tile's own corner. Smaller than the panel's, so a tile reads as sitting
-  /// inside it rather than repeating it.
-  static let tileCornerRadius: CGFloat = 8
-  /// The panel's corner, in the register macOS uses for a floating surface of this
-  /// size — eight points read as barely rounded at all.
-  static let surfaceCornerRadius: CGFloat = 18
-
-  static var contentWidth: CGFloat {
-    width - padding * 2
   }
 
   /// How many tiles fit across a screen this wide, counting the gaps between them
   /// and the surface around them. Never fewer than one: a single tile too wide for
   /// the screen is still the only thing to draw.
-  static func columnsFitting(availableWidth: CGFloat) -> Int {
+  func columnsFitting(availableWidth: CGFloat) -> Int {
     let usable = availableWidth - surfacePadding * 2 + spacing
+
     return max(1, Int(usable / (width + spacing)))
+  }
+
+  /// The tile that fills a screen this wide with `columns` Spaces across.
+  ///
+  /// This is what "fill the screen" means in practice: the map keeps its shape and
+  /// the tiles grow into the room, rather than the same small tiles floating in a
+  /// large empty panel.
+  static func filling(
+    width available: CGFloat,
+    columns: Int,
+    style: OverlayDeckStyle
+  ) -> TileMetrics {
+    let count = CGFloat(max(columns, 1))
+    // Solved for the tile: the row is `count` decks with gaps between them, inside
+    // the surface's own padding, and every part of that scales with the tile.
+    let perTile = base.deckSize(for: style).width + base.spacing + base.groupPadding * 2
+    let fixed = base.surfacePadding * 2
+    let scale = (available - fixed) / (count * perTile - base.spacing)
+
+    return TileMetrics(width: (base.width * scale).rounded())
   }
 }
 
@@ -83,11 +131,13 @@ final class OverlaySelection: ObservableObject {
 }
 
 struct OverlayView: View {
+  let metrics: TileMetrics
   @ObservedObject var windowCoordinator: WindowCoordinator
   @ObservedObject var selection: OverlaySelection
   let background: OverlayColor
   let columns: Int
   let deck: OverlayDeckStyle
+  let arrangement: OverlayLayout
   let dimsStaleThumbnails: Bool
   let onSelect: (CGWindowID) -> Void
   let onFocusSpace: (WindowSectionID) -> Void
@@ -100,33 +150,37 @@ struct OverlayView: View {
       maximum: columns
     )
     return Array(
-      repeating: GridItem(.fixed(TileMetrics.width), spacing: TileMetrics.spacing),
+      repeating: GridItem(.fixed(metrics.width), spacing: metrics.spacing),
       count: count)
   }
 
   /// The map itself: a row of Spaces per band, drawn in the order the displays
   /// stand in.
   private var map: some View {
-    VStack(alignment: .leading, spacing: TileMetrics.spacing) {
+    // Rows are centred rather than left-aligned: a band of seven Spaces splits into
+    // four and three, and the three hanging off the left edge under a full row read
+    // as a mistake. Centred, the two rows of a band look like each other, which is
+    // what makes the map symmetrical.
+    VStack(alignment: .center, spacing: metrics.spacing) {
       ForEach(Array(rows.enumerated()), id: \.offset) { row in
-        HStack(alignment: .top, spacing: TileMetrics.spacing) {
+        HStack(alignment: .top, spacing: metrics.spacing) {
           ForEach(row.element) { entry in
             group(for: entry)
           }
-
-          // A row of two Spaces beside a row of five would otherwise stretch to
-          // match it: the group's heading is happy to take any width it is given,
-          // and the extra belongs to the row, not to the Space.
-          Spacer(minLength: 0)
         }
       }
     }
+    // The map is centred in the panel rather than pinned to its left edge: when the
+    // panel is the screen and the map is narrower, all the room left over went to
+    // the right and the whole thing sat lopsided.
+    .frame(maxWidth: .infinity)
   }
 
   private func group(for entry: SectionLayout) -> some View {
     let range = entry.offset..<(entry.offset + entry.section.targets.count)
 
     return WindowGroup(
+      metrics: metrics,
       title: entry.section.title,
       isCurrent: entry.section.isCurrent,
       isFullscreen: entry.section.isFullscreen,
@@ -138,10 +192,11 @@ struct OverlayView: View {
       desktop: entry.section.tiles.isEmpty
         ? windowCoordinator.desktopImage(
           for: entry.section.id.displayID,
-          fitting: TileMetrics.deckSize(for: deck))
+          fitting: metrics.deckSize(for: deck))
         : nil,
       content: {
         WindowDeck(
+          metrics: metrics,
           tiles: entry.section.tiles,
           offset: entry.offset,
           selectedIndex: selectedIndex,
@@ -165,7 +220,8 @@ struct OverlayView: View {
 
     return OverlayGrid.spaceRows(
       ofDisplays: entries.map(\.section.id.displayID),
-      perRow: columns
+      perRow: columns,
+      banded: arrangement.isBanded
     )
     .map { row in row.compactMap { entries[safe: $0] } }
   }
@@ -194,14 +250,14 @@ struct OverlayView: View {
         map
       }
     }
-    .padding(TileMetrics.surfacePadding)
+    .padding(metrics.surfacePadding)
     .background(
-      RoundedRectangle(cornerRadius: TileMetrics.surfaceCornerRadius, style: .continuous)
+      RoundedRectangle(cornerRadius: metrics.surfaceCornerRadius, style: .continuous)
         .fill(Color(background))
     )
     .overlay(
-      RoundedRectangle(cornerRadius: TileMetrics.surfaceCornerRadius, style: .continuous)
-        .stroke(Color.white.opacity(0.12), lineWidth: 1)
+      RoundedRectangle(cornerRadius: metrics.surfaceCornerRadius, style: .continuous)
+        .stroke(Color.white.opacity(0.08), lineWidth: 0.5)
     )
     .onExitCommand(perform: onClose)
   }
@@ -213,6 +269,7 @@ struct OverlayView: View {
 /// began, which is a poor way to show something as separate as a Space. The frame
 /// says it outright, and the heading sits inside it rather than floating above.
 private struct WindowGroup<Content: View>: View {
+  let metrics: TileMetrics
   let title: String
   var isCurrent: Bool = false
   var isFullscreen: Bool = false
@@ -234,7 +291,7 @@ private struct WindowGroup<Content: View>: View {
       // Nothing to tell apart: one display, one Space, no frame worth drawing.
       content
     } else {
-      VStack(alignment: .leading, spacing: 10) {
+      VStack(alignment: .leading, spacing: metrics.labelGap) {
         HStack(spacing: 5) {
           if isFullscreen {
             // The Space of a fullscreen window: one window, and no room for another.
@@ -269,9 +326,9 @@ private struct WindowGroup<Content: View>: View {
           // is: the desktop, dimmed, in the room one window would take. A Space you
           // are not on cannot be captured, so this is its wallpaper rather than a
           // picture of it.
-          RoundedRectangle(cornerRadius: TileMetrics.tileCornerRadius, style: .continuous)
+          RoundedRectangle(cornerRadius: metrics.tileCornerRadius, style: .continuous)
             .fill(Color.white.opacity(0.03))
-            .frame(width: TileMetrics.width, height: TileMetrics.width)
+            .frame(width: metrics.width, height: metrics.width)
             .overlay {
               if let desktop {
                 Image(decorative: desktop, scale: 1, orientation: .up)
@@ -280,12 +337,12 @@ private struct WindowGroup<Content: View>: View {
                   .opacity(0.55)
                   .clipShape(
                     RoundedRectangle(
-                      cornerRadius: TileMetrics.tileCornerRadius, style: .continuous))
+                      cornerRadius: metrics.tileCornerRadius, style: .continuous))
               }
             }
             .overlay(
-              RoundedRectangle(cornerRadius: TileMetrics.tileCornerRadius, style: .continuous)
-                .stroke(OverlayPalette.highlight, lineWidth: isSelected ? 3 : 0)
+              RoundedRectangle(cornerRadius: metrics.tileCornerRadius, style: .continuous)
+                .stroke(OverlayPalette.highlight, lineWidth: isSelected ? 1.5 : 0)
             )
             .contentShape(Rectangle())
             .onTapGesture(perform: onFocus)
@@ -293,22 +350,22 @@ private struct WindowGroup<Content: View>: View {
           content
         }
       }
-      .padding(TileMetrics.groupPadding)
+      .padding(metrics.groupPadding)
       .background(
-        RoundedRectangle(cornerRadius: TileMetrics.groupCornerRadius, style: .continuous)
+        RoundedRectangle(cornerRadius: metrics.groupCornerRadius, style: .continuous)
           .fill(
             holdsSelection
-              ? OverlayPalette.highlight.opacity(0.14)
-              : Color.white.opacity(isCurrent ? 0.12 : 0.04)
+              ? OverlayPalette.highlight.opacity(0.10)
+              : Color.white.opacity(isCurrent ? 0.09 : 0.035)
           )
       )
       .overlay(
-        RoundedRectangle(cornerRadius: TileMetrics.groupCornerRadius, style: .continuous)
+        RoundedRectangle(cornerRadius: metrics.groupCornerRadius, style: .continuous)
           .stroke(
             holdsSelection
-              ? OverlayPalette.highlight
-              : Color.white.opacity(isCurrent ? 0.38 : 0.10),
-            lineWidth: holdsSelection ? 2 : (isCurrent ? 1.5 : 1)
+              ? OverlayPalette.highlight.opacity(0.85)
+              : Color.white.opacity(isCurrent ? 0.28 : 0.08),
+            lineWidth: holdsSelection ? 1.25 : (isCurrent ? 0.75 : 0.5)
           )
       )
     }
@@ -336,6 +393,7 @@ extension Color {
 /// through a Space read as dealing through a deck: the windows stay where they
 /// are and the chosen one comes to the front.
 private struct WindowDeck: View {
+  let metrics: TileMetrics
   let tiles: [WindowTileModel]
   /// The flat index of the first card, which is what the highlight and the number
   /// keys address.
@@ -361,7 +419,7 @@ private struct WindowDeck: View {
 
   /// Every card visible, each behind the one in front of it by a strip.
   private var fanned: some View {
-    let size = TileMetrics.deckSize(for: .fan)
+    let size = metrics.deckSize(for: .fan)
 
     return ZStack(alignment: .topLeading) {
       ForEach(Array(tiles.enumerated()), id: \.element.id) { item in
@@ -370,8 +428,8 @@ private struct WindowDeck: View {
           // hidden either way, and a deck that kept growing would be no more
           // compact than a row.
           .offset(
-            x: TileMetrics.deckStep.width * CGFloat(min(item.offset, TileMetrics.deckDepth)),
-            y: TileMetrics.deckStep.height * CGFloat(min(item.offset, TileMetrics.deckDepth))
+            x: metrics.deckStep.width * CGFloat(min(item.offset, metrics.deckDepth)),
+            y: metrics.deckStep.height * CGFloat(min(item.offset, metrics.deckDepth))
           )
       }
     }
@@ -396,8 +454,8 @@ private struct WindowDeck: View {
       }
     }
     .frame(
-      width: TileMetrics.deckSize(for: .stack).width,
-      height: TileMetrics.deckSize(for: .stack).height
+      width: metrics.deckSize(for: .stack).width,
+      height: metrics.deckSize(for: .stack).height
     )
     .animation(.easeInOut(duration: 0.2), value: selectedIndex)
   }
@@ -418,6 +476,7 @@ private struct WindowDeck: View {
     let isSelected = offset + position == selectedIndex
 
     return WindowTileButton(
+      metrics: metrics,
       tile: tile,
       shortcutIndex: offset + position,
       isSelected: isSelected,
@@ -428,9 +487,9 @@ private struct WindowDeck: View {
       onSelect(tile.id)
     }
     .shadow(
-      color: .black.opacity(isSelected ? 0.5 : 0.3),
-      radius: isSelected ? 14 : 6,
-      y: isSelected ? 6 : 2
+      color: .black.opacity(isSelected ? 0.38 : 0.22),
+      radius: isSelected ? 10 : 5,
+      y: isSelected ? 4 : 2
     )
     .zIndex(isSelected ? Double(tiles.count) : Double(position))
   }
@@ -462,16 +521,17 @@ private struct SectionHeading: View {
 
   var body: some View {
     Text(title)
-      .font(.system(size: 10, weight: .semibold))
-      .tracking(0.8)
+      .font(.system(size: 9.5, weight: .medium))
+      .tracking(1.1)
       .textCase(.uppercase)
-      .foregroundStyle(Color.white.opacity(0.4))
+      .foregroundStyle(Color.white.opacity(0.34))
       .lineLimit(1)
       .padding(.leading, 2)
   }
 }
 
 private struct WindowTileButton: View {
+  let metrics: TileMetrics
   let tile: WindowTileModel
   let shortcutIndex: Int
   let isSelected: Bool
@@ -494,8 +554,8 @@ private struct WindowTileButton: View {
   /// plain view with a tap gesture leaves the panel's key handling as the single
   /// path, which is what a switcher needs.
   private var tileContent: some View {
-    VStack(alignment: .leading, spacing: 10) {
-      WindowThumbnailContent(tile: tile, dimsStale: dimsStaleThumbnails)
+    VStack(alignment: .leading, spacing: metrics.labelGap) {
+      WindowThumbnailContent(metrics: metrics, tile: tile, dimsStale: dimsStaleThumbnails)
 
       VStack(alignment: .leading, spacing: 3) {
         HStack(alignment: .firstTextBaseline, spacing: 6) {
@@ -523,14 +583,14 @@ private struct WindowTileButton: View {
           .lineLimit(2)
           .frame(maxWidth: .infinity, alignment: .leading)
       }
-      .frame(height: 34, alignment: .top)
+      .frame(height: metrics.labelHeight, alignment: .top)
     }
-    .padding(TileMetrics.padding)
-    .frame(width: TileMetrics.width, height: TileMetrics.width)
+    .padding(metrics.padding)
+    .frame(width: metrics.width, height: metrics.width)
     .background(tileBackground)
     .overlay(tileBorder)
     .contentShape(
-      RoundedRectangle(cornerRadius: TileMetrics.tileCornerRadius, style: .continuous)
+      RoundedRectangle(cornerRadius: metrics.tileCornerRadius, style: .continuous)
     )
     .onTapGesture(perform: onSelect)
     // Dragging arranges the thumbnails and nothing else: the window stays where it
@@ -561,10 +621,10 @@ private struct WindowTileButton: View {
   }
 
   private var tileBackground: some View {
-    RoundedRectangle(cornerRadius: TileMetrics.tileCornerRadius, style: .continuous)
+    RoundedRectangle(cornerRadius: metrics.tileCornerRadius, style: .continuous)
       .fill(base ?? .clear)
       .overlay(
-        RoundedRectangle(cornerRadius: TileMetrics.tileCornerRadius, style: .continuous)
+        RoundedRectangle(cornerRadius: metrics.tileCornerRadius, style: .continuous)
           .fill(backgroundOpacity)
       )
   }
@@ -580,8 +640,8 @@ private struct WindowTileButton: View {
   /// Two marks that must not be confused: the accent fill says which window is
   /// frontmost, the ring says which one Return will activate.
   private var tileBorder: some View {
-    RoundedRectangle(cornerRadius: TileMetrics.tileCornerRadius, style: .continuous)
-      .stroke(borderColor, lineWidth: isSelected ? 3 : 1)
+    RoundedRectangle(cornerRadius: metrics.tileCornerRadius, style: .continuous)
+      .stroke(borderColor, lineWidth: isSelected ? 1.5 : 0.5)
   }
 
   private var borderColor: Color {
@@ -589,11 +649,12 @@ private struct WindowTileButton: View {
       return OverlayPalette.highlight
     }
 
-    return tile.isActive ? Self.accent : Color.white.opacity(0.16)
+    return tile.isActive ? Self.accent : Color.white.opacity(0.12)
   }
 }
 
 private struct WindowThumbnailContent: View {
+  let metrics: TileMetrics
   let tile: WindowTileModel
   let dimsStale: Bool
 
@@ -631,7 +692,7 @@ private struct WindowThumbnailContent: View {
     // Both dimensions, not just the height: `scaledToFill` on a window that is
     // much wider than it is tall makes the image wider than the tile, and a frame
     // that leaves the width free grows to match it and spills over the neighbours.
-    .frame(width: TileMetrics.contentWidth, height: TileMetrics.thumbnailHeight)
+    .frame(width: metrics.contentWidth, height: metrics.thumbnailHeight)
     .clipped()
     .clipShape(RoundedRectangle(cornerRadius: 6, style: .continuous))
     .overlay(

@@ -52,15 +52,35 @@ window_thumbnail_mode = "fit"
 # "stable" keeps the order windows were first seen in and never moves anything.
 window_order = "title"
 
+# How many pixels a thumbnail is captured with. "tile" spends exactly what the
+# largest tile can show — measured at about 60 MB for two dozen windows — while
+# "hd" and "max" trade memory for sharpness on a screen-filling overlay: a
+# gigabyte and more for the same list.
+window_thumbnail_quality = "tile"
+
 # Tile grouping: "displays", "spaces", "displays+spaces" or "none". Each named
 # axis gets its own heading and its own row.
 overlay_grouping = "displays"
+
+# How the Spaces are arranged: "fitted" tries every row length and keeps the one
+# that makes the largest tile, "rows" uses overlay_columns and nothing else, and
+# "flow" drops the bands so the Spaces run one after another whichever display
+# they belong to.
+overlay_layout = "fitted"
+
+# What an arrow counts in: "spaces" moves from Space to Space and leaves the
+# windows inside one to the cycling key, "windows" walks every window in turn.
+overlay_arrows = "spaces"
 
 # How the windows of one Space are stacked. The default, "stack", puts them
 # squarely on top of each other, marks how many there are and turns the card over
 # as you step through them; "fan" lets each card peek out from behind the one in
 # front of it instead.
 overlay_deck = "stack"
+
+# Open the overlay at the size of the screen, less a margin, with tiles as large
+# as that room allows — rather than at the size its tiles happen to need.
+overlay_fills_screen = false
 
 # Overlay surface, #RRGGBB or #RRGGBBAA. The default lets the desktop through;
 # drop the alpha channel, as in "#2B2E33", for a solid panel.
