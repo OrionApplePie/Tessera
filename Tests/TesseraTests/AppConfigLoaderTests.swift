@@ -27,6 +27,8 @@ struct AppConfigLoaderTests {
     "overlay_background",
     "overlay_arrows",
     "overlay_layout",
+    "overlay_rows",
+    "overlay_row_align",
     "overlay_deck",
     "overlay_fills_screen",
     "close_after_activation",
@@ -267,6 +269,55 @@ struct AppConfigLoaderTests {
 
       #expect(config.debugMode == true)
       #expect(config.showMenuBarIcon == false)
+    }
+  }
+
+  /// The grid is what the map is drawn on, and the cell count follows from it
+  /// rather than being set beside it.
+  @Test("The grid counts its own cells")
+  func gridCountsItsCells() throws {
+    try withConfigFile(
+      """
+      overlay_columns = 5
+      overlay_rows = 4
+      """
+    ) { loader in
+      let config = loader.load()
+
+      #expect(config.overlayRows == 4)
+      #expect(config.overlayMaxCells == 20)
+    }
+  }
+
+  /// A config written before the grid says a bare cell count. Read as the rows
+  /// those cells make, it means what it meant.
+  @Test("A config from before the grid keeps the map it had")
+  func readsTheOldCellCount() throws {
+    try withConfigFile(
+      """
+      overlay_columns = 5
+      overlay_max_cells = 20
+      """
+    ) { loader in
+      let config = loader.load()
+
+      #expect(config.overlayRows == 4)
+      #expect(config.overlayMaxCells == 20)
+    }
+  }
+
+  /// The grid wins where both are given: the old key is a fallback, not a second
+  /// opinion.
+  @Test("The grid outranks the count it replaced")
+  func gridOutranksTheOldCount() throws {
+    try withConfigFile(
+      """
+      overlay_columns = 5
+      overlay_rows = 2
+      overlay_max_cells = 20
+      """
+    ) { loader in
+      #expect(loader.load().overlayRows == 2)
     }
   }
 

@@ -33,7 +33,8 @@ ignore_menu_bar_apps = true
 # from the outside exactly like a window on another Space.
 ignored_apps = ""
 
-# How many tiles a row may hold before the overlay wraps to the next row.
+# How many Spaces a row holds in the "rows" layout. The other two work the count
+# out for themselves, and ignore this.
 overlay_columns = 4
 
 # What a tile shows of a window. "fit" scales the whole window down, which says
@@ -67,6 +68,16 @@ overlay_grouping = "displays"
 # "flow" drops the bands so the Spaces run one after another whichever display
 # they belong to.
 overlay_layout = "fitted"
+
+# How many rows of Spaces the map is allowed. With overlay_columns it makes the
+# grid the map is drawn on — five across and four down is twenty cells — and the
+# displays share the rows, never a part of one: four rows over two screens is two
+# rows each. A cell is what stands beside its neighbour: a Space when its windows
+# are stacked, a window when they are fanned out.
+overlay_rows = 4
+
+# Where a short row sits under a long one: "center", "left" or "right".
+overlay_row_align = "center"
 
 # What an arrow counts in: "spaces" moves from Space to Space and leaves the
 # windows inside one to the cycling key, "windows" walks every window in turn.

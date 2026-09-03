@@ -132,8 +132,38 @@ struct SettingsView: View {
       }
 
       Section("Layout") {
+        Picker("Arrange", selection: $model.overlayLayout) {
+          Text("As large as the screen allows").tag(OverlayLayout.fitted)
+          Text("A fixed number across").tag(OverlayLayout.rows)
+          Text("One Space after another").tag(OverlayLayout.flow)
+        }
+
         Stepper(value: $model.overlayColumns, in: 1...12) {
-          setting("Columns", "\(model.overlayColumns)")
+          setting("Spaces across", "\(model.overlayColumns)")
+        }
+
+        Stepper(value: $model.overlayRows, in: 1...8) {
+          setting("Rows down", "\(model.overlayRows)")
+        }
+
+        Text(gridNote)
+          .font(.caption)
+          .foregroundStyle(.secondary)
+
+        Picker("Short rows sit", selection: $model.overlayRowAlignment) {
+          Text("In the middle").tag(OverlayRowAlignment.center)
+          Text("To the left").tag(OverlayRowAlignment.leading)
+          Text("To the right").tag(OverlayRowAlignment.trailing)
+        }
+
+        Picker("A Space of several windows", selection: $model.overlayDeck) {
+          Text("One card, turned through").tag(OverlayDeckStyle.stack)
+          Text("Cards side by side").tag(OverlayDeckStyle.fan)
+        }
+
+        Picker("Arrows move by", selection: $model.overlayArrows) {
+          Text("Space, Tab for its windows").tag(OverlayArrowStep.spaces)
+          Text("Window").tag(OverlayArrowStep.windows)
         }
 
         Picker("Tile order", selection: $model.windowOrder) {
@@ -160,6 +190,13 @@ struct SettingsView: View {
           Text("Its corner, at actual size").tag(WindowThumbnailMode.corner)
           Text("Its corner, twice as much").tag(WindowThumbnailMode.cornerDouble)
           Text("Roughly a quarter of it").tag(WindowThumbnailMode.quarter)
+          Text("Three quarters of it").tag(WindowThumbnailMode.threeQuarters)
+        }
+
+        Picker("Capture at", selection: $model.thumbnailQuality) {
+          Text("What the tile shows").tag(ThumbnailQuality.tile)
+          Text("HD, sharper and heavier").tag(ThumbnailQuality.hd)
+          Text("The most, and the most memory").tag(ThumbnailQuality.max)
         }
       }
 
@@ -221,9 +258,16 @@ struct SettingsView: View {
         )
         Toggle("Fill the screen", isOn: $model.overlayFillsScreen)
         Toggle("Close the overlay after switching", isOn: $model.closeAfterActivation)
+        Toggle("Leave out menu bar applications", isOn: $model.ignoresMenuBarApplications)
+
+        Picker("The close shortcut", selection: $model.closeAction) {
+          Text("Closes the window").tag(CloseAction.closeWindow)
+          Text("Quits the application").tag(CloseAction.quitApplication)
+        }
       }
 
       Section("App") {
+        Toggle("Ask the window server which Space a window is on", isOn: $model.usesPrivateSpaceAPI)
         Toggle("Show the menu bar icon", isOn: $model.showMenuBarIcon)
         Toggle("Verbose logging", isOn: $model.debugMode)
       }
@@ -285,6 +329,23 @@ struct SettingsView: View {
         }
       }
     }
+  }
+
+  /// What the grid means, said in cells: the two steppers above are a budget as
+  /// well as a shape, and only the fixed layout uses the row length as a shape.
+  private var gridNote: String {
+    let cells = max(1, model.overlayColumns) * max(1, model.overlayRows)
+    let grid = String(
+      localized: """
+        A grid of \(model.overlayColumns) × \(model.overlayRows) — at most \(cells) Spaces on \
+        the map, shared out between the displays in whole rows.
+        """)
+
+    guard model.overlayLayout != .rows else {
+      return grid
+    }
+
+    return grid + " " + String(localized: "This layout still works its own row length out.")
   }
 
   private func setting(_ name: String, _ value: String) -> some View {

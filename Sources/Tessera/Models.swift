@@ -115,6 +115,74 @@ struct WindowTileSection: Identifiable {
   /// behaves differently: it holds one window and cannot hold another.
   var isFullscreen: Bool = false
 
+  /// How much room this group takes on the map, counted in cells.
+  ///
+  /// A cell is what stands beside its neighbour, and that is not the same thing in
+  /// every mode: stacked, a Space is one card however many windows it holds; fanned,
+  /// every window is its own card. Counting windows would overstate the first and
+  /// counting Spaces would understate the second, so the map is measured in what it
+  /// actually draws.
+  func cells(whenStacked stacked: Bool) -> Int {
+    stacked ? 1 : max(1, tiles.count)
+  }
+
+  /// The map cut down to a budget of cells, per display.
+  ///
+  /// The Space you are on is never cut: it is the one place the map has to be able
+  /// to show. Beyond that the order stands, and what does not fit is left off the
+  /// end — a map that keeps everything by making every tile too small to read is
+  /// answering the wrong question.
+  static func fitting(
+    _ sections: [WindowTileSection],
+    cellsPerDisplay budget: Int,
+    stacked: Bool
+  ) -> [WindowTileSection] {
+    let budgets = Dictionary(
+      uniqueKeysWithValues: Set(sections.map(\.id.displayID)).map { ($0, budget) })
+
+    return fitting(sections, cellsByDisplay: budgets, stacked: stacked)
+  }
+
+  /// The same, with a budget of its own for each display.
+  ///
+  /// The displays do not always want the same amount of map: one may hold two
+  /// Spaces and the other ten, and a share the busy one cannot use is better spent
+  /// than left blank. What a display may draw is decided before this — in whole
+  /// rows of the grid — and this only holds the map to it.
+  ///
+  /// The Space you are on is taken out of the budget before anything else rather
+  /// than added on top of it: kept as an extra it made a band of five into a band
+  /// of six, which is a second row, and a budget counted in rows that quietly draws
+  /// one more is not a budget.
+  static func fitting(
+    _ sections: [WindowTileSection],
+    cellsByDisplay budgets: [CGDirectDisplayID: Int],
+    stacked: Bool
+  ) -> [WindowTileSection] {
+    var spent: [CGDirectDisplayID: Int] = [:]
+
+    for section in sections where section.isCurrent {
+      spent[section.id.displayID, default: 0] += section.cells(whenStacked: stacked)
+    }
+
+    return sections.filter { section in
+      guard !section.isCurrent else {
+        return true
+      }
+
+      let cost = section.cells(whenStacked: stacked)
+      let already = spent[section.id.displayID] ?? 0
+
+      guard already + cost <= budgets[section.id.displayID] ?? 0 else {
+        return false
+      }
+
+      spent[section.id.displayID] = already + cost
+
+      return true
+    }
+  }
+
   /// Takes one window off the map, keeping the place it was on.
   ///
   /// A Space with nothing left on it is an empty desktop, and the map draws it as

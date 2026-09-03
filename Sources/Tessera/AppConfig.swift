@@ -62,6 +62,15 @@ struct AppConfig: Equatable {
   var overlayArrows: OverlayArrowStep
   /// How the Spaces are arranged on the map.
   var overlayLayout: OverlayLayout
+  /// Where a short row sits under a long one.
+  var overlayRowAlignment: OverlayRowAlignment
+  /// How many rows of Spaces the map is allowed. With `overlayColumns` it makes the
+  /// grid the map is drawn on — five across and four down is twenty cells — and the
+  /// rows are what the displays share, so a display's share of the map is always a
+  /// whole number of rows.
+  var overlayRows: Int
+  /// The most cells the map draws: the grid, counted out.
+  var overlayMaxCells: Int { max(1, overlayColumns) * max(1, overlayRows) }
   /// Whether the overlay takes the screen it opens on, less a margin, and draws
   /// its tiles as large as that room allows.
   var overlayFillsScreen: Bool
@@ -115,6 +124,8 @@ struct AppConfig: Equatable {
     overlayDeck: .stack,
     overlayArrows: .spaces,
     overlayLayout: .fitted,
+    overlayRowAlignment: .center,
+    overlayRows: 4,
     overlayFillsScreen: false,
     // Deliberately not cmd- or alt+space: those belong to Spotlight and to every
     // launcher that replaces it.

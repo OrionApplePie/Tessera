@@ -138,6 +138,7 @@ struct OverlayView: View {
   let columns: Int
   let deck: OverlayDeckStyle
   let arrangement: OverlayLayout
+  let rowAlignment: OverlayRowAlignment
   let dimsStaleThumbnails: Bool
   let onSelect: (CGWindowID) -> Void
   let onFocusSpace: (WindowSectionID) -> Void
@@ -161,7 +162,7 @@ struct OverlayView: View {
     // four and three, and the three hanging off the left edge under a full row read
     // as a mistake. Centred, the two rows of a band look like each other, which is
     // what makes the map symmetrical.
-    VStack(alignment: .center, spacing: metrics.spacing) {
+    VStack(alignment: rowAlignment.horizontal, spacing: metrics.spacing) {
       ForEach(Array(rows.enumerated()), id: \.offset) { row in
         HStack(alignment: .top, spacing: metrics.spacing) {
           ForEach(row.element) { entry in
@@ -170,10 +171,10 @@ struct OverlayView: View {
         }
       }
     }
-    // The map is centred in the panel rather than pinned to its left edge: when the
-    // panel is the screen and the map is narrower, all the room left over went to
-    // the right and the whole thing sat lopsided.
-    .frame(maxWidth: .infinity)
+    // Pinned in the panel the same way its rows are pinned to each other: when the
+    // panel is the screen and the map is narrower, all the room left over otherwise
+    // went to one side and the whole thing sat lopsided.
+    .frame(maxWidth: .infinity, alignment: rowAlignment.frame)
   }
 
   private func group(for entry: SectionLayout) -> some View {

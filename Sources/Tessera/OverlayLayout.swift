@@ -15,8 +15,10 @@ enum OverlayLayout: Equatable, Sendable, CaseIterable {
   /// open.
   case rows
   /// No bands at all: the Spaces run one after another and wrap when the row is
-  /// full, whichever display they belong to. The most compact of the three, and the
-  /// only one that does not say where a window is by where it sits.
+  /// full, whichever display they belong to. The row length is chosen the way
+  /// `fitted` chooses it — by what makes the largest tile — so this is the most
+  /// compact of the three, and the only one that does not say where a window is by
+  /// where it sits.
   case flow
 
   init(parsing text: String) throws {

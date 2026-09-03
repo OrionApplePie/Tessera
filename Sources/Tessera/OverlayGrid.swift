@@ -79,6 +79,87 @@ enum OverlayGrid {
     return rows
   }
 
+  /// How many cells each display may draw, in whole rows of the grid.
+  ///
+  /// Shared out rather than spent first-come: a grid of five across and four down
+  /// is two rows a display, so one busy display cannot crowd the other off the map.
+  /// The share is in rows rather than in cells because a band is drawn in rows — a
+  /// budget of seven cells on a row of five would leave a band of two under a band
+  /// of five and call it a share.
+  static func budgets(
+    forSections sections: [WindowTileSection],
+    rows total: Int,
+    perRow: Int,
+    stacked: Bool
+  ) -> [CGDirectDisplayID: Int] {
+    let columns = max(1, perRow)
+    var displays: [CGDirectDisplayID] = []
+    var wanted: [CGDirectDisplayID: Int] = [:]
+
+    for section in sections {
+      let id = section.id.displayID
+
+      if wanted[id] == nil {
+        displays.append(id)
+      }
+
+      wanted[id, default: 0] += section.cells(whenStacked: stacked)
+    }
+
+    let rows = rows(sharing: total, between: displays.map { wanted[$0] ?? 0 }, perRow: columns)
+
+    return Dictionary(uniqueKeysWithValues: zip(displays, rows.map { $0 * columns }))
+  }
+
+  /// How the map's rows are shared out between the displays.
+  ///
+  /// The grid is the budget: five across and four down is twenty cells, and what a
+  /// display gets is a whole number of rows of it — never four and a half — so the
+  /// two bands stack squarely and a Space never sits half on the map. Even shares
+  /// come first, which with two displays is the symmetry the map is read by; only a
+  /// display that cannot fill its share hands the rest to the other, and then it
+  /// goes over in whole rows too.
+  ///
+  /// `wanted` is how many cells each display would draw given the room, in the
+  /// order the displays appear on the map, and the answer is rows in that same
+  /// order. A grid with fewer rows than there are displays is given one row each
+  /// rather than dropping a display: a display missing from the map cannot be
+  /// switched to.
+  static func rows(sharing total: Int, between wanted: [Int], perRow: Int) -> [Int] {
+    guard !wanted.isEmpty else {
+      return []
+    }
+
+    let columns = max(1, perRow)
+    let needed = wanted.map { max(1, ($0 + columns - 1) / columns) }
+    let total = max(needed.count, total)
+
+    guard needed.reduce(0, +) > total else {
+      return needed
+    }
+
+    let share = max(1, total / needed.count)
+    var given = needed.map { min($0, share) }
+    var left = total - given.reduce(0, +)
+
+    // What the short bands did not use, one row at a time, so two displays wanting
+    // more than the grid holds end up within a row of each other.
+    while left > 0 {
+      let before = left
+
+      for index in given.indices where left > 0 && given[index] < needed[index] {
+        given[index] += 1
+        left -= 1
+      }
+
+      if left == before {
+        break
+      }
+    }
+
+    return given
+  }
+
   /// A display's Spaces split into rows of as equal a length as they divide into.
   ///
   /// Six Spaces under a limit of five are three and three, not five and one: a band

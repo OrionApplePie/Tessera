@@ -819,7 +819,7 @@ extension WindowCoordinator {
     _ tiles: [WindowTileModel],
     displayNames: [CGDirectDisplayID: String]
   ) {
-    sections = WindowTileSection.sections(
+    let all = WindowTileSection.sections(
       from: tiles,
       displayNames: displayNames,
       grouping: config.overlayGrouping,
@@ -828,6 +828,12 @@ extension WindowCoordinator {
       spaceNames: spaceNames,
       fullscreenSpaces: fullscreenSpaces
     )
+
+    let stacked = config.overlayDeck == .stack
+    let budgets = OverlayGrid.budgets(
+      forSections: all, rows: config.overlayRows, perRow: config.overlayColumns, stacked: stacked)
+
+    sections = WindowTileSection.fitting(all, cellsByDisplay: budgets, stacked: stacked)
   }
 
   /// Shows the Space a group stands for. Choosing an empty one is the only way onto

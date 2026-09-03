@@ -125,6 +125,28 @@ struct AppConfigLoader {
       values["overlay_layout"],
       default: config.overlayLayout
     )
+    config.overlayRows = try positiveInt(
+      values["overlay_rows"],
+      default: config.overlayRows,
+      key: "overlay_rows"
+    )
+    // The grid replaced a bare cell count, and a config written before it still says
+    // twenty. Read as the rows those cells make, it means what it meant.
+    if values["overlay_rows"] == nil, values["overlay_max_cells"] != nil {
+      let cells = try positiveInt(
+        values["overlay_max_cells"],
+        default: config.overlayMaxCells,
+        key: "overlay_max_cells"
+      )
+
+      let columns = max(1, config.overlayColumns)
+
+      config.overlayRows = max(1, (cells + columns - 1) / columns)
+    }
+    config.overlayRowAlignment = try rowAlignment(
+      values["overlay_row_align"],
+      default: config.overlayRowAlignment
+    )
     config.overlayArrows = try arrowStep(
       values["overlay_arrows"],
       default: config.overlayArrows
@@ -399,6 +421,22 @@ extension AppConfigLoader {
     } catch {
       logger.error("Invalid window_thumbnail_quality in config: \(error)")
       throw AppConfigError.invalidValue(key: "window_thumbnail_quality")
+    }
+  }
+
+  private func rowAlignment(
+    _ rawValue: String?,
+    default defaultValue: OverlayRowAlignment
+  ) throws -> OverlayRowAlignment {
+    guard let rawValue else {
+      return defaultValue
+    }
+
+    do {
+      return try OverlayRowAlignment(parsing: unquoted(rawValue))
+    } catch {
+      logger.error("Invalid overlay_row_align in config: \(error)")
+      throw AppConfigError.invalidValue(key: "overlay_row_align")
     }
   }
 

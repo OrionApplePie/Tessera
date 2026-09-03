@@ -26,19 +26,7 @@ final class AppCoordinator: NSObject, NSApplicationDelegate {
 
     windowCoordinator.start()
     overlayWindowController = OverlayWindowController(
-      windowCoordinator: windowCoordinator,
-      closeAfterActivation: config.closeAfterActivation,
-      background: config.overlayBackground,
-      columns: config.overlayColumns,
-      fillsScreen: config.overlayFillsScreen,
-      deck: config.overlayDeck,
-      arrows: config.overlayArrows,
-      layout: config.overlayLayout,
-      dimsStaleThumbnails: config.dimsStaleThumbnails,
-      closeHotkey: config.closeHotkey,
-      settleSeconds: config.activationSettleSeconds,
-      debugMode: config.debugMode
-    )
+      windowCoordinator: windowCoordinator, config: config)
 
     holdHotkeys = HoldToSwitchController(
       debugMode: config.debugMode,

@@ -21,6 +21,38 @@ struct OverlayGridTests {
     #expect(OverlayGrid.columnCount(forSectionSizes: [13], maximum: -2) == 1)
   }
 
+  /// The grid is the budget, and a display's share of it is whole rows: a display
+  /// drawing four and a half rows would put a band of two under a band of five and
+  /// call it a share.
+  @Test("Two displays wanting more than the grid holds split its rows evenly")
+  func sharesTheRowsEvenly() {
+    #expect(OverlayGrid.rows(sharing: 4, between: [10, 10], perRow: 5) == [2, 2])
+    #expect(OverlayGrid.rows(sharing: 4, between: [30, 30], perRow: 5) == [2, 2])
+  }
+
+  /// Symmetry is the first answer, not the only one: a share a display cannot use
+  /// is better spent on the display that can.
+  @Test("What a short band does not use goes to the other display, in whole rows")
+  func handsTheUnusedRowsOver() {
+    #expect(OverlayGrid.rows(sharing: 4, between: [20, 3], perRow: 5) == [3, 1])
+    #expect(OverlayGrid.rows(sharing: 4, between: [2, 2], perRow: 5) == [1, 1])
+  }
+
+  /// An odd number of rows cannot be split evenly, and the extra one goes to a
+  /// display that can fill it rather than being left undrawn.
+  @Test("An odd grid leaves the two bands within a row of each other")
+  func splitsAnOddGrid() {
+    #expect(OverlayGrid.rows(sharing: 5, between: [20, 20], perRow: 5) == [3, 2])
+  }
+
+  /// A display missing from the map cannot be switched to, so a grid too short for
+  /// the displays overflows rather than dropping one.
+  @Test("Every display gets a row, even when the grid has fewer than there are")
+  func neverDropsADisplay() {
+    #expect(OverlayGrid.rows(sharing: 1, between: [5, 5, 5], perRow: 5) == [1, 1, 1])
+    #expect(OverlayGrid.rows(sharing: 4, between: [], perRow: 5) == [])
+  }
+
   /// The map's cell is a Space, and a row is a band of one display: measured on a
   /// machine whose built-in screen holds six Spaces and whose external holds three.
   ///

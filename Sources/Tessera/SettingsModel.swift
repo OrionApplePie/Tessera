@@ -15,8 +15,17 @@ final class SettingsModel: ObservableObject {
   @Published var background: Color
 
   @Published var overlayColumns: Int
+  @Published var overlayRows: Int
   @Published var windowOrder: WindowOrder
   @Published var thumbnailMode: WindowThumbnailMode
+  @Published var thumbnailQuality: ThumbnailQuality
+  @Published var overlayLayout: OverlayLayout
+  @Published var overlayRowAlignment: OverlayRowAlignment
+  @Published var overlayDeck: OverlayDeckStyle
+  @Published var overlayArrows: OverlayArrowStep
+  @Published var closeAction: CloseAction
+  @Published var ignoresMenuBarApplications: Bool
+  @Published var usesPrivateSpaceAPI: Bool
   @Published var activationSettleSeconds: Double
   @Published var unresponsiveAfterSeconds: Double
   @Published var groupsDisplays: Bool
@@ -41,8 +50,17 @@ final class SettingsModel: ObservableObject {
     ignoredApplications = config.ignoredApplications.sorted().joined(separator: ", ")
     background = Color(config.overlayBackground)
     overlayColumns = config.overlayColumns
+    overlayRows = config.overlayRows
     windowOrder = config.windowOrder
     thumbnailMode = config.windowThumbnailMode
+    thumbnailQuality = config.thumbnailQuality
+    overlayLayout = config.overlayLayout
+    overlayRowAlignment = config.overlayRowAlignment
+    overlayDeck = config.overlayDeck
+    overlayArrows = config.overlayArrows
+    closeAction = config.closeAction
+    ignoresMenuBarApplications = config.ignoresMenuBarApplications
+    usesPrivateSpaceAPI = config.usesPrivateSpaceAPI
     activationSettleSeconds = config.activationSettleSeconds
     unresponsiveAfterSeconds = config.unresponsiveAfterSeconds
     groupsDisplays = config.overlayGrouping.contains(.displays)
@@ -95,6 +113,7 @@ final class SettingsModel: ObservableObject {
     config.overlayGrouping = grouping
 
     config.overlayColumns = max(1, overlayColumns)
+    config.overlayRows = max(1, overlayRows)
     config.windowOrder = windowOrder
     config.windowThumbnailMode = thumbnailMode
     config.activationSettleSeconds = activationSettleSeconds
@@ -102,6 +121,14 @@ final class SettingsModel: ObservableObject {
     config.refreshIntervalSeconds = max(0.5, refreshIntervalSeconds)
     config.windowThumbnailsStaleSeconds = max(1, windowThumbnailsStaleSeconds)
     config.dimsStaleThumbnails = dimsStaleThumbnails
+    config.thumbnailQuality = thumbnailQuality
+    config.overlayLayout = overlayLayout
+    config.overlayRowAlignment = overlayRowAlignment
+    config.overlayDeck = overlayDeck
+    config.overlayArrows = overlayArrows
+    config.closeAction = closeAction
+    config.ignoresMenuBarApplications = ignoresMenuBarApplications
+    config.usesPrivateSpaceAPI = usesPrivateSpaceAPI
     config.overlayFillsScreen = overlayFillsScreen
     config.windowThumbnailTargetSize = CGSize(
       width: max(40, thumbnailWidth),

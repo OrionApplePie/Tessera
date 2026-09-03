@@ -5,15 +5,7 @@ import SwiftUI
 
 final class OverlayWindowController: NSWindowController, NSWindowDelegate {
   private let windowCoordinator: WindowCoordinator
-  private let closeAfterActivation: Bool
-  private let background: OverlayColor
-  private let columns: Int
-  private let fillsScreen: Bool
-  private let deck: OverlayDeckStyle
-  private let arrows: OverlayArrowStep
-  private let layout: OverlayLayout
-  private let dimsStaleThumbnails: Bool
-  private let closeHotkey: HotkeyBinding?
+  private let config: AppConfig
   private var isPresenting = false
   /// The configured column count, widened when the overlay would otherwise be
   /// taller than the screen it opens on.
@@ -27,7 +19,6 @@ final class OverlayWindowController: NSWindowController, NSWindowDelegate {
   /// Until when an application coming forward counts as a consequence of a step
   /// rather than as the user leaving.
   private var steppingUntil: ContinuousClock.Instant?
-  private let stepSettle: Duration
 
   /// Holds the arrow keys system-wide while the overlay is up, so that stepping
   /// survives the application it just brought forward taking the keyboard.
@@ -44,43 +35,22 @@ final class OverlayWindowController: NSWindowController, NSWindowDelegate {
   private let hostingView: TransparentHostingView<OverlayView>
   private let selection = OverlaySelection()
 
-  init(
-    windowCoordinator: WindowCoordinator,
-    closeAfterActivation: Bool = true,
-    background: OverlayColor = AppConfig.default.overlayBackground,
-    columns: Int = AppConfig.default.overlayColumns,
-    fillsScreen: Bool = AppConfig.default.overlayFillsScreen,
-    deck: OverlayDeckStyle = AppConfig.default.overlayDeck,
-    arrows: OverlayArrowStep = AppConfig.default.overlayArrows,
-    layout: OverlayLayout = AppConfig.default.overlayLayout,
-    dimsStaleThumbnails: Bool = AppConfig.default.dimsStaleThumbnails,
-    closeHotkey: HotkeyBinding? = AppConfig.default.closeHotkey,
-    settleSeconds: Double = AppConfig.default.activationSettleSeconds,
-    debugMode: Bool = false
-  ) {
+  init(windowCoordinator: WindowCoordinator, config: AppConfig = .default) {
     self.windowCoordinator = windowCoordinator
-    self.closeAfterActivation = closeAfterActivation
-    self.background = background
-    self.columns = columns
-    self.fillsScreen = fillsScreen
-    self.deck = deck
-    self.arrows = arrows
-    self.layout = layout
-    self.dimsStaleThumbnails = dimsStaleThumbnails
-    self.closeHotkey = closeHotkey
-    self.stepSettle = .seconds(settleSeconds)
-    self.fittedColumns = columns
-    self.logger = AppLogger(debugMode: debugMode, category: .overlay)
+    self.config = config
+    self.fittedColumns = config.overlayColumns
+    self.logger = AppLogger(debugMode: config.debugMode, category: .overlay)
     self.hostingView = TransparentHostingView(
       rootView: OverlayView(
         metrics: .base,
         windowCoordinator: windowCoordinator,
         selection: OverlaySelection(),
-        background: background,
-        columns: columns,
-        deck: deck,
-        arrangement: layout,
-        dimsStaleThumbnails: dimsStaleThumbnails,
+        background: config.overlayBackground,
+        columns: config.overlayColumns,
+        deck: config.overlayDeck,
+        arrangement: config.overlayLayout,
+        rowAlignment: config.overlayRowAlignment,
+        dimsStaleThumbnails: config.dimsStaleThumbnails,
         onSelect: { _ in },
         onFocusSpace: { _ in },
         onMove: { _, _ in },
@@ -144,10 +114,10 @@ final class OverlayWindowController: NSWindowController, NSWindowDelegate {
     // resizing itself to the view that difference would show as a transparent band
     // along the edge. Same colour, so where the two meet is not visible.
     hostingView.layer?.backgroundColor = CGColor(
-      srgbRed: background.red,
-      green: background.green,
-      blue: background.blue,
-      alpha: background.alpha
+      srgbRed: config.overlayBackground.red,
+      green: config.overlayBackground.green,
+      blue: config.overlayBackground.blue,
+      alpha: config.overlayBackground.alpha
     )
 
     panel.contentView = hostingView
@@ -156,7 +126,7 @@ final class OverlayWindowController: NSWindowController, NSWindowDelegate {
     observeOtherApplications()
 
     stepHotkeys = StepHotkeyController(
-      debugMode: debugMode,
+      debugMode: config.debugMode,
       onStep: { [weak self] direction in self?.stepAndActivate(direction) },
       onMove: { [weak self] direction in self?.moveSelection(direction) },
       onDismiss: { [weak self] in self?.hideOverlay() },
@@ -179,7 +149,7 @@ final class OverlayWindowController: NSWindowController, NSWindowDelegate {
     panel.onStepAndActivate = { [weak self] direction in
       self?.stepAndActivate(direction)
     }
-    panel.closeHotkey = closeHotkey
+    panel.closeHotkey = config.closeHotkey
     panel.onCloseWindow = { [weak self] in
       self?.closeSelectedWindow()
     }
@@ -400,7 +370,7 @@ final class OverlayWindowController: NSWindowController, NSWindowDelegate {
   private func selectWindow(id windowID: CGWindowID) {
     logger.info("Window selected from overlay")
 
-    if closeAfterActivation {
+    if config.closeAfterActivation {
       hideOverlay()
     }
 
@@ -514,11 +484,11 @@ extension OverlayWindowController {
     let rows = OverlayGrid.spaceRows(
       ofDisplays: windowCoordinator.sections.map(\.id.displayID),
       perRow: fittedColumns,
-      banded: layout.isBanded
+      banded: config.overlayLayout.isBanded
     )
 
     selection.index =
-      arrows == .spaces
+      config.overlayArrows == .spaces
       ? OverlayGrid.space(from: selection.index, moving: direction, sizes: sizes, rows: rows)
       : OverlayGrid.index(from: selection.index, moving: direction, sizes: sizes, rows: rows)
   }
@@ -554,7 +524,7 @@ extension OverlayWindowController {
   /// on screen with nothing to take it down.
   ///
   /// Including one the overlay itself asked for. Letting that one through sounded
-  /// right — `closeAfterActivation` off means the overlay stays up while windows
+  /// right — `config.closeAfterActivation` off means the overlay stays up while windows
   /// are picked from it — but it is not what the panel used to do: AppKit hid it
   /// whenever this application was deactivated, whoever had taken over. Picking a
   /// window left the overlay on screen, which reads as an overlay that will not go
@@ -664,7 +634,7 @@ extension OverlayWindowController {
   /// take the screen away from the overlay.
   func stepAndActivate(_ direction: OverlayGrid.Direction) {
     let startedAt = Date()
-    steppingUntil = ContinuousClock.now + stepSettle
+    steppingUntil = ContinuousClock.now + .seconds(config.activationSettleSeconds)
     // Switching to a window on another Space runs a system animation of about half
     // a second, and presses arriving faster than that queue up behind each other —
     // which is what makes a held-down arrow look like the overlay has hung. A step
@@ -807,7 +777,7 @@ extension OverlayWindowController {
       return lastFit.size
     }
 
-    if fillsScreen {
+    if config.overlayFillsScreen {
       return fillTheScreen(usable)
     }
 
@@ -815,7 +785,7 @@ extension OverlayWindowController {
 
     let widest = metrics.columnsFitting(availableWidth: usable.width)
 
-    var chosen = columns
+    var chosen = config.overlayColumns
     var size = measure(columns: chosen)
 
     while size.height > usable.height, chosen < widest {
@@ -829,24 +799,18 @@ extension OverlayWindowController {
     return size
   }
 
-  /// The overlay at the size of the screen, less a margin, with tiles grown into
-  /// the room.
+  /// The overlay grown out of its grid rather than stretched to the screen.
   ///
-  /// The tile is solved for rather than chosen: a row of `columns` Spaces, their
-  /// gaps and the surface's own padding all scale together, so filling the screen
-  /// means one division rather than a search. A margin is left because a panel
-  /// flush to the edges reads as a mode the Mac has entered rather than as
-  /// something drawn over what is already there.
+  /// The screen is the ceiling, not the shape: the tile is taken as large as the
+  /// grid allows while the whole map still stands inside the screen less a margin,
+  /// and the panel is then exactly as big as that map — no panel edge sitting a
+  /// long way from the last tile, and no row falling off the bottom. A margin is
+  /// left because a panel flush to the edges reads as a mode the Mac has entered
+  /// rather than as something drawn over what is already there.
   private func fillTheScreen(_ usable: CGSize) -> CGSize {
     let margin = max(24, min(usable.width, usable.height) * 0.04).rounded()
-    let size = CGSize(width: usable.width - margin * 2, height: usable.height - margin * 2)
-
-    if layout == .fitted {
-      chooseTheLayout(filling: size)
-    } else {
-      fittedColumns = columns
-      metrics = TileMetrics.filling(width: size.width, columns: columns, style: deck)
-    }
+    let room = CGSize(width: usable.width - margin * 2, height: usable.height - margin * 2)
+    let size = growIntoTheRoom(room)
 
     hostingView.rootView = makeOverlayView()
     hostingView.layer?.cornerRadius = metrics.surfaceCornerRadius
@@ -855,38 +819,111 @@ extension OverlayWindowController {
     return size
   }
 
-  /// How many Spaces go in a row, chosen by trying them all.
+  /// The largest tile the room can carry, and — unless the config has already said
+  /// — how many Spaces go across.
   ///
   /// Wider rows mean smaller tiles and fewer rows; narrower rows mean larger tiles
   /// and more of them. Which way round wins depends on how many Spaces there are
   /// and how tall the screen is, so it is measured rather than assumed: every row
-  /// length is laid out, the ones that do not fit the height are dropped, and the
-  /// largest tile among the rest wins.
-  ///
-  /// This is what fills the screen with two displays holding one Space each — one
-  /// tile above another, as large as the room allows — where a fixed row length
-  /// left the map in a column with the screen empty on both sides.
-  private func chooseTheLayout(filling size: CGSize) {
+  /// length is grown into the room and the largest tile among those that fit wins.
+  /// A fixed row length is the same walk with one candidate — the count is settled,
+  /// the size still is not.
+  @discardableResult
+  private func growIntoTheRoom(_ room: CGSize) -> CGSize {
+    // The configured count belongs to the fixed layout alone. Used as a ceiling on
+    // the others it cost a row — six Spaces that fit across in one went to three and
+    // three — and a layout free to choose should not be told to leave room. The
+    // settings window says as much rather than leaving the number looking ignored.
     let spaces = max(1, windowCoordinator.sections.count)
-    var best: (columns: Int, metrics: TileMetrics)?
+    let candidates =
+      config.overlayLayout == .rows
+      ? [max(1, config.overlayColumns)] : Array(1...min(spaces, 12))
+    var best: FittedMap?
 
-    for candidate in 1...spaces {
+    for candidate in candidates {
       fittedColumns = candidate
-      metrics = TileMetrics.filling(width: size.width, columns: candidate, style: deck)
+      metrics = TileMetrics.filling(
+        width: room.width, columns: widestRow(under: candidate), style: config.overlayDeck)
 
-      guard measure(columns: candidate).height <= size.height else {
+      let size = shrinkToFit(room)
+
+      guard size.height <= room.height, size.width <= room.width else {
         continue
       }
 
       if metrics.width > (best?.metrics.width ?? 0) {
-        best = (candidate, metrics)
+        best = FittedMap(columns: candidate, metrics: metrics, size: size)
       }
     }
 
-    // Nothing fits when the Spaces outrun the screen: the widest row is then the
-    // least bad, because it is the shortest.
-    fittedColumns = best?.columns ?? spaces
-    metrics = best?.metrics ?? TileMetrics.filling(width: size.width, columns: spaces, style: deck)
+    guard let best else {
+      // Nothing fits: the smallest tile on the longest row is the least bad, and
+      // the panel says so by overflowing rather than by hiding a row.
+      fittedColumns = candidates[candidates.count - 1]
+      metrics = TileMetrics(width: TileMetrics.range.lowerBound)
+
+      return measure(columns: fittedColumns)
+    }
+
+    fittedColumns = best.columns
+    metrics = best.metrics
+
+    return best.size
+  }
+
+  /// A row length that fits, with the tile it fits at and the room it takes.
+  private struct FittedMap {
+    let columns: Int
+    let metrics: TileMetrics
+    let size: CGSize
+  }
+
+  /// How many cells the longest row actually holds under a given limit.
+  ///
+  /// Not the same as the limit: bands are split evenly and a display may hold fewer
+  /// Spaces than a row allows, so a map of four and three under a limit of five was
+  /// sized for five and sat in four fifths of the panel. The tile is solved for the
+  /// row that is really there.
+  private func widestRow(under limit: Int) -> Int {
+    let rows = OverlayGrid.spaceRows(
+      ofDisplays: windowCoordinator.sections.map(\.id.displayID),
+      perRow: limit,
+      banded: config.overlayLayout.isBanded
+    )
+
+    return max(1, rows.map(\.count).max() ?? limit)
+  }
+
+  /// Takes the tile down until the map fits the room, and says how big the map
+  /// ended up.
+  ///
+  /// Solving for the width cannot know how many rows the Spaces will make, and the
+  /// heading above each of them is not a fraction of anything — so the height is
+  /// measured and the tile shrunk by whatever it overflowed by. The step is forced
+  /// to be a step: a tile that rounds back to the width it already had would loop,
+  /// and two passes at a fixed count of them was what left the bottom row off the
+  /// screen.
+  private func shrinkToFit(_ room: CGSize) -> CGSize {
+    var size = measure(columns: fittedColumns)
+    var passes = 0
+
+    while metrics.width > TileMetrics.range.lowerBound, passes < 8 {
+      // Both directions, because the tile solved for the width lands a rounded
+      // point over it as often as under: a map judged not to fit by one point was
+      // dropped for the smallest tile in the range, and the whole screen-filling
+      // layout collapsed to a postage stamp.
+      let ratio = min(room.height / size.height, room.width / size.width)
+
+      guard ratio < 1 else {
+        break
+      }
+
+      metrics = TileMetrics(width: min((metrics.width * ratio).rounded(), metrics.width - 1))
+      size = measure(columns: fittedColumns)
+      passes += 1
+    }
+
+    return size
   }
 
   /// Measured on a throwaway view rather than on the one on screen: an
@@ -904,11 +941,12 @@ extension OverlayWindowController {
       metrics: metrics,
       windowCoordinator: windowCoordinator,
       selection: selection,
-      background: background,
+      background: config.overlayBackground,
       columns: count ?? fittedColumns,
-      deck: deck,
-      arrangement: layout,
-      dimsStaleThumbnails: dimsStaleThumbnails,
+      deck: config.overlayDeck,
+      arrangement: config.overlayLayout,
+      rowAlignment: config.overlayRowAlignment,
+      dimsStaleThumbnails: config.dimsStaleThumbnails,
       onSelect: { [weak self] windowID in
         self?.selectWindow(id: windowID)
       },

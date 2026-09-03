@@ -69,6 +69,8 @@ enum AppConfigWriter {
     overlay_deck = "\(config.overlayDeck.name)"
     overlay_arrows = "\(config.overlayArrows.name)"
     overlay_layout = "\(config.overlayLayout.name)"
+    overlay_row_align = "\(config.overlayRowAlignment.name)"
+    overlay_rows = \(config.overlayRows)
     overlay_fills_screen = \(config.overlayFillsScreen)
 
     # Tile grouping: "displays", "spaces", "displays+spaces" or "none".

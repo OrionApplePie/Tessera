@@ -416,4 +416,118 @@ struct WindowTileSectionSwapTests {
 
     #expect(WindowTileSection.removing(4, from: [section]).isEmpty)
   }
+
+  /// A cell is what stands beside its neighbour: one card for a stacked Space
+  /// however many windows it holds, one for every window when they are fanned out.
+  @Test("A Space costs one cell stacked and one per window fanned")
+  func cellsCountWhatIsDrawn() {
+    let section = WindowTileSection(
+      id: WindowSectionID(displayID: 1, spaceIndex: 0),
+      title: "Desktop 1",
+      tiles: [Self.makeTile(id: 1), Self.makeTile(id: 2), Self.makeTile(id: 3)]
+    )
+
+    #expect(section.cells(whenStacked: true) == 1)
+    #expect(section.cells(whenStacked: false) == 3)
+  }
+
+  /// An empty Space is still a cell: it is drawn, so it takes room.
+  @Test("An empty Space costs a cell either way")
+  func anEmptySpaceCostsACell() {
+    let empty = WindowTileSection(
+      id: WindowSectionID(displayID: 1, spaceIndex: 4), title: "Desktop 5", tiles: [])
+
+    #expect(empty.cells(whenStacked: true) == 1)
+    #expect(empty.cells(whenStacked: false) == 1)
+  }
+
+  /// The budget is per display, and what does not fit is left off the end — a map
+  /// that keeps everything by making every tile too small to read answers the wrong
+  /// question.
+  @Test("The map is cut to its budget, display by display")
+  func trimsToTheBudget() {
+    let sections = (0..<6).map { index in
+      WindowTileSection(
+        id: WindowSectionID(displayID: index < 3 ? 1 : 2, spaceIndex: index),
+        title: "Desktop \(index)",
+        tiles: []
+      )
+    }
+
+    let kept = WindowTileSection.fitting(sections, cellsPerDisplay: 2, stacked: true)
+
+    #expect(kept.count == 4)
+    #expect(kept.filter { $0.id.displayID == 1 }.count == 2)
+  }
+
+  /// The displays do not always want the same amount of map, so each gets a budget
+  /// of its own rather than a share nobody measured.
+  @Test("Each display is held to its own budget")
+  func trimsToPerDisplayBudgets() {
+    let sections = (0..<8).map { index in
+      WindowTileSection(
+        id: WindowSectionID(displayID: index < 4 ? 1 : 2, spaceIndex: index),
+        title: "Desktop \(index)",
+        tiles: []
+      )
+    }
+
+    let kept = WindowTileSection.fitting(
+      sections, cellsByDisplay: [1: 3, 2: 1], stacked: true)
+
+    #expect(kept.filter { $0.id.displayID == 1 }.count == 3)
+    #expect(kept.filter { $0.id.displayID == 2 }.count == 1)
+  }
+
+  /// A display with no budget at all draws nothing — the caller decides the shares,
+  /// and a missing one is a share of none rather than a share of everything.
+  @Test("A display the budget does not mention draws nothing")
+  func dropsADisplayWithoutABudget() {
+    let sections = [
+      WindowTileSection(id: WindowSectionID(displayID: 1, spaceIndex: 0), title: "a", tiles: []),
+      WindowTileSection(id: WindowSectionID(displayID: 2, spaceIndex: 1), title: "b", tiles: []),
+    ]
+
+    let kept = WindowTileSection.fitting(sections, cellsByDisplay: [1: 2], stacked: true)
+
+    #expect(kept.map(\.id.displayID) == [1])
+  }
+
+  /// Kept as an extra, the Space you are on turned a band of five into a band of
+  /// six — a second row on a map budgeted in rows. It is spent first instead.
+  @Test("The Space you are on is charged to the budget, not added to it")
+  func chargesTheCurrentSpaceToTheBudget() {
+    var current = WindowTileSection(
+      id: WindowSectionID(displayID: 1, spaceIndex: 9), title: "Desktop 10", tiles: [])
+    current.isCurrent = true
+
+    let sections =
+      (0..<5).map { (index: Int) in
+        WindowTileSection(
+          id: WindowSectionID(displayID: 1, spaceIndex: index), title: "\(index)", tiles: [])
+      } + [current]
+
+    let kept = WindowTileSection.fitting(sections, cellsByDisplay: [1: 5], stacked: true)
+
+    #expect(kept.count == 5)
+    #expect(kept.contains { $0.isCurrent })
+  }
+
+  /// The Space you are on is never cut: it is the one place the map has to show.
+  @Test("The Space you are on survives the budget")
+  func keepsTheCurrentSpace() {
+    var last = WindowTileSection(
+      id: WindowSectionID(displayID: 1, spaceIndex: 9), title: "Desktop 10", tiles: [])
+    last.isCurrent = true
+
+    let sections =
+      (0..<3).map { (index: Int) in
+        WindowTileSection(
+          id: WindowSectionID(displayID: 1, spaceIndex: index), title: "\(index)", tiles: [])
+      } + [last]
+
+    let kept = WindowTileSection.fitting(sections, cellsPerDisplay: 2, stacked: true)
+
+    #expect(kept.contains { $0.isCurrent })
+  }
 }
