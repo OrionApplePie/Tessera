@@ -91,6 +91,8 @@ struct DesktopSwitcher {
 
       if handingBack {
         await Self.goToTheDesktop(on: displayID)
+      } else {
+        Self.followTheEye(to: displayID)
       }
 
       return
@@ -119,6 +121,7 @@ struct DesktopSwitcher {
 
     logger.info("Showing desktop \(number) with the system shortcut")
     await press(shortcut)
+    Self.followTheEye(to: displayID)
 
     let arrived = await waitUntil(showing)
     logger.info("Desktop \(number) on display \(displayID): arrived=\(arrived)")
@@ -276,11 +279,14 @@ struct DesktopSwitcher {
   /// arithmetic can be tested: what Accessibility answers is the machine's, but
   /// what is done with the answer is ours.
   ///
-  /// A little past the last menu, never nearer the left than a fifth of the bar —
-  /// an application that reports no menus at all should not be taken at its word —
-  /// and never past three quarters of it, where the status items are.
+  /// A little past the last menu, and never left of the middle of the bar whatever
+  /// Accessibility says. Measured with Finder in front: the answer came back small
+  /// enough to put the click at a fifth of the width, which on a laptop is inside
+  /// the menus — the click opened one instead of moving the attention. The middle
+  /// of a bar is past the menus of any ordinary application and short of a row of
+  /// status items; three quarters is where those begin.
   nonisolated static func pointPastMenus(endingAt end: CGFloat, barWidth: CGFloat) -> CGFloat {
-    min(max(end + 24, barWidth * 0.2), barWidth * 0.75)
+    min(max(end + 24, barWidth * 0.5), barWidth * 0.75)
   }
 
   /// Where the last menu of an application ends, measured from the left of the bar.
@@ -349,10 +355,6 @@ struct DesktopSwitcher {
   /// the application menus are measured through Accessibility and the click goes
   /// just past the last of them, which is bar and nothing else.
   private static func goToTheDesktop(on displayID: CGDirectDisplayID) async {
-    // Where the pointer is now, so it can be put back. A posted click carries its
-    // own location and takes the pointer with it, and leaving it on another
-    // display's menu bar is moving something the switcher was not asked to move.
-    let pointerWas = CGEvent(source: nil)?.location
     let bounds = CGDisplayBounds(displayID)
     let point = CGPoint(
       x: bounds.minX + emptyPointInMenuBar(ofWidth: bounds.width), y: bounds.minY + 6)
@@ -383,15 +385,32 @@ struct DesktopSwitcher {
     try? await Task.sleep(for: clickHold)
     up.post(tap: .cghidEventTap)
 
-    guard let pointerWas else {
+    // And the pointer stays on the display that was asked for. The desktop shown is
+    // the one being looked at, and leaving the pointer on the screen just left means
+    // the next click, the next scroll and the next menu all land there instead.
+    followTheEye(to: displayID)
+  }
+
+  /// Puts the pointer on a display, in the middle of it.
+  ///
+  /// Not what moves the attention — that is the click — but where the pointer
+  /// belongs once the attention has moved: on the screen being looked at.
+  private static func followTheEye(to displayID: CGDirectDisplayID) {
+    guard let screen = DisplayInfo.screen(for: displayID),
+      !screen.frame.contains(NSEvent.mouseLocation)
+    else {
       return
     }
 
-    // After the click, not before it: warped back too early, the pointer is where
-    // it started but the click has not been read yet, and the attention stays where
-    // it was.
-    try? await Task.sleep(for: clickHold)
-    CGWarpMouseCursorPosition(pointerWas)
+    // Cocoa counts from the bottom of the main screen, the warp counts from the
+    // top of it, which is the one conversion this needs.
+    let centre = CGPoint(x: screen.frame.midX, y: screen.frame.midY)
+    let flipped = CGPoint(
+      x: centre.x,
+      y: (NSScreen.screens.first?.frame.maxY ?? centre.y) - centre.y
+    )
+
+    CGWarpMouseCursorPosition(flipped)
     CGAssociateMouseAndMouseCursorPosition(1)
   }
 

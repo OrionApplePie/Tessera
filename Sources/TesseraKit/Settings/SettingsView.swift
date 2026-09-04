@@ -2,10 +2,9 @@ import SwiftUI
 
 /// A page of the settings window, and the list on its left.
 enum SettingsSection: String, CaseIterable, Identifiable {
-  case overlay
+  case app
   case layout
-  case previews
-  case behaviour
+  case appearance
   case timing
   case about
 
@@ -15,14 +14,12 @@ enum SettingsSection: String, CaseIterable, Identifiable {
 
   var title: String {
     switch self {
-    case .overlay:
-      return "Overlay"
+    case .app:
+      return "App"
     case .layout:
       return "Layout"
-    case .previews:
-      return "Previews"
-    case .behaviour:
-      return "Behaviour"
+    case .appearance:
+      return "Appearance"
     case .timing:
       return "Timing"
     case .about:
@@ -32,14 +29,12 @@ enum SettingsSection: String, CaseIterable, Identifiable {
 
   var symbol: String {
     switch self {
-    case .overlay:
-      return "macwindow"
+    case .app:
+      return "gearshape"
     case .layout:
       return "square.grid.2x2"
-    case .previews:
-      return "photo"
-    case .behaviour:
-      return "gearshape"
+    case .appearance:
+      return "paintpalette"
     case .timing:
       return "timer"
     case .about:
@@ -72,7 +67,7 @@ struct SettingsView: View {
   /// the window is sized, not because anything else opens on a page but the first.
   init(
     model: SettingsModel,
-    section: SettingsSection = .overlay,
+    section: SettingsSection = .app,
     measuring: Bool = false,
     onSave: @escaping () -> Void,
     onCancel: @escaping () -> Void
@@ -117,14 +112,12 @@ struct SettingsView: View {
   @ViewBuilder
   private var page: some View {
     switch section {
-    case .overlay:
-      overlayPage
+    case .app:
+      appPage
     case .layout:
       layoutPage
-    case .previews:
-      previewsPage
-    case .behaviour:
-      behaviourPage
+    case .appearance:
+      appearancePage
     case .timing:
       timingPage
     case .about:
@@ -132,21 +125,29 @@ struct SettingsView: View {
     }
   }
 
-  private var overlayPage: some View {
+  /// How the overlay looks, and what its tiles show.
+  private var appearancePage: some View {
     Form {
-      Section("Shortcut") {
-        TextField("Show the overlay", text: $model.hotkey, prompt: Text("ctrl+alt+space"))
-
-        TextField("Close a window", text: $model.closeHotkey, prompt: Text("cmd+w"))
-
-        Picker("Closing", selection: $model.closeAction) {
-          Text("Closes the window").tag(CloseAction.closeWindow)
-          Text("Quits the application").tag(CloseAction.quitApplication)
-        }
+      Section("Surface") {
+        ColorPicker("Background", selection: $model.background, supportsOpacity: true)
       }
 
-      Section("Appearance") {
-        ColorPicker("Background", selection: $model.background, supportsOpacity: true)
+      Section("Tiles") {
+        Picker("Show", selection: $model.thumbnailMode) {
+          Text("The whole window").tag(WindowThumbnailMode.fit)
+          Text("Its corner, at actual size").tag(WindowThumbnailMode.corner)
+          Text("Its corner, twice as much").tag(WindowThumbnailMode.cornerDouble)
+          Text("Roughly a quarter of it").tag(WindowThumbnailMode.quarter)
+          Text("Three quarters of it").tag(WindowThumbnailMode.threeQuarters)
+        }
+
+        Picker("Capture at", selection: $model.thumbnailQuality) {
+          Text("What the tile shows").tag(ThumbnailQuality.tile)
+          Text("HD, sharper and heavier").tag(ThumbnailQuality.hd)
+          Text("The most, and the most memory").tag(ThumbnailQuality.max)
+        }
+
+        Toggle("Fade a stale preview", isOn: $model.dimsStaleThumbnails)
       }
     }
   }
@@ -218,41 +219,20 @@ struct SettingsView: View {
     }
   }
 
-  private var previewsPage: some View {
-    Form {
-      Section("Contents") {
-        Picker("Show", selection: $model.thumbnailMode) {
-          Text("The whole window").tag(WindowThumbnailMode.fit)
-          Text("Its corner, at actual size").tag(WindowThumbnailMode.corner)
-          Text("Its corner, twice as much").tag(WindowThumbnailMode.cornerDouble)
-          Text("Roughly a quarter of it").tag(WindowThumbnailMode.quarter)
-          Text("Three quarters of it").tag(WindowThumbnailMode.threeQuarters)
-        }
-
-        Picker("Capture at", selection: $model.thumbnailQuality) {
-          Text("What the tile shows").tag(ThumbnailQuality.tile)
-          Text("HD, sharper and heavier").tag(ThumbnailQuality.hd)
-          Text("The most, and the most memory").tag(ThumbnailQuality.max)
-        }
-      }
-
-      Section("Refresh") {
-        Stepper(value: $model.refreshIntervalSeconds, in: 0.5...60, step: 0.5) {
-          setting("Every", seconds(model.refreshIntervalSeconds))
-        }
-        Stepper(value: $model.windowThumbnailsStaleSeconds, in: 1...600, step: 5) {
-          setting("Stale after", seconds(model.windowThumbnailsStaleSeconds))
-        }
-        Toggle("Fade a stale preview", isOn: $model.dimsStaleThumbnails)
-      }
-
-    }
-  }
-
   /// Everything the switcher waits for. Each of these is a compromise measured on
   /// a real desktop rather than a value with a right answer, so each is here.
   private var timingPage: some View {
     Form {
+      Section("Refresh") {
+        Stepper(value: $model.refreshIntervalSeconds, in: 0.5...60, step: 0.5) {
+          setting("Every", seconds(model.refreshIntervalSeconds))
+        }
+
+        Stepper(value: $model.windowThumbnailsStaleSeconds, in: 1...600, step: 5) {
+          setting("Stale after", seconds(model.windowThumbnailsStaleSeconds))
+        }
+      }
+
       Section("Reaching a window") {
         Stepper(value: $model.activationSettleSeconds, in: 0.5...10, step: 0.5) {
           setting("Let the system settle for", seconds(model.activationSettleSeconds))
@@ -267,8 +247,19 @@ struct SettingsView: View {
     }
   }
 
-  private var behaviourPage: some View {
+  private var appPage: some View {
     Form {
+      Section("Shortcut") {
+        TextField("Show the overlay", text: $model.hotkey, prompt: Text("ctrl+alt+space"))
+
+        TextField("Close a window", text: $model.closeHotkey, prompt: Text("cmd+w"))
+
+        Picker("Closing", selection: $model.closeAction) {
+          Text("Closes the window").tag(CloseAction.closeWindow)
+          Text("Quits the application").tag(CloseAction.quitApplication)
+        }
+      }
+
       Section("Windows") {
         TextField(
           "Ignore applications",
@@ -287,7 +278,7 @@ struct SettingsView: View {
         Toggle("Leave out menu bar applications", isOn: $model.ignoresMenuBarApplications)
       }
 
-      Section("App") {
+      Section("The switcher itself") {
         Toggle("Ask the window server which Space a window is on", isOn: $model.usesPrivateSpaceAPI)
         Toggle("Show the menu bar icon", isOn: $model.showMenuBarIcon)
         Toggle("Verbose logging", isOn: $model.debugMode)

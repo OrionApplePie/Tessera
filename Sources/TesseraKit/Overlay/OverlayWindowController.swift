@@ -141,8 +141,8 @@ final class OverlayWindowController: NSWindowController, NSWindowDelegate {
   /// The panel reports what was pressed; this is where each of those becomes an
   /// action on the list.
   private func connect(_ panel: OverlayPanel) {
-    panel.onSelectIndex = { [weak self] cell in
-      self?.selectCell(cell)
+    panel.onSelectIndex = { [weak self] index in
+      self?.selectWindow(at: index)
     }
     panel.onMoveSelection = { [weak self] direction in
       self?.moveSelection(direction)

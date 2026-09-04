@@ -1,36 +1,6 @@
 import AppKit
 import Foundation
 
-// MARK: - Choosing by number
-
-extension OverlayWindowController {
-  /// Chooses what a number key points at, counted the way the map is counted.
-  ///
-  /// A digit means the tile a person can see, and with the windows of a Space drawn
-  /// as one card that is not the same as the window behind it: eleven Finder
-  /// windows are one tile and eleven places the highlight can sit. Counted in
-  /// places, "6" reached the second Finder window while the sixth tile was an empty
-  /// desktop — a switch to a Space nobody asked for, and, for a window
-  /// Accessibility will not aim at, an application's Window menu opening on screen
-  /// to raise it.
-  func selectCell(_ cell: Int) {
-    var target = 0
-    var cells = 0
-
-    for section in windowCoordinator.sections {
-      let drawn = section.cells(whenStacked: config.overlayDeck == .stack)
-
-      if cells + drawn > cell {
-        selectWindow(at: target + (cell - cells))
-        return
-      }
-
-      cells += drawn
-      target += section.targets.count
-    }
-  }
-}
-
 // MARK: - Typing
 
 /// Finding a window by typing at the map, in either of the two ways the
