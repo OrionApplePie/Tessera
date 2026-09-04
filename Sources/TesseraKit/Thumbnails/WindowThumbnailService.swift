@@ -53,6 +53,17 @@ final class WindowThumbnailService {
       var result: [CGWindowID: CGImage] = [:]
 
       for window in content.windows where requested.contains(window.windowID) {
+        // A window that is not on screen has nothing to copy: it is on another Space
+        // or minimized, and the capture does not fail — it hangs until the timeout.
+        // Measured from an empty desktop, where nothing is on screen at all:
+        // twenty-one windows, two seconds each, three quarters of a minute of
+        // grinding, and a map of name-only tiles at the end of it. What such a
+        // window shows is the picture taken when it was last visible, which the
+        // cache is holding already.
+        guard window.isOnScreen else {
+          continue
+        }
+
         guard !unresponsiveWindows.shouldSkip(window.windowID, isOnScreen: window.isOnScreen)
         else {
           continue

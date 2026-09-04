@@ -25,7 +25,7 @@ final class OverlayWindowController: NSWindowController, NSWindowDelegate {
   private var stepHotkeys: StepHotkeyController?
 
   /// The last layout measured, and the screen room it was measured for.
-  var lastFit: (usable: CGSize, size: CGSize)?
+  var lastFit: FittedLayout?
 
   private var activationObserver: NSObjectProtocol?
   var fittedColumns: Int
@@ -36,7 +36,7 @@ final class OverlayWindowController: NSWindowController, NSWindowDelegate {
   let selection = OverlaySelection()
   /// The same typing read as Latin letters, so a window named in one alphabet is
   /// found while the keyboard is in the other.
-  private var latinQuery = ""
+  var latinQuery = ""
 
   init(windowCoordinator: WindowCoordinator, config: AppConfig = .default) {
     self.windowCoordinator = windowCoordinator
@@ -141,8 +141,8 @@ final class OverlayWindowController: NSWindowController, NSWindowDelegate {
   /// The panel reports what was pressed; this is where each of those becomes an
   /// action on the list.
   private func connect(_ panel: OverlayPanel) {
-    panel.onSelectIndex = { [weak self] index in
-      self?.selectWindow(at: index)
+    panel.onSelectIndex = { [weak self] cell in
+      self?.selectCell(cell)
     }
     panel.onMoveSelection = { [weak self] direction in
       self?.moveSelection(direction)
@@ -229,9 +229,10 @@ final class OverlayWindowController: NSWindowController, NSWindowDelegate {
       window.orderOut(nil)
     }
 
-    // The list has moved on since the overlay was last up, so nothing measured for
-    // it still holds — and neither does anything typed at the last one.
-    lastFit = nil
+    // What was typed at the last overlay does not carry over. What was measured
+    // does, as long as the map is still the same shape on the same screen: building
+    // a dozen layouts to choose a tile size took the better part of a second, and
+    // doing it again for a list that has not changed is that second spent twice.
     selection.query = ""
     latinQuery = ""
 
@@ -281,7 +282,13 @@ final class OverlayWindowController: NSWindowController, NSWindowDelegate {
   @discardableResult
   private func place(_ window: NSWindow, on screen: NSScreen?, animated: Bool = false) -> CGSize {
     let usable = screen?.visibleFrame ?? .zero
+    let measuringStartedAt = Date()
+    OverlayFittingCounters.measurements = 0
     let fittingSize = fitToScreen(within: usable.size)
+
+    logger.debug(
+      "Fitted the map in \(Int(Date().timeIntervalSince(measuringStartedAt) * 1000))ms "
+        + "over \(OverlayFittingCounters.measurements) measurements")
 
     guard let placed = OverlayGrid.placement(for: fittingSize, in: usable) else {
       window.center()
@@ -436,7 +443,7 @@ final class OverlayWindowController: NSWindowController, NSWindowDelegate {
     hideOverlay()
   }
 
-  private func selectWindow(at index: Int) {
+  func selectWindow(at index: Int) {
     logger.info("Chosen at index \(index) of \(windowCoordinator.targets.count) targets")
 
     switch windowCoordinator.targets[safe: index] {
@@ -653,123 +660,6 @@ extension OverlayWindowController {
     }
 
     selection.index = target
-  }
-}
-
-// MARK: - Typing
-
-/// Finding a window by typing at the map, in either of the two ways the
-/// configuration allows.
-extension OverlayWindowController {
-  /// Takes a typed character and moves the highlight to whatever it now names.
-  ///
-  /// The same key pressed twice does not become a two-letter query: a single letter
-  /// is how a person walks the windows of one application, and taking that away to
-  /// gain "cc" would be a poor trade. Anything longer is a search.
-  private func type(_ character: Character, latin: Character?, readings: [Character]) {
-    guard config.overlaySearch == .fuzzy else {
-      jumpToName(readings)
-      return
-    }
-
-    let typed = selection.query
-    let repeated = typed.count == 1 && typed.first?.lowercased() == character.lowercased()
-
-    if !repeated {
-      selection.query.append(character)
-      latinQuery.append(latin ?? character)
-    }
-
-    guard
-      let match = WindowSearch.best(
-        for: [selection.query, latinQuery],
-        among: WindowSearch.candidates(in: windowCoordinator.sections),
-        after: selection.index
-      )
-    else {
-      logger.debug("Nothing on the map answers to \(selection.query)")
-      return
-    }
-
-    selection.index = match
-    logger.debug("Search \(selection.query) landed on index \(match)")
-  }
-
-  /// The older way of finding a window: one letter, and the next thing that letter
-  /// names.
-  ///
-  /// Four passes, in the order a letter usually means them: the application's whole
-  /// name, a word inside it, the window's whole title, a word inside that. So "e"
-  /// goes to Excel before it goes to a window whose title has a word starting with
-  /// e — and it does reach that window, on the next press, because pressing the
-  /// letter again walks everything it names rather than only the pass that answered
-  /// first. Stopping at the first pass left the second line of a tile — the file, the
-  /// tab, the document — unreachable whenever some application happened to share the
-  /// letter.
-  ///
-  /// The field still decides before the reading does. Tried the other way round, a
-  /// Russian reading of the key matched some window's title before the Latin one
-  /// ever reached the applications, and with Russian titles on screen it usually
-  /// found one — which is what made the letters look like they were confused.
-  private func jumpToName(_ readings: [Character]) {
-    let targets = windowCoordinator.targets
-    let passes: [(OverlayGrid.MatchField, OverlayGrid.MatchScope)] = [
-      (.applicationName, .wholeName),
-      (.applicationName, .anyWord),
-      (.windowTitle, .wholeName),
-      (.windowTitle, .anyWord),
-    ]
-
-    var ranked: [Int] = []
-
-    for (field, scope) in passes {
-      for character in readings {
-        for match in OverlayGrid.matches(
-          for: character, in: targets, field: field, scope: scope)
-        where !ranked.contains(match) {
-          ranked.append(match)
-        }
-      }
-    }
-
-    guard !ranked.isEmpty else {
-      return
-    }
-
-    // Standing on something the letter names means the letter is being pressed
-    // again, so the map's own order takes over from the ranking and the next one
-    // along is chosen. Otherwise the best-ranked match wins, whichever way it sits.
-    let match =
-      ranked.contains(selection.index)
-      ? (ranked.sorted().first { $0 > selection.index } ?? ranked.sorted()[0])
-      : ranked[0]
-
-    selection.index = match
-    logger.debug("Jumped to index \(match) of \(ranked.count) the letter names")
-  }
-
-  /// Backspace: the last character typed is taken back, and the highlight goes to
-  /// what the shorter query names — without moving on, so deleting a letter does
-  /// not walk the list.
-  private func untype() {
-    guard !selection.query.isEmpty else {
-      return
-    }
-
-    selection.query.removeLast()
-    latinQuery = String(latinQuery.dropLast())
-
-    guard !selection.query.isEmpty,
-      let match = WindowSearch.best(
-        for: [selection.query, latinQuery],
-        among: WindowSearch.candidates(in: windowCoordinator.sections),
-        after: -1
-      )
-    else {
-      return
-    }
-
-    selection.index = match
   }
 }
 

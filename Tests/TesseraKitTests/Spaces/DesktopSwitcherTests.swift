@@ -88,3 +88,30 @@ struct SpaceQueryNumberingTests {
     #expect(SpaceQuery.desktopNumbers(inOrder: []).isEmpty)
   }
 }
+
+/// Where the click that moves the attention to a display lands.
+@Suite("Clicking a menu bar")
+struct MenuBarPointTests {
+  /// The bug this is for: a third of the way into a laptop's bar is where Finder's
+  /// "Window" menu sits, and the click opened the menu instead of moving anything.
+  @Test("The click goes past the menus, with room to spare")
+  func clearsTheMenus() {
+    #expect(DesktopSwitcher.pointPastMenus(endingAt: 606, barWidth: 1512) == 630)
+    #expect(DesktopSwitcher.pointPastMenus(endingAt: 400, barWidth: 1512) == 424)
+  }
+
+  /// An application reporting almost no menus is not taken at its word: the bar
+  /// belongs to whatever is in front, and that can change between the asking and
+  /// the clicking.
+  @Test("It never lands in the first fifth of the bar")
+  func staysOutOfTheMenusAnyway() {
+    #expect(DesktopSwitcher.pointPastMenus(endingAt: 0, barWidth: 1512) == 1512 * 0.2)
+    #expect(DesktopSwitcher.pointPastMenus(endingAt: 100, barWidth: 2560) == 2560 * 0.2)
+  }
+
+  /// The right end of a bar is status items, and clicking one of those opens it.
+  @Test("It never reaches the status items")
+  func staysOutOfTheStatusItems() {
+    #expect(DesktopSwitcher.pointPastMenus(endingAt: 1400, barWidth: 1512) == 1512 * 0.75)
+  }
+}

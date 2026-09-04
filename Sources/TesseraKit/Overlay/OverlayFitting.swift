@@ -28,12 +28,22 @@ extension OverlayWindowController {
   /// laptop screen, and a switcher nobody can see all of is not doing its job.
   /// Measured rather than calculated — SwiftUI's own fitting size is the only
   /// answer that accounts for the headings.
+  /// What the map on screen is made of, so that an unchanged map can keep the
+  /// layout already measured for it. The tile sizes come from the room and the
+  /// count, not from what the windows are called, so the shape of the list is all
+  /// this has to describe.
+  private var mapSignature: String {
+    windowCoordinator.sections
+      .map { "\($0.id.displayID).\($0.id.spaceIndex ?? -1).\($0.tiles.count)" }
+      .joined(separator: "|")
+  }
+
   func fitToScreen(within usable: CGSize) -> CGSize {
     // The list is frozen while the overlay is up, so a screen of the same size asks
     // for the same layout. Measuring it again is not free — it builds the whole
     // view twice over and then replaces the live one — and doing that on every
     // keypress is what made stepping stall after a few crossings.
-    if let lastFit, lastFit.usable == usable {
+    if let lastFit, lastFit.usable == usable, lastFit.map == mapSignature {
       return lastFit.size
     }
 
@@ -55,7 +65,7 @@ extension OverlayWindowController {
 
     fittedColumns = chosen
     hostingView.rootView = makeOverlayView()
-    lastFit = (usable, size)
+    lastFit = FittedLayout(usable: usable, map: mapSignature, size: size)
     return size
   }
 
@@ -74,7 +84,7 @@ extension OverlayWindowController {
 
     hostingView.rootView = makeOverlayView()
     hostingView.layer?.cornerRadius = metrics.surfaceCornerRadius
-    lastFit = (usable, size)
+    lastFit = FittedLayout(usable: usable, map: mapSignature, size: size)
 
     return size
   }
@@ -103,7 +113,7 @@ extension OverlayWindowController {
     case .count:
       candidates = [min(OverlayGrid.columns(forCount: spaces), 12)]
     case .fitted, .flow:
-      candidates = Array(1...min(spaces, 12))
+      candidates = Self.rowLengths(forCells: spaces)
     }
 
     var best: FittedMap?
@@ -162,6 +172,28 @@ extension OverlayWindowController {
     return max(1, rows.map(\.count).max() ?? limit)
   }
 
+  /// The row lengths worth trying for this many cells.
+  ///
+  /// Every length from one to twelve was tried before, and most of them make the
+  /// same map: fourteen Spaces come out as three rows whether the row is asked to
+  /// hold five or six, so measuring both is measuring the same layout twice.
+  /// Only the lengths that fill their last row — the ceiling of the count over each
+  /// possible number of rows — can differ, and there are a handful of those.
+  static func rowLengths(forCells cells: Int) -> [Int] {
+    let cells = max(1, cells)
+    var lengths: [Int] = []
+
+    for rows in 1...cells {
+      let length = (cells + rows - 1) / rows
+
+      if length <= 12, !lengths.contains(length) {
+        lengths.append(length)
+      }
+    }
+
+    return lengths.isEmpty ? [min(cells, 12)] : lengths
+  }
+
   /// The smallest a tile is allowed to be here: what the configuration asks for,
   /// but never below what the tile itself can be drawn at.
   private var tileFloor: CGFloat {
@@ -207,7 +239,11 @@ extension OverlayWindowController {
   /// to the edge of the screen and then sized the window for the layout it had
   /// rejected.
   private func measure(columns count: Int) -> CGSize {
-    TransparentHostingView(rootView: makeOverlayView(columns: count)).fittingSize
+    OverlayFittingCounters.measurements += 1
+
+    return TransparentHostingView(
+      rootView: makeOverlayView(columns: count).environment(\.isMeasuringOverlay, true)
+    ).fittingSize
   }
 
   func makeOverlayView(columns count: Int? = nil) -> OverlayView {
@@ -260,4 +296,19 @@ final class TransparentHostingView<Content: View>: NSHostingView<Content> {
   required init(coder: NSCoder) {
     fatalError("init(coder:) has not been implemented")
   }
+}
+
+/// How many layouts were built and measured for the last overlay. Counted only to
+/// be logged: the number is what says whether choosing a tile size is cheap.
+@MainActor
+enum OverlayFittingCounters {
+  static var measurements = 0
+}
+
+/// A layout already measured, and what it was measured for.
+struct FittedLayout {
+  let usable: CGSize
+  /// The shape of the list it was measured for: same shape, same answer.
+  let map: String
+  let size: CGSize
 }

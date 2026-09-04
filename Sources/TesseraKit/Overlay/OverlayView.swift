@@ -129,6 +129,24 @@ enum OverlayPalette {
 /// Which tile the keyboard is on. Owned by `OverlayWindowController`, which moves
 /// it in response to the arrow keys.
 @MainActor
+/// Whether this view is being built to be measured rather than to be looked at.
+///
+/// Choosing a tile size means building the map a dozen times over and asking each
+/// one how big it is. The pictures make no difference to that answer — every
+/// thumbnail sits in a frame the tile has already fixed — but they cost most of the
+/// time it takes, so a view built for the tape measure leaves them out. Measured:
+/// half a second of building layouts became a fifth of it.
+private struct MeasuringKey: nonisolated EnvironmentKey {
+  nonisolated static let defaultValue = false
+}
+
+extension EnvironmentValues {
+  nonisolated var isMeasuringOverlay: Bool {
+    get { self[MeasuringKey.self] }
+    set { self[MeasuringKey.self] = newValue }
+  }
+}
+
 final class OverlaySelection: ObservableObject {
   @Published var index = 0
   /// What has been typed at the map so far. Shown on the panel, because a search
@@ -146,6 +164,7 @@ struct OverlayView: View {
   let arrangement: OverlayLayout
   /// What typing does, which decides whether there is a line under the map at all.
   let search: OverlaySearch
+  @Environment(\.isMeasuringOverlay) private var isMeasuring
   let rowAlignment: OverlayRowAlignment
   let dimsStaleThumbnails: Bool
   let onSelect: (CGWindowID) -> Void
@@ -226,7 +245,7 @@ struct OverlayView: View {
       isSelected: entry.section.tiles.isEmpty && entry.offset == selectedIndex,
       holdsSelection: range.contains(selectedIndex),
       onFocus: { onFocusSpace(entry.section.id) },
-      desktop: entry.section.tiles.isEmpty
+      desktop: entry.section.tiles.isEmpty && !isMeasuring
         ? windowCoordinator.desktopImage(
           for: entry.section.id.displayID,
           fitting: metrics.deckSize(for: deck))
@@ -694,10 +713,11 @@ private struct WindowThumbnailContent: View {
   let metrics: TileMetrics
   let tile: WindowTileModel
   let dimsStale: Bool
+  @Environment(\.isMeasuringOverlay) private var isMeasuring
 
   var body: some View {
     ZStack {
-      if let thumbnail = tile.thumbnail {
+      if let thumbnail = tile.thumbnail, !isMeasuring {
         Image(decorative: thumbnail, scale: 1, orientation: .up)
           .resizable()
           .interpolation(.high)
@@ -709,7 +729,7 @@ private struct WindowThumbnailContent: View {
           .fill(Color.white.opacity(0.06))
           .overlay {
             VStack(spacing: 6) {
-              if let icon = tile.icon {
+              if let icon = tile.icon, !isMeasuring {
                 Image(nsImage: icon)
                   .resizable()
                   .interpolation(.high)
