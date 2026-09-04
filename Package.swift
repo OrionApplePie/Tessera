@@ -28,13 +28,22 @@ let package = Package(
     )
   ],
   targets: [
+    // The executable is one line calling the library. Everything else lives in
+    // TesseraKit: a library can be imported by the tests as a module, where an
+    // executable target can only be reached through `@testable`, and the split
+    // makes the application's own entry point the only public surface there is.
     .executableTarget(
       name: "Tessera",
+      dependencies: ["TesseraKit"],
+      swiftSettings: strictConcurrency
+    ),
+    .target(
+      name: "TesseraKit",
       swiftSettings: strictConcurrency
     ),
     .testTarget(
-      name: "TesseraTests",
-      dependencies: ["Tessera"],
+      name: "TesseraKitTests",
+      dependencies: ["TesseraKit"],
       swiftSettings: strictConcurrency
     ),
   ]

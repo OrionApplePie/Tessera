@@ -62,13 +62,22 @@ from the toolchain, not from this code, and does not appear in CI.
 docs/mechanisms.md       why the non-obvious parts work as they do — read before
                          changing window enumeration, Spaces, thumbnails or
                          activation, it records what was already tried
-Sources/Tessera/         production code
-Tests/TesseraTests/      tests, mirroring the Sources tree
+Sources/Tessera/         the executable: one line calling the library
+Sources/TesseraKit/      everything else, in folders by what it is about:
+                         App, CommandLine, Config, Windows, Spaces, Thumbnails,
+                         Overlay, Search, Hotkeys, Settings, Support
+Tests/TesseraKitTests/   tests, in the same folders as the code they cover
 Package.swift            single source of truth for targets and deps
 ```
 
-Mirror the source tree in tests: `Sources/Tessera/WindowListService.swift`
-→ `Tests/TesseraTests/WindowListServiceTests.swift`.
+Mirror the source tree in tests, folder for folder:
+`Sources/TesseraKit/Windows/WindowListService.swift`
+→ `Tests/TesseraKitTests/Windows/WindowListServiceTests.swift`.
+
+`TesseraApp.main()` is the only `public` thing in the library, because the
+executable is the only thing outside it. Everything else stays `internal`, which
+`@testable import TesseraKit` reaches — adding `public` to make a test compile is
+the wrong fix.
 
 Not every source file has a test yet. `WindowCoordinator`, `WindowListService`,
 `WindowThumbnailService` and `WindowActivator` take their collaborators as

@@ -680,8 +680,13 @@ approaches were tried and rejected.
 ```text
 docs/mechanisms.md                   Why the non-obvious parts work as they do
 
-Sources/Tessera/
-  AppConfig.swift                    Runtime configuration model
+Sources/Tessera/                     The executable: one line calling the library
+Sources/TesseraKit/                  The library, in folders by subject:
+                                     App, CommandLine, Config, Windows, Spaces,
+                                     Thumbnails, Overlay, Search, Hotkeys,
+                                     Settings, Support
+
+  Config/AppConfig.swift             Runtime configuration model
   AppConfigLoader.swift              TOML config loading
   AppCoordinator.swift               App lifecycle and trigger routing
   AppEntry.swift                     CLI/GUI entrypoint
@@ -709,7 +714,7 @@ Sources/Tessera/
   WindowPreviewCache.swift           In-memory thumbnail cache
   WindowThumbnailService.swift       ScreenCaptureKit window thumbnails
 
-Tests/TesseraTests/
+Tests/TesseraKitTests/
   ActivationVerifierTests.swift          Judging what an activation did
   AppConfigLoaderTests.swift             Config parsing and fallback to defaults
   BackgroundAppNotificationsTests.swift  Distributed notification contract
