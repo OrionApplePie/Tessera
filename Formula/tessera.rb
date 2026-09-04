@@ -58,7 +58,7 @@ class Tessera < Formula
   test do
     # No subcommand prints the help, which is the one thing that works without
     # any permission at all.
-    assert_match "native macOS window switcher", shell_output("#{bin}/tessera")
-    assert_match "Screen Recording", shell_output("#{bin}/tessera permissions")
+    assert_match "native macOS window switcher", shell_output(bin/"tessera")
+    assert_match "Screen Recording", shell_output("#{bin/"tessera"} permissions")
   end
 end
