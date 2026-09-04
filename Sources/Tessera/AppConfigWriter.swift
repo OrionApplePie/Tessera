@@ -66,6 +66,11 @@ enum AppConfigWriter {
     window_thumbnail_quality = "\(config.thumbnailQuality.name)"
     overlay_deck = "\(config.overlayDeck.name)"
     overlay_arrows = "\(config.overlayArrows.name)"
+
+    # What typing a letter at the map does: "letter" walks the windows of the
+    # application it starts, "fuzzy" builds a query out of what is typed and scores
+    # it against the application, the title and the Space.
+    overlay_search = "\(config.overlaySearch.name)"
     overlay_layout = "\(config.overlayLayout.name)"
     overlay_row_align = "\(config.overlayRowAlignment.name)"
     overlay_max_cells = \(config.overlayMaxCells)

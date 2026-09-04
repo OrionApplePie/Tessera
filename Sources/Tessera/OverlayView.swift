@@ -53,6 +53,9 @@ struct TileMetrics: Equatable, Sendable {
   var surfaceCornerRadius: CGFloat { (10 * scale).rounded() }
   /// The height of the two lines of text under a thumbnail.
   var labelHeight: CGFloat { (30 * scale).rounded() }
+  /// The line under the map that says what is being typed. Always there, so that
+  /// the map does not move when someone starts typing at it.
+  var searchHeight: CGFloat { (20 * scale).rounded() }
 
   /// How far each card of a deck peeks out from the one in front of it, and how
   /// many cards deep that goes before the rest hide behind the last.
@@ -128,6 +131,9 @@ enum OverlayPalette {
 @MainActor
 final class OverlaySelection: ObservableObject {
   @Published var index = 0
+  /// What has been typed at the map so far. Shown on the panel, because a search
+  /// nobody can see is a switcher that has started behaving oddly.
+  @Published var query = ""
 }
 
 struct OverlayView: View {
@@ -138,6 +144,8 @@ struct OverlayView: View {
   let columns: Int
   let deck: OverlayDeckStyle
   let arrangement: OverlayLayout
+  /// What typing does, which decides whether there is a line under the map at all.
+  let search: OverlaySearch
   let rowAlignment: OverlayRowAlignment
   let dimsStaleThumbnails: Bool
   let onSelect: (CGWindowID) -> Void
@@ -163,6 +171,7 @@ struct OverlayView: View {
     // as a mistake. Centred, the two rows of a band look like each other, which is
     // what makes the map symmetrical.
     VStack(alignment: rowAlignment.horizontal, spacing: metrics.spacing) {
+
       ForEach(Array(rows.enumerated()), id: \.offset) { row in
         HStack(alignment: .top, spacing: metrics.spacing) {
           ForEach(row.element) { entry in
@@ -170,11 +179,38 @@ struct OverlayView: View {
           }
         }
       }
+
+      if search == .fuzzy {
+        searchLine
+      }
     }
     // Pinned in the panel the same way its rows are pinned to each other: when the
     // panel is the screen and the map is narrower, all the room left over otherwise
     // went to one side and the whole thing sat lopsided.
     .frame(maxWidth: .infinity, alignment: rowAlignment.frame)
+  }
+
+  /// What is being typed, under the map.
+  ///
+  /// The room it takes is there whether anything has been typed or not: appearing
+  /// and disappearing, it moved every tile by its own height on the first keystroke
+  /// and back again on the last, which is a poor thing to do under the eyes of
+  /// someone reading the map.
+  private var searchLine: some View {
+    HStack(spacing: 5) {
+      if !selection.query.isEmpty {
+        Image(systemName: "magnifyingglass")
+          .font(.system(size: 10, weight: .semibold))
+
+        Text(selection.query)
+          .font(.system(size: 12, weight: .semibold, design: .rounded))
+          .lineLimit(1)
+      }
+    }
+    .foregroundStyle(OverlayPalette.highlight)
+    .padding(.horizontal, selection.query.isEmpty ? 0 : 8)
+    .frame(height: metrics.searchHeight)
+    .background(Capsule().fill(Color.white.opacity(selection.query.isEmpty ? 0 : 0.10)))
   }
 
   private func group(for entry: SectionLayout) -> some View {

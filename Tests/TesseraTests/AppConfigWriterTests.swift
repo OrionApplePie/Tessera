@@ -38,6 +38,7 @@ struct AppConfigWriterTests {
     config.thumbnailQuality = .hd
     config.overlayDeck = .fan
     config.overlayArrows = .windows
+    config.overlaySearch = .fuzzy
     config.overlayLayout = .flow
     config.overlayRowAlignment = .trailing
     config.overlayFillsScreen = true

@@ -307,86 +307,13 @@ struct OverlayGridTests {
     }
   }
 
-  @Test("A letter jumps to the window of that name")
-  func jumpsToTheMatchingApplication() {
-    let tiles = [
-      makeTile(id: 1, appName: "Arc"),
-      makeTile(id: 2, appName: "Code"),
-      makeTile(id: 3, appName: "Safari"),
-    ]
-
-    #expect(OverlayGrid.index(from: 0, matching: "c", in: tiles, field: .applicationName) == 1)
-    #expect(OverlayGrid.index(from: 0, matching: "s", in: tiles, field: .applicationName) == 2)
-  }
-
-  @Test("The same letter again moves on to the next window of that name")
-  func repeatedLetterCycles() {
-    let tiles = [
-      makeTile(id: 1, appName: "Claude"),
-      makeTile(id: 2, appName: "Code"),
-      makeTile(id: 3, appName: "Safari"),
-    ]
-
-    #expect(OverlayGrid.index(from: 0, matching: "c", in: tiles, field: .applicationName) == 1)
-    #expect(OverlayGrid.index(from: 1, matching: "c", in: tiles, field: .applicationName) == 0)
-  }
-
-  @Test("Case does not matter, in the key or in the name")
-  func matchingIgnoresCase() {
-    let tiles = [makeTile(id: 1, appName: "Arc"), makeTile(id: 2, appName: "code")]
-
-    #expect(OverlayGrid.index(from: 0, matching: "C", in: tiles, field: .applicationName) == 1)
-  }
-
-  @Test("The only window of that name keeps the highlight where it is")
-  func aSingleMatchStaysPut() {
-    let tiles = [makeTile(id: 1, appName: "Arc"), makeTile(id: 2, appName: "Code")]
-
-    #expect(OverlayGrid.index(from: 1, matching: "c", in: tiles, field: .applicationName) == 1)
-  }
-
-  @Test("A letter nothing starts with matches nothing at all")
-  func noMatchIsReportedAsSuch() {
-    let tiles = [makeTile(id: 1, appName: "Arc"), makeTile(id: 2, appName: "Code")]
-
-    // Not the current index: the caller has to tell "no window of that name" from
-    // "the only one is already here", so that another reading of the key can run.
-    #expect(OverlayGrid.index(from: 1, matching: "z", in: tiles, field: .applicationName) == nil)
-    #expect(
-      OverlayGrid.index(
-        from: 0, matching: "z", in: [] as [WindowTileModel], field: .applicationName) == nil)
-  }
-
-  @Test("A letter can be matched against the window titles instead")
-  func matchesAgainstTheWindowTitle() {
-    let tiles = [
-      makeTile(id: 1, appName: "Finder", title: "Downloads"),
-      makeTile(id: 2, appName: "Finder", title: "Тезисы"),
-      makeTile(id: 3, appName: "Finder", title: "Documents"),
-    ]
-
-    // The search still starts after the current tile.
-    #expect(OverlayGrid.index(from: 0, matching: "d", in: tiles, field: .windowTitle) == 2)
-    #expect(OverlayGrid.index(from: 2, matching: "d", in: tiles, field: .windowTitle) == 0)
-    #expect(OverlayGrid.index(from: 0, matching: "т", in: tiles, field: .windowTitle) == 1)
-  }
-
-  @Test("The two fields are searched separately, so a caller can rank them")
-  func fieldsAreSearchedSeparately() {
-    let tiles = [
-      makeTile(id: 1, appName: "Finder", title: "Code review"),
-      makeTile(id: 2, appName: "Code", title: "Something"),
-    ]
-
-    #expect(OverlayGrid.index(from: 0, matching: "c", in: tiles, field: .applicationName) == 1)
-    #expect(OverlayGrid.index(from: 1, matching: "c", in: tiles, field: .windowTitle) == 0)
-  }
-
   @Test("An out-of-range index does not stop a jump")
   func jumpClampsTheStartingIndex() {
     let tiles = [makeTile(id: 1, appName: "Arc"), makeTile(id: 2, appName: "Code")]
 
-    #expect(OverlayGrid.index(from: 99, matching: "a", in: tiles, field: .applicationName) == 0)
+    #expect(
+      OverlayGrid.index(
+        from: 99, matching: "a", in: tiles.map(OverlayTarget.window), field: .applicationName) == 0)
   }
 
   private func makeTile(
@@ -483,5 +410,172 @@ struct OverlayGridPlacementTests {
         [0, 1, 2, 3], [4, 5, 6, 7], [8],
       ]
     )
+  }
+}
+
+/// Jumping to a window by the letter its name starts with.
+extension OverlayGridTests {
+  @Test("A letter jumps to the window of that name")
+  func jumpsToTheMatchingApplication() {
+    let tiles = [
+      makeTile(id: 1, appName: "Arc"),
+      makeTile(id: 2, appName: "Code"),
+      makeTile(id: 3, appName: "Safari"),
+    ]
+
+    #expect(
+      OverlayGrid.index(
+        from: 0, matching: "c", in: tiles.map(OverlayTarget.window), field: .applicationName) == 1)
+    #expect(
+      OverlayGrid.index(
+        from: 0, matching: "s", in: tiles.map(OverlayTarget.window), field: .applicationName) == 2)
+  }
+
+  @Test("The same letter again moves on to the next window of that name")
+  func repeatedLetterCycles() {
+    let tiles = [
+      makeTile(id: 1, appName: "Claude"),
+      makeTile(id: 2, appName: "Code"),
+      makeTile(id: 3, appName: "Safari"),
+    ]
+
+    #expect(
+      OverlayGrid.index(
+        from: 0, matching: "c", in: tiles.map(OverlayTarget.window), field: .applicationName) == 1)
+    #expect(
+      OverlayGrid.index(
+        from: 1, matching: "c", in: tiles.map(OverlayTarget.window), field: .applicationName) == 0)
+  }
+
+  @Test("Case does not matter, in the key or in the name")
+  func matchingIgnoresCase() {
+    let tiles = [makeTile(id: 1, appName: "Arc"), makeTile(id: 2, appName: "code")]
+
+    #expect(
+      OverlayGrid.index(
+        from: 0, matching: "C", in: tiles.map(OverlayTarget.window), field: .applicationName) == 1)
+  }
+
+  @Test("The only window of that name keeps the highlight where it is")
+  func aSingleMatchStaysPut() {
+    let tiles = [makeTile(id: 1, appName: "Arc"), makeTile(id: 2, appName: "Code")]
+
+    #expect(
+      OverlayGrid.index(
+        from: 1, matching: "c", in: tiles.map(OverlayTarget.window), field: .applicationName) == 1)
+  }
+
+  @Test("A letter nothing starts with matches nothing at all")
+  func noMatchIsReportedAsSuch() {
+    let tiles = [makeTile(id: 1, appName: "Arc"), makeTile(id: 2, appName: "Code")]
+
+    // Not the current index: the caller has to tell "no window of that name" from
+    // "the only one is already here", so that another reading of the key can run.
+    #expect(
+      OverlayGrid.index(
+        from: 1, matching: "z", in: tiles.map(OverlayTarget.window), field: .applicationName) == nil
+    )
+    #expect(
+      OverlayGrid.index(
+        from: 0, matching: "z", in: [] as [OverlayTarget], field: .applicationName) == nil)
+  }
+
+  @Test("A letter can be matched against the window titles instead")
+  func matchesAgainstTheWindowTitle() {
+    let tiles = [
+      makeTile(id: 1, appName: "Finder", title: "Downloads"),
+      makeTile(id: 2, appName: "Finder", title: "Тезисы"),
+      makeTile(id: 3, appName: "Finder", title: "Documents"),
+    ]
+
+    // The search still starts after the current tile.
+    #expect(
+      OverlayGrid.index(
+        from: 0, matching: "d", in: tiles.map(OverlayTarget.window), field: .windowTitle) == 2)
+    #expect(
+      OverlayGrid.index(
+        from: 2, matching: "d", in: tiles.map(OverlayTarget.window), field: .windowTitle) == 0)
+    #expect(
+      OverlayGrid.index(
+        from: 0, matching: "т", in: tiles.map(OverlayTarget.window), field: .windowTitle) == 1)
+  }
+
+  /// The list a letter walks, in drawing order, so the caller can rank the passes
+  /// and still cycle through what it found.
+  @Test("A letter reports every place it names")
+  func reportsEveryMatch() {
+    let targets = [
+      makeTile(id: 1, appName: "Code", title: "example.md"),
+      makeTile(id: 2, appName: "Claude", title: "Claude"),
+      makeTile(id: 3, appName: "Arc", title: "Charts"),
+    ].map(OverlayTarget.window)
+
+    #expect(OverlayGrid.matches(for: "c", in: targets, field: .applicationName) == [0, 1])
+    #expect(OverlayGrid.matches(for: "c", in: targets, field: .windowTitle) == [1, 2])
+    #expect(OverlayGrid.matches(for: "e", in: targets, field: .windowTitle) == [0])
+    #expect(OverlayGrid.matches(for: "z", in: targets, field: .applicationName).isEmpty)
+  }
+
+  /// A name is often two words and only one of them is the one anybody says:
+  /// "Microsoft Excel" is Excel, and nobody presses "m" for it.
+  @Test("A letter can start any word of a name, not only the first")
+  func matchesTheStartOfAnyWord() {
+    let targets = [
+      makeTile(id: 1, appName: "Arc"),
+      makeTile(id: 2, appName: "Microsoft Excel"),
+    ].map(OverlayTarget.window)
+
+    #expect(
+      OverlayGrid.index(from: 0, matching: "e", in: targets, field: .applicationName) == nil,
+      "the whole name does not start with it")
+    #expect(
+      OverlayGrid.index(
+        from: 0, matching: "e", in: targets, field: .applicationName, scope: .anyWord) == 1)
+  }
+
+  /// Punctuation ends a word as surely as a space: a title like "Fires — report"
+  /// has a word starting with r.
+  @Test("Punctuation ends a word too")
+  func readsWordsAcrossPunctuation() {
+    let targets = [makeTile(id: 1, appName: "Code", title: "Fires — report.md")]
+      .map(OverlayTarget.window)
+
+    #expect(
+      OverlayGrid.index(from: -1, matching: "r", in: targets, field: .windowTitle, scope: .anyWord)
+        == 0)
+    #expect(
+      OverlayGrid.index(from: -1, matching: "m", in: targets, field: .windowTitle, scope: .anyWord)
+        == 0)
+  }
+
+  /// The highlight counts empty Spaces as places it can sit, so a letter has to
+  /// count them too. Matched against the windows alone, the number it returned
+  /// meant the tile beside the one it named — one empty desktop earlier on the map
+  /// was enough.
+  @Test("A letter counts the empty Spaces the highlight can sit on")
+  func matchingCountsEmptySpaces() {
+    let targets: [OverlayTarget] = [
+      .space(WindowSectionID(displayID: 1, spaceIndex: 0)),
+      .window(makeTile(id: 1, appName: "Arc")),
+      .window(makeTile(id: 2, appName: "Telegram")),
+    ]
+
+    #expect(OverlayGrid.index(from: 0, matching: "t", in: targets, field: .applicationName) == 2)
+    #expect(OverlayGrid.index(from: 0, matching: "a", in: targets, field: .applicationName) == 1)
+  }
+
+  @Test("The two fields are searched separately, so a caller can rank them")
+  func fieldsAreSearchedSeparately() {
+    let tiles = [
+      makeTile(id: 1, appName: "Finder", title: "Code review"),
+      makeTile(id: 2, appName: "Code", title: "Something"),
+    ]
+
+    #expect(
+      OverlayGrid.index(
+        from: 0, matching: "c", in: tiles.map(OverlayTarget.window), field: .applicationName) == 1)
+    #expect(
+      OverlayGrid.index(
+        from: 1, matching: "c", in: tiles.map(OverlayTarget.window), field: .windowTitle) == 0)
   }
 }

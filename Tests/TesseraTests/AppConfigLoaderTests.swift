@@ -25,6 +25,7 @@ struct AppConfigLoaderTests {
     "overlay_grouping",
     "overlay_background",
     "overlay_arrows",
+    "overlay_search",
     "overlay_layout",
     "overlay_max_cells",
     "overlay_min_tile",

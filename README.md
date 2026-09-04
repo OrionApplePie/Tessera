@@ -318,8 +318,25 @@ without switching layout first. What you actually typed is tried first, then the
 Latin letter of that key, then what the other layouts make of it.
 
 A letter matches the application name first — `c` walks Claude, then Code, then
-back. Only when no application starts with that letter do the window titles get a
-turn, which is what makes a letter useful among several Finder windows.
+back. Four passes, in this order: the application's whole name, a word inside it,
+the window's whole title, a word inside that. So `e` finds Excel even though its
+application is called "Microsoft Excel", and does so only once nothing simpler
+answers to `e` — which is what keeps a letter meaning the obvious thing.
+
+Typing can search instead of jumping:
+
+```toml
+overlay_search = "letter"   # the default: a letter walks the windows of that name
+overlay_search = "fuzzy"    # letters build a query, scored as you type
+```
+
+`fuzzy` scores what is typed against the application, the window title and the
+heading of the Space — weighted in that order — the way `fzf` does: letters need
+not be adjacent, but the start of a word beats the middle of one and letters
+running together beat letters scattered. A Space with nothing on it is found by
+its heading, so `desktop 3` reaches an empty desktop. What is typed is shown in a
+line under the map, `Backspace` takes a letter back, and `Esc` clears it before it
+closes anything.
 
 `⌃⌥⇧` with an arrow steps through the windows and switches to each one as it goes,
 leaving the overlay up, and the overlay travels to the display the window is on

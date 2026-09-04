@@ -219,6 +219,7 @@ extension OverlayWindowController {
       columns: count ?? fittedColumns,
       deck: config.overlayDeck,
       arrangement: config.overlayLayout,
+      search: config.overlaySearch,
       rowAlignment: config.overlayRowAlignment,
       dimsStaleThumbnails: config.dimsStaleThumbnails,
       onSelect: { [weak self] windowID in

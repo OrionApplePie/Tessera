@@ -421,6 +421,52 @@ enum OverlayGrid {
     case windowTitle
   }
 
+  /// How much of a name a letter has to be at the start of.
+  ///
+  /// The whole name first, because that is what a letter usually means: "c" is
+  /// Code. Then the start of any word in it, because a name is often two words and
+  /// only one of them is the one anybody says — "Microsoft Excel" is Excel, and
+  /// nobody presses "m" for it.
+  enum MatchScope {
+    case wholeName
+    case anyWord
+  }
+
+  /// What ends a word inside a name.
+  private static let wordBreaks = CharacterSet(charactersIn: " -_./·:,()[]—")
+
+  /// Whether a name starts with this letter — the whole name, or any word of it.
+  private static func starts(_ name: String, with prefix: String, scope: MatchScope) -> Bool {
+    let name = name.lowercased()
+
+    guard scope == .anyWord else {
+      return name.hasPrefix(prefix)
+    }
+
+    return name.components(separatedBy: wordBreaks)
+      .contains { !$0.isEmpty && $0.hasPrefix(prefix) }
+  }
+
+  /// Every place a letter names in one field, in the order they are drawn.
+  static func matches(
+    for character: Character,
+    in targets: [OverlayTarget],
+    field: MatchField,
+    scope: MatchScope = .wholeName
+  ) -> [Int] {
+    let prefix = String(character).lowercased()
+
+    return targets.indices.filter { position in
+      guard let tile = targets[position].window else {
+        return false
+      }
+
+      let name = field == .applicationName ? tile.displayAppName : tile.displayTitle
+
+      return starts(name, with: prefix, scope: scope)
+    }
+  }
+
   /// The next tile whose name starts with `character`, wrapping around the list.
   ///
   /// Pressing the same letter again moves on to the next match, so a letter walks
@@ -430,25 +476,33 @@ enum OverlayGrid {
   /// `nil` when no window carries that letter in that field, so the caller can try
   /// another reading of the same key press — or the same reading against the other
   /// field.
+  /// Counted over everything the highlight can sit on rather than over the windows
+  /// alone: an empty Space is a place on the map too, and matching against a list
+  /// that leaves those out returns a number that means a different tile by the time
+  /// it reaches the highlight. One empty desktop earlier on the map was enough to
+  /// land a letter on the window beside the one it named.
   static func index(
     from index: Int,
     matching character: Character,
-    in tiles: [WindowTileModel],
-    field: MatchField
+    in targets: [OverlayTarget],
+    field: MatchField,
+    scope: MatchScope = .wholeName
   ) -> Int? {
-    guard !tiles.isEmpty else {
+    guard !targets.isEmpty else {
       return nil
     }
 
-    let current = min(max(index, 0), tiles.count - 1)
+    let current = min(max(index, 0), targets.count - 1)
     let prefix = String(character).lowercased()
 
-    let matches = tiles.indices.filter { position in
-      let name =
-        field == .applicationName
-        ? tiles[position].displayAppName : tiles[position].displayTitle
+    let matches = targets.indices.filter { position in
+      guard let tile = targets[position].window else {
+        return false
+      }
 
-      return name.lowercased().hasPrefix(prefix)
+      let name = field == .applicationName ? tile.displayAppName : tile.displayTitle
+
+      return starts(name, with: prefix, scope: scope)
     }
 
     guard !matches.isEmpty else {

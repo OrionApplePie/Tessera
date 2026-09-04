@@ -93,6 +93,12 @@ overlay_row_align = "center"
 # windows inside one to the cycling key, "windows" walks every window in turn.
 overlay_arrows = "spaces"
 
+# What typing a letter at the map does. "letter" is the default: it moves to the
+# next window whose application starts with that letter, and pressing it again
+# moves to the next one. "fuzzy" builds a query out of what is typed and scores it
+# against the application, the window title and the heading of the Space.
+overlay_search = "letter"
+
 # How the windows of one Space are stacked. The default, "stack", puts them
 # squarely on top of each other, marks how many there are and turns the card over
 # as you step through them; "fan" lets each card peek out from behind the one in

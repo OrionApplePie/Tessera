@@ -59,6 +59,8 @@ struct AppConfig: Equatable {
   var overlayDeck: OverlayDeckStyle
   /// What an arrow counts in: Spaces, or the windows inside them.
   var overlayArrows: OverlayArrowStep
+  /// What typing at the map does: walk the windows of one letter, or build a query.
+  var overlaySearch: OverlaySearch
   /// How the Spaces are arranged on the map.
   var overlayLayout: OverlayLayout
   /// Where a short row sits under a long one.
@@ -124,6 +126,7 @@ struct AppConfig: Equatable {
       red: 43 / 255, green: 46 / 255, blue: 51 / 255, alpha: 194 / 255),
     overlayDeck: .stack,
     overlayArrows: .spaces,
+    overlaySearch: .letter,
     overlayLayout: .flow,
     overlayRowAlignment: .center,
     overlayMaxCells: 20,

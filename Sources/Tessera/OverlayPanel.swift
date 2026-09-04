@@ -13,7 +13,15 @@ final class OverlayPanel: NSPanel {
   var onFillScreen: (() -> Void)?
   var onFullscreen: (() -> Void)?
   var onStepAndActivate: ((OverlayGrid.Direction) -> Void)?
-  var onJumpToName: (([Character]) -> Void)?
+  /// A character typed at the map, with the Latin letter of the same key: the
+  /// window may be named in either alphabet, and the search tries both.
+  var onType: ((Character, Character?, [Character]) -> Void)?
+  /// Backspace: the last character typed is taken back.
+  var onUntype: (() -> Void)?
+  /// Whether anything has been typed, which is what Escape clears before it closes
+  /// the overlay.
+  var isSearching: (() -> Bool)?
+  var onClearSearch: (() -> Void)?
   var onCloseWindow: (() -> Void)?
   var closeHotkey: HotkeyBinding?
   var onCycleWindow: ((Bool) -> Void)?
@@ -80,7 +88,7 @@ final class OverlayPanel: NSPanel {
     closeHotkey?.matches(keyCode: event.keyCode, modifiers: event.modifierFlags) == true
   }
 
-  /// A bare letter, if that is what this is.
+  /// A character to type at the map, if that is what this is.
   ///
   /// Shift and caps lock are ignored rather than excluded: they change the letter,
   /// not the intent. Any other modifier means the key belongs to somebody else.
@@ -89,14 +97,13 @@ final class OverlayPanel: NSPanel {
       .intersection(.deviceIndependentFlagsMask)
       .subtracting([.shift, .capsLock])
 
-    guard modifiers.isEmpty,
-      let character = event.charactersIgnoringModifiers?.first,
-      character.isLetter
-    else {
+    guard modifiers.isEmpty, let character = event.charactersIgnoringModifiers?.first else {
       return nil
     }
 
-    return character
+    // A letter always starts a search. A digit or a space only continues one — on
+    // their own they belong to picking a tile by its number.
+    return character.isLetter || character.isNumber || character == " " ? character : nil
   }
 
   /// What an arrow does, by what is held with it. Arrow keys always carry the
@@ -122,9 +129,33 @@ final class OverlayPanel: NSPanel {
     }
   }
 
-  override func keyDown(with event: NSEvent) {
+  /// The two keys that take something back: Escape drops what was typed before it
+  /// drops the overlay, and Backspace drops the last character of it. Says whether
+  /// it took the key.
+  private func escapeOrBackspace(_ event: NSEvent) -> Bool {
     if event.keyCode == UInt16(kVK_Escape) || event.charactersIgnoringModifiers == "\u{1b}" {
-      onDismiss?()
+      // What was typed goes first, and the overlay only on a second press: escaping
+      // a search that has gone wrong should not also lose the map.
+      if isSearching?() == true {
+        onClearSearch?()
+      } else {
+        onDismiss?()
+      }
+
+      return true
+    }
+
+    guard event.keyCode == UInt16(kVK_Delete) else {
+      return false
+    }
+
+    onUntype?()
+
+    return true
+  }
+
+  override func keyDown(with event: NSEvent) {
+    if escapeOrBackspace(event) {
       return
     }
 
@@ -139,12 +170,23 @@ final class OverlayPanel: NSPanel {
     }
 
     if Self.activationKeyCodes.contains(event.keyCode) {
-      onActivateSelection?()
+      // Space is a letter while something is being typed — "microsoft word" has one
+      // in it — and the key that says "this one" the rest of the time. Return always
+      // says "this one".
+      if event.keyCode == UInt16(kVK_Space), isSearching?() == true {
+        onType?(" ", " ", [" "])
+      } else {
+        onActivateSelection?()
+      }
+
       return
     }
 
+    // A digit picks a tile outright — until something has been typed, when it is
+    // part of what is being typed instead: "desktop 3" has to be able to reach the
+    // third desktop.
     let digit = event.charactersIgnoringModifiers.flatMap { Int($0) }
-    if let digit, (1...9).contains(digit) {
+    if let digit, (1...9).contains(digit), isSearching?() != true {
       onSelectIndex?(digit - 1)
       return
     }
@@ -157,12 +199,21 @@ final class OverlayPanel: NSPanel {
     }
 
     if let character = Self.jumpCharacter(for: event) {
-      onJumpToName?(
+      // A letter starts a search; a digit only continues one, since on its own it
+      // picks a tile by its number.
+      guard character.isLetter || isSearching?() == true else {
+        return
+      }
+
+      onType?(
+        character,
+        HotkeyKey.latinLetter(forKeyCode: event.keyCode),
         KeyboardLayouts.readings(
           typed: character,
           latin: HotkeyKey.latinLetter(forKeyCode: event.keyCode),
           onOtherLayouts: KeyboardLayouts.characters(forKeyCode: event.keyCode)
-        ))
+        )
+      )
       return
     }
 

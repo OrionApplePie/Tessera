@@ -25,6 +25,7 @@ final class SettingsModel: ObservableObject {
   @Published var overlayRowAlignment: OverlayRowAlignment
   @Published var overlayDeck: OverlayDeckStyle
   @Published var overlayArrows: OverlayArrowStep
+  @Published var overlaySearch: OverlaySearch
   @Published var closeAction: CloseAction
   @Published var ignoresMenuBarApplications: Bool
   @Published var usesPrivateSpaceAPI: Bool
@@ -60,6 +61,7 @@ final class SettingsModel: ObservableObject {
     overlayRowAlignment = config.overlayRowAlignment
     overlayDeck = config.overlayDeck
     overlayArrows = config.overlayArrows
+    overlaySearch = config.overlaySearch
     closeAction = config.closeAction
     ignoresMenuBarApplications = config.ignoresMenuBarApplications
     usesPrivateSpaceAPI = config.usesPrivateSpaceAPI
@@ -123,6 +125,7 @@ final class SettingsModel: ObservableObject {
     config.overlayRowAlignment = overlayRowAlignment
     config.overlayDeck = overlayDeck
     config.overlayArrows = overlayArrows
+    config.overlaySearch = overlaySearch
     config.closeAction = closeAction
     config.ignoresMenuBarApplications = ignoresMenuBarApplications
     config.usesPrivateSpaceAPI = usesPrivateSpaceAPI

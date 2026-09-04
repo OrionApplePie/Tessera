@@ -93,14 +93,7 @@ struct AppConfigLoader {
       default: config.windowThumbnailMode
     )
     try applyTimingSettings(values, into: &config)
-    config.overlayGrouping = try grouping(
-      values["overlay_grouping"],
-      default: config.overlayGrouping
-    )
-    config.overlayBackground = try color(
-      values["overlay_background"],
-      default: config.overlayBackground
-    )
+    try parseOverlay(values, into: &config)
     config.overlayDeck = try deckStyle(
       values["overlay_deck"],
       default: config.overlayDeck
@@ -139,6 +132,10 @@ struct AppConfigLoader {
     config.overlayArrows = try arrowStep(
       values["overlay_arrows"],
       default: config.overlayArrows
+    )
+    config.overlaySearch = try search(
+      values["overlay_search"],
+      default: config.overlaySearch
     )
   }
 
@@ -410,6 +407,35 @@ extension AppConfigLoader {
     } catch {
       logger.error("Invalid window_thumbnail_quality in config: \(error)")
       throw AppConfigError.invalidValue(key: "window_thumbnail_quality")
+    }
+  }
+
+  /// The overlay's own keys, in a function of their own: the whole of `parse` is
+  /// one assignment after another, and it had outgrown what one function may hold.
+  private func parseOverlay(_ values: [String: String], into config: inout AppConfig) throws {
+    config.overlayGrouping = try grouping(
+      values["overlay_grouping"],
+      default: config.overlayGrouping
+    )
+    config.overlayBackground = try color(
+      values["overlay_background"],
+      default: config.overlayBackground
+    )
+  }
+
+  private func search(
+    _ rawValue: String?,
+    default defaultValue: OverlaySearch
+  ) throws -> OverlaySearch {
+    guard let rawValue else {
+      return defaultValue
+    }
+
+    do {
+      return try OverlaySearch(parsing: unquoted(rawValue))
+    } catch {
+      logger.error("Invalid overlay_search in config: \(error)")
+      throw AppConfigError.invalidValue(key: "overlay_search")
     }
   }
 

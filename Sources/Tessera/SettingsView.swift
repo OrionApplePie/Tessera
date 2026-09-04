@@ -204,6 +204,11 @@ struct SettingsView: View {
           Text("Window").tag(OverlayArrowStep.windows)
         }
 
+        Picker("Typing a letter", selection: $model.overlaySearch) {
+          Text("Walks the windows of that name").tag(OverlaySearch.letter)
+          Text("Searches, letter by letter").tag(OverlaySearch.fuzzy)
+        }
+
         Picker("Windows in a group", selection: $model.windowOrder) {
           Text("Application and title").tag(WindowOrder.title)
           Text("Application only").tag(WindowOrder.application)
