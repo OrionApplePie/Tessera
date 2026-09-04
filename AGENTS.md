@@ -62,6 +62,8 @@ from the toolchain, not from this code, and does not appear in CI.
 docs/mechanisms.md       why the non-obvious parts work as they do — read before
                          changing window enumeration, Spaces, thumbnails or
                          activation, it records what was already tried
+docs/packaging.md        how it is installed and what a release needs
+Formula/tessera.rb       the Homebrew formula; the tap is a repository of its own
 Sources/Tessera/         the executable: one line calling the library
 Sources/TesseraKit/      everything else, in folders by what it is about:
                          App, CommandLine, Config, Windows, Spaces, Thumbnails,
