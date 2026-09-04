@@ -6,7 +6,9 @@ class Tessera < Formula
   license "GPL-3.0-or-later"
   head "https://github.com/OrionApplePie/Tessera.git", branch: "main"
 
-  depends_on xcode: ["16.0", :build]
+  # No `depends_on xcode:`. The Swift 6.2 compiler this package needs comes with
+  # the Command Line Tools, which Homebrew requires anyway, and demanding a full
+  # Xcode.app refused the build on a machine that builds it every day.
   depends_on macos: :ventura
 
   def install
