@@ -484,7 +484,7 @@ extension OverlayGridTests {
   func matchesAgainstTheWindowTitle() {
     let tiles = [
       makeTile(id: 1, appName: "Finder", title: "Downloads"),
-      makeTile(id: 2, appName: "Finder", title: "Тезисы"),
+      makeTile(id: 2, appName: "Finder", title: "Черновик"),
       makeTile(id: 3, appName: "Finder", title: "Documents"),
     ]
 
@@ -497,7 +497,7 @@ extension OverlayGridTests {
         from: 2, matching: "d", in: tiles.map(OverlayTarget.window), field: .windowTitle) == 0)
     #expect(
       OverlayGrid.index(
-        from: 0, matching: "т", in: tiles.map(OverlayTarget.window), field: .windowTitle) == 1)
+        from: 0, matching: "ч", in: tiles.map(OverlayTarget.window), field: .windowTitle) == 1)
   }
 
   /// The list a letter walks, in drawing order, so the caller can rank the passes
@@ -533,11 +533,11 @@ extension OverlayGridTests {
         from: 0, matching: "e", in: targets, field: .applicationName, scope: .anyWord) == 1)
   }
 
-  /// Punctuation ends a word as surely as a space: a title like "Fires — report"
+  /// Punctuation ends a word as surely as a space: a title like "Project — report"
   /// has a word starting with r.
   @Test("Punctuation ends a word too")
   func readsWordsAcrossPunctuation() {
-    let targets = [makeTile(id: 1, appName: "Code", title: "Fires — report.md")]
+    let targets = [makeTile(id: 1, appName: "Code", title: "Project — report.md")]
       .map(OverlayTarget.window)
 
     #expect(

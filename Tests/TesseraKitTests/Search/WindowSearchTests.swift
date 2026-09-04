@@ -11,7 +11,7 @@ struct WindowSearchTests {
     WindowSearch.Candidate(
       index: 1, application: "Arc", title: "Telemetry settings", place: "Built-in · Desktop 1"),
     WindowSearch.Candidate(
-      index: 2, application: "Telegram", title: "Alexander", place: "Built-in · Desktop 1"),
+      index: 2, application: "Telegram", title: "Team chat", place: "Built-in · Desktop 1"),
     WindowSearch.Candidate(
       index: 3, application: "TextEdit", title: "Привет.txt", place: "Built-in · Desktop 2"),
   ]

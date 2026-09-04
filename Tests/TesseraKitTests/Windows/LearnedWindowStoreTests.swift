@@ -64,7 +64,7 @@ struct LearnedWindowStoreTests {
   func keepsTitlesVerbatim() {
     let signature = WindowSignature(
       applicationName: "Finder",
-      title: "/Users/alex/Тезисы, черновик — 2026"
+      title: "/Volumes/Work/Draft — 2026"
     )
 
     #expect(LearnedWindowStore.parse(LearnedWindowStore.serialize([signature])) == [signature])
