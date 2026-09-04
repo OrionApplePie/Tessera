@@ -115,7 +115,7 @@ struct DesktopSwitcher {
       return
     }
 
-    if handingBack {
+    if handingBack, NSApp.isActive {
       await handTheKeyboardToTheDesktop()
     }
 
@@ -132,9 +132,29 @@ struct DesktopSwitcher {
     // left the other one active, menu bar and all. The desktop just shown has
     // nothing on it, so the same click that goes to a desktop already shown puts
     // the attention where it was asked to go.
-    if arrived && handingBack {
-      await Self.goToTheDesktop(on: displayID)
+    guard arrived, handingBack else {
+      return
     }
+
+    // Again, now that the desktop is showing. Leaving a fullscreen Space, the first
+    // hand-off cannot take: that Space belongs to the application filling it, Finder
+    // has no window there to come forward with, and the application takes the front
+    // straight back — measured, sixty milliseconds after arriving, and its Space
+    // with it. On the desktop just shown there is a desktop for Finder to own, so
+    // here it sticks.
+    await handTheKeyboardToTheDesktop()
+
+    // Only while the desktop is still there. Measured: leaving a fullscreen Space,
+    // the application filling it takes the front back within a few hundred
+    // milliseconds and its Space with it — and the click, which lands on a menu bar
+    // on a desktop, lands on that application's own window in fullscreen and cements
+    // the return. Clicking then finishes the job of undoing the switch.
+    guard showing() else {
+      logger.info("Desktop \(number) was taken back before the attention could follow")
+      return
+    }
+
+    await Self.goToTheDesktop(on: displayID)
   }
 
   /// Gives the keyboard to the application that owns the desktop, and waits until
@@ -165,15 +185,21 @@ struct DesktopSwitcher {
   /// already been and gone runs to the deadline every time. The twenty milliseconds
   /// are the granularity of the answer, not a delay anybody tuned.
   private func handTheKeyboardToTheDesktop() async {
-    guard NSApp.isActive else {
+    guard let desktop = await desktopOwnerStartingItIfNeeded() else {
       return
     }
 
-    Self.desktopOwner?.activate(options: [])
+    desktop.activate(options: [])
 
+    // Waited on the front application rather than on our own activation, because
+    // this is called twice and only the first time is it we who hold the keyboard.
     let deadline = ContinuousClock.now + settle
 
-    while NSApp.isActive, ContinuousClock.now < deadline {
+    while ContinuousClock.now < deadline {
+      if NSWorkspace.shared.frontmostApplication?.processIdentifier == desktop.processIdentifier {
+        return
+      }
+
       try? await Task.sleep(for: .milliseconds(20))
     }
   }
@@ -182,6 +208,37 @@ struct DesktopSwitcher {
   /// identifier is the only way to name the application that owns a desktop.
   static var desktopOwner: NSRunningApplication? {
     NSRunningApplication.runningApplications(withBundleIdentifier: "com.apple.finder").first
+  }
+
+  /// The same, and started if it is not running.
+  ///
+  /// Finder is not guaranteed to be alive: it can be quit, and on a machine where it
+  /// had been, every switch to an empty desktop from a fullscreen Space came
+  /// straight back — there was nobody to hand the keyboard to, so the application
+  /// filling the Space being left took the front again and rode back with it.
+  /// Starting Finder is starting the thing that draws the desktop being switched to,
+  /// and it opens no window of its own.
+  private func desktopOwnerStartingItIfNeeded() async -> NSRunningApplication? {
+    if let running = Self.desktopOwner {
+      return running
+    }
+
+    let finder = URL(fileURLWithPath: "/System/Library/CoreServices/Finder.app")
+    let configuration = NSWorkspace.OpenConfiguration()
+    configuration.activates = false
+    configuration.addsToRecentItems = false
+
+    do {
+      let started = try await NSWorkspace.shared.openApplication(
+        at: finder, configuration: configuration)
+      logger.info("Finder was not running; started it to hand the desktop to")
+
+      return started
+    } catch {
+      logger.warning("Finder is not running and would not start: \(error)")
+
+      return nil
+    }
   }
 
   /// Waits for the display to actually show it, which is what makes the answer worth
