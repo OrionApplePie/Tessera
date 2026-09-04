@@ -1,14 +1,10 @@
 class Tessera < Formula
   desc "Native macOS window switcher with a map of every Space"
   homepage "https://github.com/OrionApplePie/Tessera"
+  url "https://github.com/OrionApplePie/Tessera/archive/refs/tags/v0.1.0.tar.gz"
+  sha256 "8db8ab0dada79384d59efffafe362b0f2fa4cb214e80c4d5147f5e9a97569ff5"
   license "GPL-3.0-or-later"
   head "https://github.com/OrionApplePie/Tessera.git", branch: "main"
-
-  # A released version goes here once a tag exists. Until then the formula is
-  # installed with `--HEAD`, which builds whatever main is:
-  #
-  #   url "https://github.com/OrionApplePie/Tessera/archive/refs/tags/v0.1.0.tar.gz"
-  #   sha256 "<shasum -a 256 of that tarball>"
 
   depends_on xcode: ["16.0", :build]
   depends_on macos: :ventura

@@ -482,11 +482,11 @@ With Homebrew, from this project's own tap:
 
 ```sh
 brew tap OrionApplePie/tessera
-brew install --HEAD tessera
+brew install tessera
 ```
 
-`--HEAD` builds whatever `main` is, which is what there is until the first
-tagged release; after that, plain `brew install tessera`.
+That builds the latest tagged release. `brew install --HEAD tessera` builds
+whatever `main` is instead.
 
 Then start it, and keep it starting at login:
 

@@ -28,7 +28,7 @@ Then, from anywhere:
 
 ```sh
 brew tap OrionApplePie/tessera
-brew install --HEAD tessera
+brew install tessera        # or --HEAD, to build main
 ```
 
 ### Checking the formula before pushing it
