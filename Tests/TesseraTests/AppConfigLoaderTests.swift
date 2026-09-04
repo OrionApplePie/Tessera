@@ -10,8 +10,6 @@ struct AppConfigLoaderTests {
   private static let supportedKeys: Set<String> = [
     "refresh_interval_seconds",
     "window_thumbnails_stale_seconds",
-    "window_thumbnail_target_width",
-    "window_thumbnail_target_height",
     "max_windows",
     "hotkey",
     "close_hotkey",
@@ -21,13 +19,15 @@ struct AppConfigLoaderTests {
     "dim_stale_thumbnails",
     "overlay_columns",
     "window_order",
+    "use_private_space_api",
     "window_thumbnail_mode",
     "window_thumbnail_quality",
     "overlay_grouping",
     "overlay_background",
     "overlay_arrows",
     "overlay_layout",
-    "overlay_rows",
+    "overlay_max_cells",
+    "overlay_min_tile",
     "overlay_row_align",
     "overlay_deck",
     "overlay_fills_screen",
@@ -53,8 +53,6 @@ struct AppConfigLoaderTests {
       """
       refresh_interval_seconds = 7
       window_thumbnails_stale_seconds = 11
-      window_thumbnail_target_width = 320
-      window_thumbnail_target_height = 200
       max_windows = 5
       hotkey = "cmd+shift+t"
       close_hotkey = "ctrl+d"
@@ -78,8 +76,6 @@ struct AppConfigLoaderTests {
 
       #expect(config.refreshIntervalSeconds == 7)
       #expect(config.windowThumbnailsStaleSeconds == 11)
-      #expect(config.windowThumbnailTargetSize.width == 320)
-      #expect(config.windowThumbnailTargetSize.height == 200)
       #expect(config.maxWindows == 5)
       #expect(config.hotkey?.displayName == "shift+cmd+t")
       #expect(config.closeHotkey?.displayName == "ctrl+d")
@@ -147,7 +143,6 @@ struct AppConfigLoaderTests {
     let broken = [
       "refresh_interval_seconds = 0",
       "refresh_interval_seconds = -1",
-      "window_thumbnail_target_width = 0",
       "max_windows = 0",
       "overlay_columns = 0",
       "overlay_columns = -1",
@@ -272,55 +267,6 @@ struct AppConfigLoaderTests {
     }
   }
 
-  /// The grid is what the map is drawn on, and the cell count follows from it
-  /// rather than being set beside it.
-  @Test("The grid counts its own cells")
-  func gridCountsItsCells() throws {
-    try withConfigFile(
-      """
-      overlay_columns = 5
-      overlay_rows = 4
-      """
-    ) { loader in
-      let config = loader.load()
-
-      #expect(config.overlayRows == 4)
-      #expect(config.overlayMaxCells == 20)
-    }
-  }
-
-  /// A config written before the grid says a bare cell count. Read as the rows
-  /// those cells make, it means what it meant.
-  @Test("A config from before the grid keeps the map it had")
-  func readsTheOldCellCount() throws {
-    try withConfigFile(
-      """
-      overlay_columns = 5
-      overlay_max_cells = 20
-      """
-    ) { loader in
-      let config = loader.load()
-
-      #expect(config.overlayRows == 4)
-      #expect(config.overlayMaxCells == 20)
-    }
-  }
-
-  /// The grid wins where both are given: the old key is a fallback, not a second
-  /// opinion.
-  @Test("The grid outranks the count it replaced")
-  func gridOutranksTheOldCount() throws {
-    try withConfigFile(
-      """
-      overlay_columns = 5
-      overlay_rows = 2
-      overlay_max_cells = 20
-      """
-    ) { loader in
-      #expect(loader.load().overlayRows == 2)
-    }
-  }
-
   @Test("The shipped example config mentions exactly the keys the loader reads")
   func exampleConfigMatchesTheLoader() throws {
     let exampleURL = Self.repositoryRoot.appendingPathComponent("config.example.toml")
@@ -350,6 +296,53 @@ struct AppConfigLoaderTests {
     let config = makeLoader(configURL: exampleURL).load()
 
     expectDefaults(config)
+  }
+}
+
+/// The ceiling on the map, and the floor under a tile, as the config file says them.
+extension AppConfigLoaderTests {
+  @Test("The ceiling and the floor are read as they are written")
+  func readsTheCeilingAndTheFloor() throws {
+    try withConfigFile(
+      """
+      overlay_max_cells = 12
+      overlay_min_tile = 220
+      """
+    ) { loader in
+      let config = loader.load()
+
+      #expect(config.overlayMaxCells == 12)
+      #expect(config.overlayMinTile == 220)
+    }
+  }
+
+  /// A configuration written while the ceiling was a grid says how many rows it
+  /// wanted. Multiplied out by the row length, it means the same number of Spaces.
+  @Test("A config from when the ceiling was a grid keeps the map it had")
+  func readsTheGridItReplaced() throws {
+    try withConfigFile(
+      """
+      overlay_columns = 5
+      overlay_rows = 4
+      """
+    ) { loader in
+      #expect(loader.load().overlayMaxCells == 20)
+    }
+  }
+
+  /// The count wins where both are given: the grid is a fallback, not a second
+  /// opinion.
+  @Test("The count outranks the grid it replaced")
+  func countOutranksTheGrid() throws {
+    try withConfigFile(
+      """
+      overlay_columns = 5
+      overlay_rows = 4
+      overlay_max_cells = 8
+      """
+    ) { loader in
+      #expect(loader.load().overlayMaxCells == 8)
+    }
   }
 }
 
@@ -392,10 +385,6 @@ extension AppConfigLoaderTests {
     )
     #expect(
       config.windowThumbnailsStaleSeconds == defaults.windowThumbnailsStaleSeconds,
-      sourceLocation: sourceLocation
-    )
-    #expect(
-      config.windowThumbnailTargetSize == defaults.windowThumbnailTargetSize,
       sourceLocation: sourceLocation
     )
     #expect(config.maxWindows == defaults.maxWindows, sourceLocation: sourceLocation)

@@ -14,7 +14,6 @@ final class WindowThumbnailService {
   /// and ScreenCaptureKit neither returns nor errors for those.
   private let captureTimeout: Duration
 
-  private let targetThumbnailSize: CGSize
   /// The tile a capture is sized for.
   private let captureTile: TileMetrics
   private let quality: ThumbnailQuality
@@ -32,7 +31,6 @@ final class WindowThumbnailService {
     // large. `window_thumbnail_quality` is the knob for those who want it sharper.
     self.captureTile = config.overlayFillsScreen ? TileMetrics(width: 360) : .base
     self.quality = config.thumbnailQuality
-    self.targetThumbnailSize = config.windowThumbnailTargetSize
     self.mode = config.windowThumbnailMode
     self.captureTimeout = .seconds(config.unresponsiveAfterSeconds)
     self.logger = AppLogger(debugMode: config.debugMode, category: .capture)
@@ -200,12 +198,16 @@ final class WindowThumbnailService {
     )
   }
 
-  /// The configured target, widened to whatever the quality setting asks for.
+  /// What a whole-window thumbnail is captured for: the tile the map can draw it
+  /// in, widened to whatever the quality setting asks for.
   ///
-  /// The config says how large a whole-window thumbnail should be, in points, and
-  /// the quality says how many pixels it is worth spending on it. The larger of the
-  /// two wins, and the shape the config asked for is kept.
+  /// The tile is not a number anybody types any more — the map sizes it from the
+  /// screen and from how many Spaces there are — so the capture follows the largest
+  /// tile the overlay may use rather than a figure in the config that had no way of
+  /// knowing. The quality setting is what buys more pixels than that.
   private var targetForQuality: CGSize {
+    let targetThumbnailSize = CGSize(
+      width: captureTile.contentWidth, height: captureTile.thumbnailHeight)
     let longest = max(targetThumbnailSize.width, targetThumbnailSize.height)
     let wanted = quality.longSide / backingScaleFactor
 

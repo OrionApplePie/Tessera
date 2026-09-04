@@ -42,8 +42,6 @@ enum AppConfigWriter {
     # Fade a preview once it is older than window_thumbnails_stale_seconds.
     dim_stale_thumbnails = \(config.dimsStaleThumbnails)
 
-    window_thumbnail_target_width = \(number(config.windowThumbnailTargetSize.width))
-    window_thumbnail_target_height = \(number(config.windowThumbnailTargetSize.height))
     max_windows = \(config.maxWindows)
     """
   }
@@ -70,7 +68,11 @@ enum AppConfigWriter {
     overlay_arrows = "\(config.overlayArrows.name)"
     overlay_layout = "\(config.overlayLayout.name)"
     overlay_row_align = "\(config.overlayRowAlignment.name)"
-    overlay_rows = \(config.overlayRows)
+    overlay_max_cells = \(config.overlayMaxCells)
+
+    # The smallest a tile may be drawn, in points. What will not fit at this size is
+    # left off the map rather than shrunk past reading.
+    overlay_min_tile = \(number(config.overlayMinTile))
     overlay_fills_screen = \(config.overlayFillsScreen)
 
     # Tile grouping: "displays", "spaces", "displays+spaces" or "none".
@@ -85,6 +87,13 @@ enum AppConfigWriter {
     """
     # Global hotkey that toggles the overlay. "" turns it off.
     hotkey = "\(config.hotkey?.displayName ?? "")"
+
+    # What closes the chosen window while the overlay is up. "" turns it off.
+    close_hotkey = "\(config.closeHotkey?.displayName ?? "")"
+
+    # What that shortcut does: "window" closes the window, "app" quits the
+    # application it belongs to.
+    close_action = "\(config.closeAction.name)"
 
     # Leave out applications with no Dock icon, the ones that live in the menu bar.
     ignore_menu_bar_apps = \(config.ignoresMenuBarApplications)

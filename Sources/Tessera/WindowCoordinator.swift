@@ -26,7 +26,7 @@ final class WindowCoordinator: ObservableObject {
   private let logger: AppLogger
   private let windowListService: WindowListService
   private let thumbnailService: WindowThumbnailService
-  private let activator: WindowActivator
+  let activator: WindowActivator
   private let menuActivator: WindowMenuActivator
   private let previewCache: WindowPreviewCache
   private var isRunning = false
@@ -99,6 +99,9 @@ final class WindowCoordinator: ObservableObject {
 
     isRunning = true
     logger.info("Starting window coordinator")
+    // Checked once, at the start: a private call that has been renamed does not
+    // fail loudly, it simply is not there, and the map quietly becomes guesswork.
+    logger.info("Private Spaces API: \(spaceQuery.availability.summary)")
     observeActiveSpaceChanges()
 
     Task { @MainActor [weak self] in

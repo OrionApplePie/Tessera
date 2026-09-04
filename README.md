@@ -57,8 +57,12 @@ All three keep the tile's proportions, so the top left corner is what actually
 reaches the screen rather than the middle of a wider crop, and all three are
 captured through ScreenCaptureKit's `sourceRect` rather than cropped afterwards —
 a large window costs no more than a small one. A window smaller than the piece
-asked for is taken whole. `window_thumbnail_target_width` and `..._height` apply
-to `fit` only.
+asked for is taken whole.
+
+How many pixels a `fit` capture gets is not a number anybody types: the map sizes
+its tiles from the screen and from how many Spaces there are, so the capture is
+made for the largest tile the overlay may draw. `window_thumbnail_quality` is the
+knob for wanting more than that.
 
 ## Timing
 
@@ -241,6 +245,36 @@ overlay_columns = 4   # the default
 
 Every group shares one column count, so tiles line up down the overlay rather than
 each group choosing its own width.
+
+`overlay_columns` is the shape of one layout only. `overlay_layout` says which:
+
+```toml
+overlay_layout = "flow"     # the default: no bands, wraps when the row is full
+overlay_layout = "fitted"   # the same search, but each display keeps its own rows
+overlay_layout = "count"    # a square: four Spaces go two by two, nine three by three
+overlay_layout = "rows"     # exactly overlay_columns across
+```
+
+`flow` and `fitted` both try every row length and keep the one that makes the
+largest tile. They differ in one thing: `fitted` starts a new row where the
+display changes, so each screen's Spaces read as a block, and `flow` does not —
+the Spaces run on in the order the displays are arranged, a monitor above the
+laptop first, and the row breaks only when it is full. That fits more on the map
+at a larger tile, and the heading is then what says which display a Space is on.
+
+The two numbers that apply to all of them are a ceiling and a floor:
+
+```toml
+overlay_max_cells = 20   # at most this many Spaces on the map, shared between displays
+overlay_min_tile = 150   # points; what will not fit at this size is left off
+```
+
+A cell is what stands beside its neighbour — a Space when its windows are stacked,
+a window when they are fanned out. The ceiling is shared out between the displays
+rather than spent first-come, so one busy screen cannot crowd the other off the
+map, and the Space you are on is charged to it rather than added on top. The floor
+is what stops the answer to "one more Space" being "every tile a little smaller":
+past it the map leaves Spaces off instead.
 
 The overlay paints an opaque matte surface by default — dark enough for the white
 tile text, light enough that it does not read as a hole in the screen. It is one
@@ -583,8 +617,6 @@ refresh_interval_seconds = 3
 window_thumbnails_stale_seconds = 30
 
 dim_stale_thumbnails = false
-window_thumbnail_target_width = 240
-window_thumbnail_target_height = 160
 max_windows = 24
 
 hotkey = "ctrl+alt+space"

@@ -162,8 +162,23 @@ enum CLI {
     let screenRecording = CGPreflightScreenCaptureAccess()
     let accessibility = WindowActivator(config: config).isAccessibilityTrusted
 
+    let spaces = SpaceQuery(enabled: config.usesPrivateSpaceAPI, debugMode: false).availability
+
     print("Screen Recording : \(screenRecording ? "granted" : "NOT granted")")
     print("Accessibility    : \(accessibility ? "granted" : "NOT granted")")
+    print("Spaces (private) : \(spaces.summary)")
+
+    if !spaces.isComplete {
+      print("")
+      print("The window server's own calls are what number the desktops and say")
+      print("which Space a window is on. Without them Tessera infers both from")
+      print("what appears on screen together, which is right for a Space you have")
+      print("visited and unknown for one you have not.")
+
+      for name in spaces.found.keys.sorted() {
+        print("  \(spaces.found[name] == true ? "found  " : "MISSING") \(name)")
+      }
+    }
 
     if !screenRecording {
       print("")

@@ -21,6 +21,48 @@ struct OverlayGridTests {
     #expect(OverlayGrid.columnCount(forSectionSizes: [13], maximum: -2) == 1)
   }
 
+  /// What a screen can carry at a given tile size, which is the other half of the
+  /// ceiling: the configuration says at most so many, and the screen says at most
+  /// so many more.
+  @Test("A screen carries as many cells as fit at the smallest tile")
+  func countsWhatTheScreenCanCarry() {
+    let room = CGSize(width: 1512, height: 944)
+
+    // 150-point tiles, counted as 180 with their gaps and headings: eight across,
+    // five down. At 400 points a laptop screen carries three, in one row — which is
+    // the point of the floor: the map stops growing rather than going unreadable.
+    #expect(OverlayGrid.cells(fitting: room, tile: 150) == 40)
+    #expect(OverlayGrid.cells(fitting: room, tile: 400) == 3)
+  }
+
+  /// A screen nobody could measure is not a limit: nothing is known, so nothing is
+  /// refused.
+  @Test("An unknown screen refuses nothing")
+  func anUnknownScreenIsNoLimit() {
+    #expect(OverlayGrid.cells(fitting: .zero, tile: 150) == .max)
+    #expect(OverlayGrid.cells(fitting: CGSize(width: 100, height: 100), tile: 0) == .max)
+  }
+
+  /// A square map is the one whose tiles come out largest: a long row runs out of
+  /// width, a tall one out of height, and the square is where they meet.
+  @Test("The row length follows the square root of the count")
+  func squaresTheMapByItsCount() {
+    #expect(OverlayGrid.columns(forCount: 1) == 1)
+    #expect(OverlayGrid.columns(forCount: 2) == 2)
+    #expect(OverlayGrid.columns(forCount: 4) == 2)
+    #expect(OverlayGrid.columns(forCount: 5) == 3)
+    #expect(OverlayGrid.columns(forCount: 9) == 3)
+    #expect(OverlayGrid.columns(forCount: 10) == 4)
+    #expect(OverlayGrid.columns(forCount: 20) == 5)
+  }
+
+  /// A map of nothing is still drawn, and it is one cell wide.
+  @Test("A count of none is a row of one")
+  func squaresAnEmptyMap() {
+    #expect(OverlayGrid.columns(forCount: 0) == 1)
+    #expect(OverlayGrid.columns(forCount: -3) == 1)
+  }
+
   /// The grid is the budget, and a display's share of it is whole rows: a display
   /// drawing four and a half rows would put a band of two under a band of five and
   /// call it a share.

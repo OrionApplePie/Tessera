@@ -7,8 +7,6 @@ window_thumbnails_stale_seconds = 30
 # Fade a preview once it is older than window_thumbnails_stale_seconds.
 dim_stale_thumbnails = false
 
-window_thumbnail_target_width = 240
-window_thumbnail_target_height = 160
 max_windows = 24
 
 # Global hotkey that toggles the overlay. At least one modifier is required.
@@ -48,6 +46,11 @@ overlay_columns = 4
 # The target size above applies to "fit" only; a corner is measured from the tile.
 window_thumbnail_mode = "fit"
 
+# Ask the window server directly which Space a window is on. There is no public
+# way to ask, so this is the one private interface here; off, Space membership is
+# inferred from what appears on screen together.
+use_private_space_api = true
+
 # Tile order inside a group: "title" sorts by application and window title,
 # "application" ignores the title so a browser tab switch does not move a tile,
 # "stable" keeps the order windows were first seen in and never moves anything.
@@ -63,18 +66,25 @@ window_thumbnail_quality = "tile"
 # axis gets its own heading and its own row.
 overlay_grouping = "displays"
 
-# How the Spaces are arranged: "fitted" tries every row length and keeps the one
-# that makes the largest tile, "rows" uses overlay_columns and nothing else, and
-# "flow" drops the bands so the Spaces run one after another whichever display
-# they belong to.
-overlay_layout = "fitted"
+# How the Spaces are arranged. "flow" is the default: no bands, so the Spaces run
+# one after another in the order the displays stand and wrap only when the row is
+# full, with the row length chosen for the largest tile. "fitted" is the same
+# search but keeps each display's Spaces to their own rows, "count" takes the row
+# length from how many Spaces there are — four make a map two by two, nine three
+# by three — and "rows" uses overlay_columns and nothing else.
+overlay_layout = "flow"
 
-# How many rows of Spaces the map is allowed. With overlay_columns it makes the
-# grid the map is drawn on — five across and four down is twenty cells — and the
-# displays share the rows, never a part of one: four rows over two screens is two
-# rows each. A cell is what stands beside its neighbour: a Space when its windows
-# are stacked, a window when they are fanned out.
-overlay_rows = 4
+# The most cells the map draws, shared out between the displays — twenty means ten
+# each with two screens. A cell is what stands beside its neighbour: a Space when
+# its windows are stacked, a window when they are fanned out. This is a ceiling
+# only; the shape of the map comes from overlay_layout, and only "rows" is told a
+# row length.
+overlay_max_cells = 20
+
+# The smallest a tile may be drawn, in points. A map that keeps every Space by
+# making each one unreadable has answered the wrong question, so what does not fit
+# at this size is left off instead.
+overlay_min_tile = 150
 
 # Where a short row sits under a long one: "center", "left" or "right".
 overlay_row_align = "center"

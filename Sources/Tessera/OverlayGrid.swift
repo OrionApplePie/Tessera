@@ -79,6 +79,27 @@ enum OverlayGrid {
     return rows
   }
 
+  /// The same, worked out from the configuration and the screen the map will open
+  /// on: the ceiling is whichever is lower, what the configuration allows or what
+  /// that screen can show without taking a tile below the size it is worth drawing.
+  @MainActor
+  static func budgets(
+    forSections sections: [WindowTileSection],
+    config: AppConfig,
+    on displayID: CGDirectDisplayID?
+  ) -> [CGDirectDisplayID: Int] {
+    let room = displayID.flatMap { DisplayInfo.visibleBounds(of: $0) }?.size ?? .zero
+
+    return budgets(
+      forSections: sections,
+      cells: min(config.overlayMaxCells, cells(fitting: room, tile: config.overlayMinTile)),
+      // Shared in whole rows where the row length is settled, and cell by cell
+      // where the layout has yet to work it out.
+      perRow: config.overlayLayout == .rows ? config.overlayColumns : 1,
+      stacked: config.overlayDeck == .stack
+    )
+  }
+
   /// How many cells each display may draw, in whole rows of the grid.
   ///
   /// Shared out rather than spent first-come: a grid of five across and four down
@@ -88,7 +109,7 @@ enum OverlayGrid {
   /// of five and call it a share.
   static func budgets(
     forSections sections: [WindowTileSection],
-    rows total: Int,
+    cells total: Int,
     perRow: Int,
     stacked: Bool
   ) -> [CGDirectDisplayID: Int] {
@@ -106,9 +127,49 @@ enum OverlayGrid {
       wanted[id, default: 0] += section.cells(whenStacked: stacked)
     }
 
-    let rows = rows(sharing: total, between: displays.map { wanted[$0] ?? 0 }, perRow: columns)
+    // Shared in whole rows where a row length is settled, and cell by cell where it
+    // is not: a layout that works its own row length out has no rows to share yet.
+    let units = max(1, total / columns)
+    let rows = rows(sharing: units, between: displays.map { wanted[$0] ?? 0 }, perRow: columns)
 
     return Dictionary(uniqueKeysWithValues: zip(displays, rows.map { $0 * columns }))
+  }
+
+  /// How many cells go across when the shape follows the count.
+  ///
+  /// The square root, rounded up: nine Spaces make three rows of three, ten make
+  /// four across and three down. A square map is the one whose tiles are largest
+  /// for a given screen — a long row is limited by the width, a tall one by the
+  /// height, and the square is where the two meet — and it keeps the map the same
+  /// shape whatever is open, which a map that is read at a glance wants more than
+  /// it wants the last few points of tile.
+  static func columns(forCount count: Int) -> Int {
+    let count = max(1, count)
+    var columns = 1
+
+    while columns * columns < count {
+      columns += 1
+    }
+
+    return columns
+  }
+
+  /// How many cells of at least this size a screen can carry.
+  ///
+  /// Rough on purpose: gaps, headings and the surface's own padding are all
+  /// fractions of the tile, so a cell is counted as the tile and a fifth. The
+  /// layout that follows measures properly and shrinks what it must — this only
+  /// says when the map should stop growing and start leaving Spaces off instead.
+  ///
+  /// A screen of no size is not a limit: nothing is known, so nothing is refused.
+  static func cells(fitting room: CGSize, tile: CGFloat) -> Int {
+    guard room.width > 0, room.height > 0, tile > 0 else {
+      return .max
+    }
+
+    let cell = tile * 1.2
+
+    return max(1, Int(room.width / cell) * Int(room.height / cell))
   }
 
   /// How the map's rows are shared out between the displays.

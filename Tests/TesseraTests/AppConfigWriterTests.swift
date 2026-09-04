@@ -11,20 +11,38 @@ struct AppConfigWriterTests {
     #expect(try roundTrip(.default) == AppConfig.default)
   }
 
+  /// Every field, and every one of them away from its default: a key the writer
+  /// forgets is a setting that silently goes back to the default the next time the
+  /// settings window saves, and only a value that differs from the default can
+  /// catch that.
   @Test("A configuration with nothing left at its default survives too")
   func customisedConfigurationRoundTrips() throws {
     var config = AppConfig.default
     config.refreshIntervalSeconds = 7.5
     config.windowThumbnailsStaleSeconds = 11
     config.dimsStaleThumbnails = true
-    config.windowThumbnailTargetSize = CGSize(width: 320, height: 200)
     config.maxWindows = 9
     config.overlayColumns = 6
+    config.overlayMaxCells = 14
+    config.overlayMinTile = 210
     config.windowOrder = .stable
     config.overlayGrouping = [.displays, .spaces]
     config.overlayBackground = try OverlayColor(parsing: "#10203040")
     config.hotkey = try HotkeyBinding(parsing: "cmd+shift+t")
+    config.closeHotkey = try HotkeyBinding(parsing: "ctrl+shift+q")
+    config.closeAction = .closeWindow
     config.ignoredApplications = ["amneziavpn", "some tray app"]
+    config.ignoresMenuBarApplications = false
+    config.usesPrivateSpaceAPI = false
+    config.windowThumbnailMode = .threeQuarters
+    config.thumbnailQuality = .hd
+    config.overlayDeck = .fan
+    config.overlayArrows = .windows
+    config.overlayLayout = .flow
+    config.overlayRowAlignment = .trailing
+    config.overlayFillsScreen = true
+    config.activationSettleSeconds = 0.75
+    config.unresponsiveAfterSeconds = 4
     config.closeAfterActivation = false
     config.showMenuBarIcon = false
     config.debugMode = true
@@ -45,7 +63,7 @@ struct AppConfigWriterTests {
     let toml = AppConfigWriter.toml(for: .default)
 
     #expect(toml.contains("refresh_interval_seconds = 3\n"))
-    #expect(toml.contains("window_thumbnail_target_width = 240\n"))
+    #expect(toml.contains("max_windows = 24\n"))
     #expect(toml.contains("refresh_interval_seconds = 3.0\n") == false)
   }
 

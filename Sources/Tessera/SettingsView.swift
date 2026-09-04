@@ -3,6 +3,7 @@ import SwiftUI
 /// A page of the settings window, and the list on its left.
 enum SettingsSection: String, CaseIterable, Identifiable {
   case overlay
+  case layout
   case previews
   case behaviour
   case timing
@@ -16,6 +17,8 @@ enum SettingsSection: String, CaseIterable, Identifiable {
     switch self {
     case .overlay:
       return "Overlay"
+    case .layout:
+      return "Layout"
     case .previews:
       return "Previews"
     case .behaviour:
@@ -30,6 +33,8 @@ enum SettingsSection: String, CaseIterable, Identifiable {
   var symbol: String {
     switch self {
     case .overlay:
+      return "macwindow"
+    case .layout:
       return "square.grid.2x2"
     case .previews:
       return "photo"
@@ -114,6 +119,8 @@ struct SettingsView: View {
     switch section {
     case .overlay:
       overlayPage
+    case .layout:
+      layoutPage
     case .previews:
       previewsPage
     case .behaviour:
@@ -128,22 +135,44 @@ struct SettingsView: View {
   private var overlayPage: some View {
     Form {
       Section("Shortcut") {
-        TextField("Hotkey", text: $model.hotkey, prompt: Text("ctrl+alt+space"))
+        TextField("Show the overlay", text: $model.hotkey, prompt: Text("ctrl+alt+space"))
+
+        TextField("Close a window", text: $model.closeHotkey, prompt: Text("cmd+w"))
+
+        Picker("Closing", selection: $model.closeAction) {
+          Text("Closes the window").tag(CloseAction.closeWindow)
+          Text("Quits the application").tag(CloseAction.quitApplication)
+        }
       }
 
-      Section("Layout") {
+      Section("Appearance") {
+        ColorPicker("Background", selection: $model.background, supportsOpacity: true)
+      }
+    }
+  }
+
+  /// The shape of the map: how many Spaces stand where, how large they are drawn,
+  /// and what a keypress moves through.
+  private var layoutPage: some View {
+    Form {
+      Section("The map") {
         Picker("Arrange", selection: $model.overlayLayout) {
           Text("As large as the screen allows").tag(OverlayLayout.fitted)
           Text("A fixed number across").tag(OverlayLayout.rows)
-          Text("One Space after another").tag(OverlayLayout.flow)
+          Text("A square, by how many there are").tag(OverlayLayout.count)
+          Text("One after another, wrapping").tag(OverlayLayout.flow)
         }
 
         Stepper(value: $model.overlayColumns, in: 1...12) {
           setting("Spaces across", "\(model.overlayColumns)")
         }
 
-        Stepper(value: $model.overlayRows, in: 1...8) {
-          setting("Rows down", "\(model.overlayRows)")
+        Stepper(value: $model.overlayMaxCells, in: 1...60) {
+          setting("At most", "\(model.overlayMaxCells) Spaces")
+        }
+
+        Stepper(value: $model.overlayMinTile, in: 90...400, step: 10) {
+          setting("Smallest tile", "\(Int(model.overlayMinTile)) pt")
         }
 
         Text(gridNote)
@@ -156,28 +185,30 @@ struct SettingsView: View {
           Text("To the right").tag(OverlayRowAlignment.trailing)
         }
 
+        Toggle("Grow the map into the screen", isOn: $model.overlayFillsScreen)
+      }
+
+      Section("Groups") {
         Picker("A Space of several windows", selection: $model.overlayDeck) {
           Text("One card, turned through").tag(OverlayDeckStyle.stack)
           Text("Cards side by side").tag(OverlayDeckStyle.fan)
-        }
-
-        Picker("Arrows move by", selection: $model.overlayArrows) {
-          Text("Space, Tab for its windows").tag(OverlayArrowStep.spaces)
-          Text("Window").tag(OverlayArrowStep.windows)
-        }
-
-        Picker("Tile order", selection: $model.windowOrder) {
-          Text("Application and title").tag(WindowOrder.title)
-          Text("Application only").tag(WindowOrder.application)
-          Text("Never reorder").tag(WindowOrder.stable)
         }
 
         Toggle("Group by display", isOn: $model.groupsDisplays)
         Toggle("Group by Space", isOn: $model.groupsSpaces)
       }
 
-      Section("Appearance") {
-        ColorPicker("Background", selection: $model.background, supportsOpacity: true)
+      Section("Order") {
+        Picker("Arrows move by", selection: $model.overlayArrows) {
+          Text("Space, Tab for its windows").tag(OverlayArrowStep.spaces)
+          Text("Window").tag(OverlayArrowStep.windows)
+        }
+
+        Picker("Windows in a group", selection: $model.windowOrder) {
+          Text("Application and title").tag(WindowOrder.title)
+          Text("Application only").tag(WindowOrder.application)
+          Text("Never reorder").tag(WindowOrder.stable)
+        }
       }
     }
   }
@@ -210,23 +241,6 @@ struct SettingsView: View {
         Toggle("Fade a stale preview", isOn: $model.dimsStaleThumbnails)
       }
 
-      Section("Size") {
-        // A corner is captured at the size the tile draws it, so a target size has
-        // nothing to act on there.
-        Stepper(value: $model.thumbnailWidth, in: 40...960, step: 20) {
-          setting("Width", "\(Int(model.thumbnailWidth))")
-        }
-        .disabled(model.thumbnailMode != .fit)
-
-        Stepper(value: $model.thumbnailHeight, in: 40...960, step: 20) {
-          setting("Height", "\(Int(model.thumbnailHeight))")
-        }
-        .disabled(model.thumbnailMode != .fit)
-
-        Stepper(value: $model.maxWindows, in: 1...96) {
-          setting("At most", "\(model.maxWindows) windows")
-        }
-      }
     }
   }
 
@@ -256,14 +270,16 @@ struct SettingsView: View {
           text: $model.ignoredApplications,
           prompt: Text("AmneziaVPN, Some Tray App")
         )
-        Toggle("Fill the screen", isOn: $model.overlayFillsScreen)
+        Stepper(value: $model.maxWindows, in: 1...96) {
+          setting("Never list more than", "\(model.maxWindows) windows")
+        }
+
+        Text(windowsNote)
+          .font(.caption)
+          .foregroundStyle(.secondary)
+
         Toggle("Close the overlay after switching", isOn: $model.closeAfterActivation)
         Toggle("Leave out menu bar applications", isOn: $model.ignoresMenuBarApplications)
-
-        Picker("The close shortcut", selection: $model.closeAction) {
-          Text("Closes the window").tag(CloseAction.closeWindow)
-          Text("Quits the application").tag(CloseAction.quitApplication)
-        }
       }
 
       Section("App") {
@@ -331,21 +347,32 @@ struct SettingsView: View {
     }
   }
 
-  /// What the grid means, said in cells: the two steppers above are a budget as
-  /// well as a shape, and only the fixed layout uses the row length as a shape.
-  private var gridNote: String {
-    let cells = max(1, model.overlayColumns) * max(1, model.overlayRows)
-    let grid = String(
+  /// Why there are two numbers that both start with "at most": one is the list the
+  /// switcher keeps, the other is the map it draws from it.
+  private var windowsNote: String {
+    String(
       localized: """
-        A grid of \(model.overlayColumns) × \(model.overlayRows) — at most \(cells) Spaces on \
-        the map, shared out between the displays in whole rows.
+        How many windows the switcher keeps in mind at all — every one of them holds \
+        a preview in memory. What the overlay draws from that list is capped \
+        separately, under Layout.
+        """)
+  }
+
+  /// What the numbers above mean together: a ceiling and a floor, and a row length
+  /// that only the fixed layout is told.
+  private var gridNote: String {
+    let budget = String(
+      localized: """
+        At most \(model.overlayMaxCells) Spaces on the map, shared out between the displays, \
+        and none drawn smaller than \(Int(model.overlayMinTile)) points — what will not fit \
+        at that size is left off.
         """)
 
-    guard model.overlayLayout != .rows else {
-      return grid
+    guard model.overlayLayout == .rows else {
+      return budget + " " + String(localized: "This layout works its own row length out.")
     }
 
-    return grid + " " + String(localized: "This layout still works its own row length out.")
+    return budget
   }
 
   private func setting(_ name: String, _ value: String) -> some View {

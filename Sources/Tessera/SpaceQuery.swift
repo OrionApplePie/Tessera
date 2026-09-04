@@ -34,6 +34,8 @@ final class SpaceQuery {
   private let copySpacesForWindows: CopySpacesForWindows?
   private let getActiveSpace: GetActiveSpace?
   private let copyManagedDisplaySpaces: CopyManagedDisplaySpaces?
+  private let didOpen: Bool
+  private let isEnabled: Bool
   private let logger: AppLogger
 
   var isAvailable: Bool {
@@ -42,12 +44,14 @@ final class SpaceQuery {
 
   init(enabled: Bool, debugMode: Bool) {
     self.logger = AppLogger(debugMode: debugMode, category: .preview)
+    self.isEnabled = enabled
 
     guard enabled, let handle = dlopen(Self.frameworkPath, RTLD_LAZY) else {
       self.connectionID = nil
       self.copySpacesForWindows = nil
       self.getActiveSpace = nil
       self.copyManagedDisplaySpaces = nil
+      self.didOpen = false
 
       if enabled {
         logger.warning("SkyLight did not open; Spaces will be inferred from what is on screen")
@@ -72,10 +76,69 @@ final class SpaceQuery {
       handle, "SLSCopyManagedDisplaySpaces", "CGSCopyManagedDisplaySpaces"
     )
     .map { unsafeBitCast($0, to: CopyManagedDisplaySpaces.self) }
+    self.didOpen = true
     if spaces == nil || connection == nil {
       logger.warning(
         "SkyLight is missing the calls this needs; Spaces will be inferred from what is on screen")
     }
+  }
+
+  /// What the window server actually offered when it was asked.
+  ///
+  /// These are private calls in a framework Apple documents nowhere, and the way
+  /// they go is not a crash but a quiet nothing: a symbol that has been renamed
+  /// resolves to nil, and Spaces silently become guesswork. Checking at startup and
+  /// saying so is the difference between a switcher that has degraded and one that
+  /// looks broken for no reason.
+  struct Availability: Equatable, Sendable {
+    /// Whether the configuration asked for the private calls at all.
+    let isEnabled: Bool
+    /// Whether SkyLight itself opened.
+    let isOpen: Bool
+    /// Which of the calls answered to a name, in the order they are needed.
+    let found: [String: Bool]
+
+    var missing: [String] {
+      found.filter { !$0.value }.keys.sorted()
+    }
+
+    /// Everything asked for is there. An installation that was never asked counts
+    /// as complete: nothing is missing that was wanted.
+    var isComplete: Bool {
+      !isEnabled || (isOpen && missing.isEmpty)
+    }
+
+    /// One line, for a log or a terminal.
+    var summary: String {
+      guard isEnabled else {
+        return "off by configuration; Spaces are inferred from what is on screen together"
+      }
+
+      guard isOpen else {
+        return "SkyLight did not open; Spaces are inferred from what is on screen together"
+      }
+
+      guard !missing.isEmpty else {
+        return "all \(found.count) calls available"
+      }
+
+      return "missing \(missing.joined(separator: ", ")); Spaces are inferred instead"
+    }
+  }
+
+  /// The report, which is only ever what was found at startup: a symbol does not
+  /// appear later in the life of a process.
+  var availability: Availability {
+    Availability(
+      isEnabled: isEnabled,
+      isOpen: didOpen,
+      found: [
+        "SLSMainConnectionID": connectionID != nil,
+        "SLSCopySpacesForWindows": copySpacesForWindows != nil,
+        "SLSGetActiveSpace": getActiveSpace != nil,
+        "SLSCopyManagedDisplaySpaces": copyManagedDisplaySpaces != nil,
+      ]
+    )
   }
 
   /// The Space each window sits on, for the windows the window server will say.

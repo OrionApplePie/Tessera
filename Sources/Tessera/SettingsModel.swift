@@ -11,11 +11,13 @@ import SwiftUI
 @MainActor
 final class SettingsModel: ObservableObject {
   @Published var hotkey: String
+  @Published var closeHotkey: String
   @Published var ignoredApplications: String
   @Published var background: Color
 
   @Published var overlayColumns: Int
-  @Published var overlayRows: Int
+  @Published var overlayMaxCells: Int
+  @Published var overlayMinTile: Double
   @Published var windowOrder: WindowOrder
   @Published var thumbnailMode: WindowThumbnailMode
   @Published var thumbnailQuality: ThumbnailQuality
@@ -35,8 +37,6 @@ final class SettingsModel: ObservableObject {
   @Published var windowThumbnailsStaleSeconds: Double
   @Published var dimsStaleThumbnails: Bool
   @Published var overlayFillsScreen: Bool
-  @Published var thumbnailWidth: Double
-  @Published var thumbnailHeight: Double
   @Published var maxWindows: Int
 
   @Published var closeAfterActivation: Bool
@@ -47,10 +47,12 @@ final class SettingsModel: ObservableObject {
 
   init(config: AppConfig) {
     hotkey = config.hotkey?.displayName ?? ""
+    closeHotkey = config.closeHotkey?.displayName ?? ""
     ignoredApplications = config.ignoredApplications.sorted().joined(separator: ", ")
     background = Color(config.overlayBackground)
     overlayColumns = config.overlayColumns
-    overlayRows = config.overlayRows
+    overlayMaxCells = config.overlayMaxCells
+    overlayMinTile = config.overlayMinTile
     windowOrder = config.windowOrder
     thumbnailMode = config.windowThumbnailMode
     thumbnailQuality = config.thumbnailQuality
@@ -69,8 +71,6 @@ final class SettingsModel: ObservableObject {
     windowThumbnailsStaleSeconds = config.windowThumbnailsStaleSeconds
     dimsStaleThumbnails = config.dimsStaleThumbnails
     overlayFillsScreen = config.overlayFillsScreen
-    thumbnailWidth = config.windowThumbnailTargetSize.width
-    thumbnailHeight = config.windowThumbnailTargetSize.height
     maxWindows = config.maxWindows
     closeAfterActivation = config.closeAfterActivation
     showMenuBarIcon = config.showMenuBarIcon
@@ -83,16 +83,12 @@ final class SettingsModel: ObservableObject {
 
     var config = AppConfig.default
 
-    let spec = hotkey.trimmingCharacters(in: .whitespaces)
-    if spec.isEmpty {
-      config.hotkey = nil
-    } else {
-      do {
-        config.hotkey = try HotkeyBinding(parsing: spec)
-      } catch {
-        problem = "\(error)"
-        return nil
-      }
+    do {
+      config.hotkey = try binding(hotkey)
+      config.closeHotkey = try binding(closeHotkey)
+    } catch {
+      problem = "\(error)"
+      return nil
     }
 
     config.overlayBackground = OverlayColor(background)
@@ -113,7 +109,8 @@ final class SettingsModel: ObservableObject {
     config.overlayGrouping = grouping
 
     config.overlayColumns = max(1, overlayColumns)
-    config.overlayRows = max(1, overlayRows)
+    config.overlayMaxCells = max(1, overlayMaxCells)
+    config.overlayMinTile = max(60, overlayMinTile)
     config.windowOrder = windowOrder
     config.windowThumbnailMode = thumbnailMode
     config.activationSettleSeconds = activationSettleSeconds
@@ -130,16 +127,24 @@ final class SettingsModel: ObservableObject {
     config.ignoresMenuBarApplications = ignoresMenuBarApplications
     config.usesPrivateSpaceAPI = usesPrivateSpaceAPI
     config.overlayFillsScreen = overlayFillsScreen
-    config.windowThumbnailTargetSize = CGSize(
-      width: max(40, thumbnailWidth),
-      height: max(40, thumbnailHeight)
-    )
     config.maxWindows = max(1, maxWindows)
     config.closeAfterActivation = closeAfterActivation
     config.showMenuBarIcon = showMenuBarIcon
     config.debugMode = debugMode
 
     return config
+  }
+
+  /// A shortcut field as typed, or nothing at all when it is empty — a shortcut
+  /// someone turned off rather than one that failed to parse.
+  private func binding(_ text: String) throws -> HotkeyBinding? {
+    let spec = text.trimmingCharacters(in: .whitespaces)
+
+    guard !spec.isEmpty else {
+      return nil
+    }
+
+    return try HotkeyBinding(parsing: spec)
   }
 }
 

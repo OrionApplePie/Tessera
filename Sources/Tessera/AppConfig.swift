@@ -4,7 +4,6 @@ import Foundation
 struct AppConfig: Equatable {
   var refreshIntervalSeconds: TimeInterval
   var windowThumbnailsStaleSeconds: TimeInterval
-  var windowThumbnailTargetSize: CGSize
   var maxWindows: Int
   var closeAfterActivation: Bool
   var showMenuBarIcon: Bool
@@ -64,13 +63,16 @@ struct AppConfig: Equatable {
   var overlayLayout: OverlayLayout
   /// Where a short row sits under a long one.
   var overlayRowAlignment: OverlayRowAlignment
-  /// How many rows of Spaces the map is allowed. With `overlayColumns` it makes the
-  /// grid the map is drawn on — five across and four down is twenty cells — and the
-  /// rows are what the displays share, so a display's share of the map is always a
-  /// whole number of rows.
-  var overlayRows: Int
-  /// The most cells the map draws: the grid, counted out.
-  var overlayMaxCells: Int { max(1, overlayColumns) * max(1, overlayRows) }
+  /// The most cells the map draws, shared out between the displays. A cell is what
+  /// stands beside its neighbour: a Space when its windows are stacked, a window
+  /// when they are fanned out. This is a ceiling and nothing else — the shape of
+  /// the map is the layout's business, and only the fixed layout is told a row
+  /// length.
+  var overlayMaxCells: Int
+  /// The smallest a tile may be drawn. A map that keeps every Space by making each
+  /// one too small to recognise has answered the wrong question, so the count comes
+  /// down instead: what will not fit at this size is left off.
+  var overlayMinTile: CGFloat
   /// Whether the overlay takes the screen it opens on, less a margin, and draws
   /// its tiles as large as that room allows.
   var overlayFillsScreen: Bool
@@ -85,7 +87,6 @@ struct AppConfig: Equatable {
   static let `default` = AppConfig(
     refreshIntervalSeconds: 3,
     windowThumbnailsStaleSeconds: 30,
-    windowThumbnailTargetSize: CGSize(width: 240, height: 160),
     maxWindows: 24,
     closeAfterActivation: true,
     showMenuBarIcon: true,
@@ -123,9 +124,10 @@ struct AppConfig: Equatable {
       red: 43 / 255, green: 46 / 255, blue: 51 / 255, alpha: 194 / 255),
     overlayDeck: .stack,
     overlayArrows: .spaces,
-    overlayLayout: .fitted,
+    overlayLayout: .flow,
     overlayRowAlignment: .center,
-    overlayRows: 4,
+    overlayMaxCells: 20,
+    overlayMinTile: 150,
     overlayFillsScreen: false,
     // Deliberately not cmd- or alt+space: those belong to Spotlight and to every
     // launcher that replaces it.

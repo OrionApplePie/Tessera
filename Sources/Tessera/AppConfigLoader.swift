@@ -60,18 +60,6 @@ struct AppConfigLoader {
       key: "window_thumbnails_stale_seconds"
     )
 
-    let thumbnailWidth = try positiveDouble(
-      values["window_thumbnail_target_width"],
-      default: config.windowThumbnailTargetSize.width,
-      key: "window_thumbnail_target_width"
-    )
-    let thumbnailHeight = try positiveDouble(
-      values["window_thumbnail_target_height"],
-      default: config.windowThumbnailTargetSize.height,
-      key: "window_thumbnail_target_height"
-    )
-    config.windowThumbnailTargetSize = CGSize(width: thumbnailWidth, height: thumbnailHeight)
-
     config.dimsStaleThumbnails = try bool(
       values["dim_stale_thumbnails"],
       default: config.dimsStaleThumbnails,
@@ -125,24 +113,25 @@ struct AppConfigLoader {
       values["overlay_layout"],
       default: config.overlayLayout
     )
-    config.overlayRows = try positiveInt(
-      values["overlay_rows"],
-      default: config.overlayRows,
-      key: "overlay_rows"
+    config.overlayMaxCells = try positiveInt(
+      values["overlay_max_cells"],
+      default: config.overlayMaxCells,
+      key: "overlay_max_cells"
     )
-    // The grid replaced a bare cell count, and a config written before it still says
-    // twenty. Read as the rows those cells make, it means what it meant.
-    if values["overlay_rows"] == nil, values["overlay_max_cells"] != nil {
-      let cells = try positiveInt(
-        values["overlay_max_cells"],
-        default: config.overlayMaxCells,
-        key: "overlay_max_cells"
-      )
 
-      let columns = max(1, config.overlayColumns)
+    // A configuration written while the ceiling was a grid says how many rows it
+    // wanted. Multiplied out by the row length, it means the same number of Spaces.
+    if values["overlay_max_cells"] == nil, values["overlay_rows"] != nil {
+      let rows = try positiveInt(values["overlay_rows"], default: 1, key: "overlay_rows")
 
-      config.overlayRows = max(1, (cells + columns - 1) / columns)
+      config.overlayMaxCells = max(1, rows * max(1, config.overlayColumns))
     }
+
+    config.overlayMinTile = try positiveDouble(
+      values["overlay_min_tile"],
+      default: config.overlayMinTile,
+      key: "overlay_min_tile"
+    )
     config.overlayRowAlignment = try rowAlignment(
       values["overlay_row_align"],
       default: config.overlayRowAlignment
