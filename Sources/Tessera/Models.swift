@@ -243,6 +243,7 @@ struct WindowTileSection: Identifiable {
     displayNames: [CGDirectDisplayID: String],
     grouping: OverlayGrouping = .displays,
     spaceCounts: [CGDirectDisplayID: Int] = [:],
+    displayOrder: [CGDirectDisplayID] = [],
     currentSpaces: [CGDirectDisplayID: Int] = [:],
     spaceNames: [WindowSectionID: String] = [:],
     fullscreenSpaces: Set<WindowSectionID> = []
@@ -284,7 +285,7 @@ struct WindowTileSection: Identifiable {
     // would make the map disagree with Mission Control — and leave nowhere to put a
     // window that is being moved somewhere empty.
     if grouping.contains(.spaces), !spaceCounts.isEmpty {
-      runs = withEmptySpaces(runs, spaceCounts: spaceCounts)
+      runs = withEmptySpaces(runs, spaceCounts: spaceCounts, displayOrder: displayOrder)
     }
 
     let displays = Set(runs.map(\.id.displayID))
@@ -314,7 +315,8 @@ struct WindowTileSection: Identifiable {
   /// that the empty ones appear between the occupied ones rather than not at all.
   private static func withEmptySpaces(
     _ runs: [(id: WindowSectionID, tiles: [WindowTileModel])],
-    spaceCounts: [CGDirectDisplayID: Int]
+    spaceCounts: [CGDirectDisplayID: Int],
+    displayOrder: [CGDirectDisplayID]
   ) -> [(id: WindowSectionID, tiles: [WindowTileModel])] {
     var byID: [WindowSectionID: [WindowTileModel]] = [:]
     for run in runs {
@@ -323,14 +325,18 @@ struct WindowTileSection: Identifiable {
 
     var filled: [(id: WindowSectionID, tiles: [WindowTileModel])] = []
 
-    // Displays in the order their windows appeared, then any display with Spaces
-    // but nothing on them at all.
-    let seen = runs.map(\.id.displayID)
-    let displays = seen + spaceCounts.keys.filter { !seen.contains($0) }.sorted()
+    // The displays as they are actually arranged, so a monitor standing above the
+    // laptop is drawn above it whether or not anything is open on it. Ordered by
+    // where their windows came in, a display with no windows at all could only be
+    // appended, which put an empty screen standing highest at the foot of the map.
+    // A display the arrangement does not name keeps the place its windows gave it.
+    var displays: [CGDirectDisplayID] = []
+    for displayID in displayOrder + runs.map(\.id.displayID) + spaceCounts.keys.sorted()
+    where !displays.contains(displayID) {
+      displays.append(displayID)
+    }
 
-    for displayID in NSOrderedSet(array: displays.map { NSNumber(value: $0) }).compactMap({
-      ($0 as? NSNumber).map { CGDirectDisplayID($0.uint32Value) }
-    }) {
+    for displayID in displays {
       for index in 0..<(spaceCounts[displayID] ?? 0) {
         let id = WindowSectionID(displayID: displayID, spaceIndex: index)
         filled.append((id, byID[id] ?? []))

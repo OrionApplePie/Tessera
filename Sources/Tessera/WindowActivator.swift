@@ -128,6 +128,203 @@ struct WindowActivator {
     logger.debug("Pressed the close button of a window")
   }
 
+  /// Sends a window to another display, and says whether it arrived.
+  ///
+  /// Which Space a window is on is not something any public interface will change,
+  /// but which display it is on is only where its rectangle sits — so this is a
+  /// move, not a request to the window server. With displays keeping separate
+  /// Spaces, the window lands on whatever Space the other display is showing, which
+  /// is as close to moving between Spaces as macOS allows from outside.
+  ///
+  /// Arrival is judged by where the window ended up rather than by the call
+  /// returning: an application may clamp the frame or refuse it outright.
+  func send(_ window: WindowTileModel, toDisplay displayID: CGDirectDisplayID) -> Bool {
+    let target = CGDisplayBounds(displayID)
+
+    guard !target.isEmpty else {
+      logger.error("Display \(displayID) has no bounds to move a window into")
+      return false
+    }
+
+    do {
+      let frame = try frame(of: window)
+      let wanted = DisplayInfo.frame(
+        frame, movedFrom: CGDisplayBounds(window.displayID), to: target)
+      let landed = try setFrame(wanted, of: window)
+      let arrived = target.contains(CGPoint(x: landed.midX, y: landed.midY))
+
+      logger.info(
+        "Sent \(window.displayAppName) to display \(displayID): arrived=\(arrived) "
+          + "wanted=\(wanted.debugDescription) landed=\(landed.debugDescription)")
+
+      return arrived
+    } catch {
+      logger.error("Could not move \(window.displayAppName): \(error)")
+
+      return false
+    }
+  }
+
+  /// Puts a window in a part of the screen it is already on.
+  ///
+  /// Half a screen and the whole of it, done by geometry rather than by asking the
+  /// application: every application's own green button means something slightly
+  /// different, and a switcher that tiles windows has to give the same answer
+  /// twice running.
+  func place(_ window: WindowTileModel, _ placement: WindowPlacement) -> Bool {
+    guard let bounds = DisplayInfo.visibleBounds(of: window.displayID) else {
+      logger.error("No room known for display \(window.displayID)")
+
+      return false
+    }
+
+    do {
+      let landed = try setFrame(placement.frame(in: bounds), of: window)
+
+      logger.info("Placed \(window.displayAppName): landed=\(landed.debugDescription)")
+
+      return true
+    } catch {
+      logger.error("Could not place \(window.displayAppName): \(error)")
+
+      return false
+    }
+  }
+
+  /// Turns a window's own fullscreen mode on or off.
+  ///
+  /// Fullscreen is a mode, not a rectangle: the window is given a Space of its own
+  /// and the menu bar goes away, and only the application can do that. Most answer
+  /// for `AXFullScreen`; the ones that do not still have a zoom button, which is
+  /// what a person would press instead.
+  func toggleFullscreen(_ window: WindowTileModel) -> Bool {
+    do {
+      let element = try accessibilityWindow(for: window)
+      var value: CFTypeRef?
+      let attribute = "AXFullScreen" as CFString
+
+      guard AXUIElementCopyAttributeValue(element, attribute, &value) == .success,
+        let isFullscreen = value as? Bool
+      else {
+        logger.debug("\(window.displayAppName) does not answer for AXFullScreen; zooming instead")
+
+        return press(kAXZoomButtonAttribute, of: element)
+      }
+
+      let wanted: CFBoolean = isFullscreen ? kCFBooleanFalse : kCFBooleanTrue
+      let status = AXUIElementSetAttributeValue(element, attribute, wanted)
+
+      logger.info(
+        "Asked \(window.displayAppName) for fullscreen=\(!isFullscreen): \(status.rawValue)")
+
+      return status == .success
+    } catch {
+      logger.error("Could not put \(window.displayAppName) fullscreen: \(error)")
+
+      return false
+    }
+  }
+
+  /// Presses one of a window's own title bar buttons, the way a person would.
+  private func press(_ button: String, of element: AXUIElement) -> Bool {
+    var buttonValue: CFTypeRef?
+
+    guard
+      AXUIElementCopyAttributeValue(element, button as CFString, &buttonValue) == .success,
+      let buttonValue, CFGetTypeID(buttonValue) == AXUIElementGetTypeID()
+    else {
+      return false
+    }
+
+    let status = AXUIElementPerformAction(
+      unsafeDowncast(buttonValue, to: AXUIElement.self), kAXPressAction as CFString)
+
+    return status == .success
+  }
+
+  /// Where a window is, as Accessibility sees it — the live rectangle rather than
+  /// the one the last capture recorded.
+  func frame(of window: WindowTileModel) throws -> CGRect {
+    let element = try accessibilityWindow(for: window)
+
+    guard let frame = Self.frame(of: element) else {
+      throw WindowActivationError.actionUnavailable(window.displayAppName, "read its position")
+    }
+
+    return frame
+  }
+
+  /// Puts a window where it is asked to go, and says where it actually ended up.
+  ///
+  /// A window belongs to the display covering most of it, so sending one to another
+  /// display is moving its rectangle there — there is no display to set. Both
+  /// attributes are requests, not commands: an application may clamp the size, keep
+  /// a minimum, or refuse outright, so the frame is read back rather than assumed.
+  /// The position is set twice because a resize can push a window back onto the
+  /// display it came from.
+  @discardableResult
+  func setFrame(_ frame: CGRect, of window: WindowTileModel) throws -> CGRect {
+    let element = try accessibilityWindow(for: window)
+
+    Self.set(frame.origin, on: element)
+    Self.set(frame.size, on: element)
+    Self.set(frame.origin, on: element)
+
+    guard let landed = Self.frame(of: element) else {
+      throw WindowActivationError.actionUnavailable(window.displayAppName, "move")
+    }
+
+    logger.debug("Asked \(window.displayAppName) to move to \(frame.debugDescription)")
+
+    return landed
+  }
+
+  private static func set(_ origin: CGPoint, on element: AXUIElement) {
+    var origin = origin
+
+    guard let wrapped = AXValueCreate(.cgPoint, &origin) else {
+      return
+    }
+
+    _ = AXUIElementSetAttributeValue(element, kAXPositionAttribute as CFString, wrapped)
+  }
+
+  private static func set(_ size: CGSize, on element: AXUIElement) {
+    var size = size
+
+    guard let wrapped = AXValueCreate(.cgSize, &size) else {
+      return
+    }
+
+    _ = AXUIElementSetAttributeValue(element, kAXSizeAttribute as CFString, wrapped)
+  }
+
+  private static func frame(of element: AXUIElement) -> CGRect? {
+    var positionValue: CFTypeRef?
+    var sizeValue: CFTypeRef?
+
+    guard
+      AXUIElementCopyAttributeValue(element, kAXPositionAttribute as CFString, &positionValue)
+        == .success,
+      AXUIElementCopyAttributeValue(element, kAXSizeAttribute as CFString, &sizeValue) == .success,
+      let positionValue, let sizeValue,
+      CFGetTypeID(positionValue) == AXValueGetTypeID(), CFGetTypeID(sizeValue) == AXValueGetTypeID()
+    else {
+      return nil
+    }
+
+    var origin = CGPoint.zero
+    var size = CGSize.zero
+
+    guard AXValueGetValue(unsafeDowncast(positionValue, to: AXValue.self), .cgPoint, &origin),
+      AXValueGetValue(unsafeDowncast(sizeValue, to: AXValue.self), .cgSize, &size)
+    else {
+      return nil
+    }
+
+    return CGRect(origin: origin, size: size)
+  }
+
   /// The Accessibility element for a tile, matched by title.
   ///
   /// Not every window is there to be found: Accessibility lists none of Finder's
@@ -142,12 +339,17 @@ struct WindowActivator {
     AXUIElementSetMessagingTimeout(application, messagingTimeout)
 
     var windowsValue: CFTypeRef?
-    guard
-      AXUIElementCopyAttributeValue(application, kAXWindowsAttribute as CFString, &windowsValue)
-        == .success,
-      let windows = windowsValue as? [AXUIElement],
-      let match = matchingWindow(among: windows, title: window.title)
-    else {
+    let status = AXUIElementCopyAttributeValue(
+      application, kAXWindowsAttribute as CFString, &windowsValue)
+    let windows = (windowsValue as? [AXUIElement]) ?? []
+
+    guard status == .success, let match = matchingWindow(among: windows, title: window.title) else {
+      // What Accessibility did offer, when it did not offer the window asked for.
+      // Usually the answer is that the window is on a Space that is not showing.
+      logger.debug(
+        "Accessibility listed \(windows.count) window(s) of \(window.displayAppName): "
+          + windows.compactMap(accessibilityTitle(of:)).joined(separator: " | "))
+
       throw WindowActivationError.windowNotListed(window.displayAppName, window.displayTitle)
     }
 

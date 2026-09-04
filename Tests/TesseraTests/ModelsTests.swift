@@ -116,6 +116,34 @@ struct WindowTileSectionTests {
     #expect(sections.map(\.title) == ["Color LCD", "VG27AQL1A"])
   }
 
+  /// A display with nothing open on it still stands where it stands: the screen
+  /// above the laptop belongs above it on the map. Appended after the displays that
+  /// had windows, it put the monitor standing highest at the bottom of the map.
+  @Test("A display with nothing on it keeps its place in the arrangement")
+  func ordersEmptyDisplaysByTheArrangement() {
+    let sections = WindowTileSection.sections(
+      from: [makeTile(id: 1, displayID: 1, spaceIndex: 0)],
+      displayNames: [1: "Color LCD", 2: "VG27AQL1A"],
+      grouping: [.displays, .spaces],
+      spaceCounts: [1: 1, 2: 2],
+      displayOrder: [2, 1]
+    )
+
+    #expect(sections.map(\.id.displayID) == [2, 2, 1])
+
+    // Without an arrangement to go by there is nothing but the windows to order the
+    // displays: the one that had them comes first, and this is what the map looked
+    // like before the arrangement was passed in at all.
+    let unarranged = WindowTileSection.sections(
+      from: [makeTile(id: 1, displayID: 1, spaceIndex: 0)],
+      displayNames: [1: "Color LCD", 2: "VG27AQL1A"],
+      grouping: [.displays, .spaces],
+      spaceCounts: [1: 1, 2: 2]
+    )
+
+    #expect(unarranged.map(\.id.displayID) == [1, 2, 2])
+  }
+
   /// Unplugging the external display moved its fullscreen Spaces onto the built-in,
   /// and with one display left there was nothing in the heading but the Space's own
   /// name — which a fullscreen Space declines to give. The group lost its heading,

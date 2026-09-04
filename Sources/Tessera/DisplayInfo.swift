@@ -86,6 +86,46 @@ struct DisplayInfo: Identifiable, Hashable, Sendable {
       .map(\.id)
   }
 
+  /// Where a window lands when it is sent to another display.
+  ///
+  /// Its place is kept in proportion rather than in points: a window a third of the
+  /// way across a wide screen belongs a third of the way across a narrow one, and
+  /// copying the offset would leave it hanging off the edge. The proportion is of
+  /// the room the window has to move in, not of the screen, so a window against the
+  /// right edge arrives against the right edge whatever the two sizes are.
+  ///
+  /// A window too large for the display it arrives on is taken down to fit, keeping
+  /// its shape. One that fits is not resized at all: sent across and back, a window
+  /// should be the size it started.
+  static func frame(_ frame: CGRect, movedFrom source: CGRect, to target: CGRect) -> CGRect {
+    guard !target.isEmpty, !frame.isEmpty else {
+      return frame
+    }
+
+    let scale = min(1, target.width / frame.width, target.height / frame.height)
+    let size = CGSize(
+      width: (frame.width * scale).rounded(), height: (frame.height * scale).rounded())
+    let origin = CGPoint(
+      x: target.minX + place(frame.minX - source.minX, in: source.width - frame.width)
+        * max(0, target.width - size.width),
+      y: target.minY + place(frame.minY - source.minY, in: source.height - frame.height)
+        * max(0, target.height - size.height)
+    )
+
+    return CGRect(origin: CGPoint(x: origin.x.rounded(), y: origin.y.rounded()), size: size)
+  }
+
+  /// How far along its room a window sits, from 0 at one edge to 1 at the other.
+  /// A window with no room to move — as wide as the screen, or wider — is at the
+  /// start of it.
+  private static func place(_ offset: CGFloat, in room: CGFloat) -> CGFloat {
+    guard room > 0 else {
+      return 0
+    }
+
+    return min(1, max(0, offset / room))
+  }
+
   /// Whether two displays stand side by side rather than one above the other.
   private func sharesRow(with other: DisplayInfo) -> Bool {
     let overlap = min(frame.maxY, other.frame.maxY) - max(frame.minY, other.frame.minY)
@@ -113,6 +153,29 @@ struct DisplayInfo: Identifiable, Hashable, Sendable {
 
       return number.map { CGDirectDisplayID($0.uint32Value) } == displayID
     }
+  }
+
+  /// The room a display offers a window, in the coordinates windows are placed in.
+  ///
+  /// `NSScreen.visibleFrame` is the screen with the menu bar and the Dock taken
+  /// out, which is what a window filling "the screen" should get. AppKit measures
+  /// it from the bottom left of the main screen and Accessibility measures windows
+  /// from the top left, so it is flipped here rather than used as it comes — the
+  /// mistake this file's own note warns about.
+  @MainActor
+  static func visibleBounds(of displayID: CGDirectDisplayID) -> CGRect? {
+    guard let screen = screen(for: displayID), let primary = NSScreen.screens.first else {
+      return nil
+    }
+
+    let visible = screen.visibleFrame
+
+    return CGRect(
+      x: visible.minX,
+      y: primary.frame.maxY - visible.maxY,
+      width: visible.width,
+      height: visible.height
+    )
   }
 
   /// A display name with the words that say nothing taken out.

@@ -143,3 +143,58 @@ struct DisplayInfoTests {
     #expect(DisplayInfo.shortened("Display") == "Display")
   }
 }
+
+/// Where a window lands when it is sent to another screen. The two displays here
+/// are a wide one and a half-sized one beside it, which is the pair that makes the
+/// difference between copying an offset and keeping a proportion visible.
+@Suite("Sending a window to another display")
+struct DisplayInfoMovingTests {
+  private let source = CGRect(x: 0, y: 0, width: 2000, height: 1000)
+  private let target = CGRect(x: 2000, y: 0, width: 1000, height: 500)
+
+  @Test("A window that fits arrives the same size")
+  func keepsTheSizeWhenItFits() {
+    let window = CGRect(x: 0, y: 0, width: 200, height: 100)
+    let moved = DisplayInfo.frame(window, movedFrom: source, to: target)
+
+    #expect(moved == CGRect(x: 2000, y: 0, width: 200, height: 100))
+  }
+
+  /// The proportion is of the room the window has to move in, not of the screen:
+  /// a window against the far edge belongs against the far edge, whatever the two
+  /// screens measure.
+  @Test("A window against an edge arrives against that edge")
+  func keepsAWindowOnItsEdge() {
+    let window = CGRect(x: 1800, y: 900, width: 200, height: 100)
+    let moved = DisplayInfo.frame(window, movedFrom: source, to: target)
+
+    #expect(moved == CGRect(x: 2800, y: 400, width: 200, height: 100))
+  }
+
+  @Test("A window halfway across arrives halfway across")
+  func keepsAWindowInTheMiddle() {
+    let window = CGRect(x: 900, y: 450, width: 200, height: 100)
+    let moved = DisplayInfo.frame(window, movedFrom: source, to: target)
+
+    #expect(moved == CGRect(x: 2400, y: 200, width: 200, height: 100))
+  }
+
+  /// Shrunk keeping its shape, and only as far as it has to be: a window sent to a
+  /// smaller screen and back should be recognisable, not reshaped.
+  @Test("A window too large for the screen is taken down to fit")
+  func shrinksAWindowThatDoesNotFit() {
+    let window = CGRect(x: 0, y: 0, width: 1500, height: 900)
+    let moved = DisplayInfo.frame(window, movedFrom: source, to: target)
+
+    #expect(moved.width == 833)
+    #expect(moved.height == 500)
+    #expect(target.contains(moved))
+  }
+
+  @Test("A display with no size leaves the window alone")
+  func leavesTheWindowAloneWithoutADisplay() {
+    let window = CGRect(x: 10, y: 20, width: 200, height: 100)
+
+    #expect(DisplayInfo.frame(window, movedFrom: source, to: .zero) == window)
+  }
+}

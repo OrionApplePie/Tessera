@@ -799,6 +799,51 @@ pumped between those looks. They are not waiting on another application's
 behaviour, they are the mechanics of one command waiting for one process it has
 just signalled.
 
+## Moving a window somewhere else
+
+A window belongs to the display that covers most of it — that is the whole rule —
+so sending one to another screen is putting its rectangle there and nothing more.
+`WindowActivator.send(_:toDisplay:)` reads the frame through Accessibility, asks
+`DisplayInfo.frame(_:movedFrom:to:)` where it goes, writes it back, and then reads
+it again: `kAXPosition` and `kAXSize` are requests, and an application may clamp a
+size, hold a minimum, or refuse outright. The position is written twice because a
+resize can push a window back onto the screen it came from.
+
+The place is kept in proportion to the room the window has to move in rather than
+in points, so a window against an edge arrives against that edge whatever the two
+screens measure, and only a window too large for its new screen is scaled — sent
+across and back, it should be the size it left with.
+
+Two things fall out of that. With displays keeping separate Spaces, a window sent
+to another display lands on whatever Space that display is showing, which is as
+close to moving between Spaces as anything here gets. And a window Accessibility
+will not list cannot be moved at all: Finder's windows never appear, and neither
+does a window on a Space that is not showing, so the answer there is to say so.
+
+### Between Spaces of one display, nothing works
+
+There is no public interface, and on macOS 15 the private ones are closed too.
+Measured on 15.7.5 with SIP enabled, against a real window, reading the window
+server back after each attempt:
+
+- `SLSMoveWindowsToManagedSpace` — the call returns, the window does not move.
+  Tried from Tessera itself, with Accessibility and Screen Recording granted, so
+  it is not a permissions problem.
+- `SLSSpaceSetCompatID` + `SLSSetWindowListWorkspace`, which is what Hammerspoon
+  used through macOS 14 — `SLSSetWindowListWorkspace` answers 1006,
+  `kCGErrorNotImplemented`.
+- `SLSPerformAsynchronousBridgedWindowManagementOperation`, the newer path that
+  works on macOS 26 with SIP enabled — the symbol is not exported here at all. The
+  class it operates on, `SLSBridgedMoveWindowsToManagedSpaceOperation`, already
+  exists in this version, with `performWithWMBridgeDelegate` and `invokeFallback`
+  on it: the mechanism is in place, the way in is not.
+
+What is left is yabai's route — injecting a scripting addition into Dock, which
+owns the window server connection that may do this — and that needs SIP partially
+disabled. Hammerspoon has carried the same breakage since macOS 15.0 as an open
+issue. This is a hole between two mechanisms rather than a permanent state: the
+bridged operation is how it works on the next major version.
+
 ## What a reader should not try again
 
 - Pairing `NSScreen` frames with ScreenCaptureKit frames without flipping Y.
@@ -816,3 +861,6 @@ just signalled.
 - Expecting Accessibility to list a window that is on another Space, whichever
   application owns it.
 - Looking for a public field that marks a window its application has forgotten.
+- Moving a window between Spaces on macOS 15 by any private call: neither
+  `SLSMoveWindowsToManagedSpace` nor the `SLSSpaceSetCompatID` workaround does
+  anything, whatever permissions the caller holds.

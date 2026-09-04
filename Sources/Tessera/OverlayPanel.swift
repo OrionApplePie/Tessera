@@ -5,6 +5,13 @@ final class OverlayPanel: NSPanel {
   var onSelectIndex: ((Int) -> Void)?
   var onMoveSelection: ((OverlayGrid.Direction) -> Void)?
   var onMoveTile: ((OverlayGrid.Direction) -> Void)?
+  /// Sends the chosen window to the display the arrow points at.
+  var onSendWindow: ((OverlayGrid.Direction) -> Void)?
+  /// Puts the chosen window in the half of its screen the arrow points at.
+  var onPlaceWindow: ((OverlayGrid.Direction) -> Void)?
+  /// Fills the screen with the chosen window, and its fullscreen counterpart.
+  var onFillScreen: (() -> Void)?
+  var onFullscreen: (() -> Void)?
   var onStepAndActivate: ((OverlayGrid.Direction) -> Void)?
   var onJumpToName: (([Character]) -> Void)?
   var onCloseWindow: (() -> Void)?
@@ -37,11 +44,35 @@ final class OverlayPanel: NSPanel {
   /// nobody claims it. Which is exactly what the first attempt at closing a window
   /// from here did.
   override func performKeyEquivalent(with event: NSEvent) -> Bool {
-    guard matchesCloseHotkey(event) else {
+    if matchesCloseHotkey(event) {
+      onCloseWindow?()
+      return true
+    }
+
+    // A command key with a letter never reaches `keyDown`: AppKit offers it around
+    // as a key equivalent first, and whoever wants it takes it there. That is the
+    // only door these two have.
+    guard event.modifierFlags.contains(.command) else {
       return super.performKeyEquivalent(with: event)
     }
 
-    onCloseWindow?()
+    switch event.keyCode {
+    case UInt16(kVK_Return), UInt16(kVK_ANSI_KeypadEnter):
+      onFillScreen?()
+    default:
+      // The key by its place on the board, so a Russian layout finds it too — and
+      // by its character as well, because a synthesized keystroke carries the
+      // letter without the key it came from.
+      guard
+        event.keyCode == UInt16(kVK_ANSI_F)
+          || event.charactersIgnoringModifiers?.lowercased() == "f"
+      else {
+        return super.performKeyEquivalent(with: event)
+      }
+
+      onFullscreen?()
+    }
+
     return true
   }
 
@@ -68,6 +99,29 @@ final class OverlayPanel: NSPanel {
     return character
   }
 
+  /// What an arrow does, by what is held with it. Arrow keys always carry the
+  /// function and numeric pad flags, so those are taken out before anything is
+  /// compared: what is left is what a person actually held.
+  private func arrow(_ direction: OverlayGrid.Direction, held flags: NSEvent.ModifierFlags) {
+    let modifiers =
+      flags
+      .intersection(.deviceIndependentFlagsMask)
+      .subtracting([.capsLock, .function, .numericPad])
+
+    switch modifiers {
+    case [.shift]:
+      onMoveTile?(direction)
+    case [.command]:
+      onSendWindow?(direction)
+    case [.option]:
+      onPlaceWindow?(direction)
+    case [.control, .option], [.control, .option, .shift]:
+      onStepAndActivate?(direction)
+    default:
+      onMoveSelection?(direction)
+    }
+  }
+
   override func keyDown(with event: NSEvent) {
     if event.keyCode == UInt16(kVK_Escape) || event.charactersIgnoringModifiers == "\u{1b}" {
       onDismiss?()
@@ -75,21 +129,7 @@ final class OverlayPanel: NSPanel {
     }
 
     if let direction = Self.directionsByKeyCode[event.keyCode] {
-      // Arrow keys always carry the function and numeric pad flags, so only shift
-      // distinguishes moving a tile from moving the highlight.
-      let modifiers = event.modifierFlags
-        .intersection(.deviceIndependentFlagsMask)
-        .subtracting([.capsLock, .function, .numericPad])
-
-      switch modifiers {
-      case [.shift]:
-        onMoveTile?(direction)
-      case [.control, .option], [.control, .option, .shift]:
-        onStepAndActivate?(direction)
-      default:
-        onMoveSelection?(direction)
-      }
-
+      arrow(direction, held: event.modifierFlags)
       return
     }
 

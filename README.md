@@ -264,6 +264,10 @@ background keeps its contrast without further tuning.
 | `1`–`9` | Activate that tile directly |
 | A letter | Move to the next window whose name starts with it; press again to cycle |
 | `⇧` + arrows | Move the highlighted tile itself, within its group |
+| `⌘` + arrows | Send the highlighted window to the display the arrow points at |
+| `⌥` + arrows | Put the highlighted window in that half of its screen |
+| `⌘⏎` | Fill the screen with the highlighted window |
+| `⌘F` | Hand the window to its application's own fullscreen mode |
 | `⌃⌥⇧` + arrows | Switch to the window in that direction, keeping the overlay up |
 | `⌘W` | Close the highlighted window — by default this quits its application |
 | `Esc` | Close the overlay without switching |
@@ -294,9 +298,28 @@ thumbnail. The overlay stops hiding itself for the duration and takes the keyboa
 straight back after each switch, so the next step still reaches it.
 
 Tiles can also be arranged by hand — with `⇧` and the arrow keys, or by dragging
-one onto another. That moves the thumbnail and nothing else: the window itself
-stays where it is, and an arrangement cannot cross into another display's group,
-which would put a thumbnail under a heading it does not belong to.
+one onto another. Within a display that moves the thumbnail and nothing else: the
+window itself stays where it is.
+
+Dropping a tile on another display's group, or pressing `⌘` with an arrow, moves
+the window itself. A window belongs to whichever display covers most of it, so
+this is its rectangle being put on the other screen: it keeps its place in
+proportion — a window against the right edge arrives against the right edge — and
+is taken down to fit only if it is too large for the screen it arrives on. With
+displays keeping separate Spaces, it lands on whatever Space the other display is
+showing.
+
+`⌥` with an arrow tiles by geometry rather than by asking the application: the
+window takes that half of the screen its display leaves free, so two windows put
+side by side meet exactly. `⌘⏎` is the same thing for the whole screen. `⌘F` is
+different in kind — fullscreen is a mode, not a rectangle, so it is the
+application that does it, and the window gets a Space of its own.
+
+Between Spaces of one display, no. macOS has no public way to move a window to
+another Space, and on macOS 15 the private ones do nothing either; `docs/
+mechanisms.md` records what was tried. A window Accessibility will not list —
+Finder's windows, and any window on a Space that is not showing — cannot be moved
+either, and says so rather than failing quietly.
 
 The first such move outranks `window_order` for the rest of the session, since an
 order made by hand is not one a sort should undo. It is forgotten on restart:

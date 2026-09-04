@@ -46,6 +46,9 @@ final class WindowCoordinator: ObservableObject {
   private var spaceNames: [WindowSectionID: String] = [:]
   private var fullscreenSpaces: Set<WindowSectionID> = []
   private var spaceOrder: [CGDirectDisplayID: [SpaceQuery.Space]] = [:]
+  /// The displays as they are physically arranged, top to bottom and then left to
+  /// right, so the map is laid out the way the screens stand.
+  private var displayOrder: [CGDirectDisplayID] = []
   private let wallpaper = DesktopWallpaper()
   private var orderRegistry = WindowOrderRegistry()
   private var isListHeld = false
@@ -238,6 +241,8 @@ final class WindowCoordinator: ObservableObject {
     let effectiveOrder = isArrangedByHand ? WindowOrder.stable : config.windowOrder
     let ranksSort =
       effectiveOrder != .stable || config.overlayGrouping.contains(.spaces)
+    displayOrder = snapshot.displayOrder
+
     let windows = WindowListService.ordered(
       snapshot.windows,
       displayOrder: snapshot.displayOrder,
@@ -820,20 +825,14 @@ extension WindowCoordinator {
     displayNames: [CGDirectDisplayID: String]
   ) {
     let all = WindowTileSection.sections(
-      from: tiles,
-      displayNames: displayNames,
-      grouping: config.overlayGrouping,
-      spaceCounts: spaceCounts,
-      currentSpaces: currentSpaces,
-      spaceNames: spaceNames,
-      fullscreenSpaces: fullscreenSpaces
-    )
+      from: tiles, displayNames: displayNames, grouping: config.overlayGrouping,
+      spaceCounts: spaceCounts, displayOrder: displayOrder, currentSpaces: currentSpaces,
+      spaceNames: spaceNames, fullscreenSpaces: fullscreenSpaces)
 
-    let stacked = config.overlayDeck == .stack
-    let budgets = OverlayGrid.budgets(
-      forSections: all, rows: config.overlayRows, perRow: config.overlayColumns, stacked: stacked)
+    let budgets = OverlayGrid.budgets(forSections: all, config: config, on: activeDisplay)
 
-    sections = WindowTileSection.fitting(all, cellsByDisplay: budgets, stacked: stacked)
+    sections = WindowTileSection.fitting(
+      all, cellsByDisplay: budgets, stacked: config.overlayDeck == .stack)
   }
 
   /// Shows the Space a group stands for. Choosing an empty one is the only way onto

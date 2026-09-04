@@ -250,7 +250,7 @@ enum OverlayGrid {
   }
 
   /// Where each Space's windows begin in the flat list the highlight indexes.
-  private static func starts(of sizes: [Int]) -> [Int] {
+  static func starts(of sizes: [Int]) -> [Int] {
     var starts: [Int] = []
     var next = 0
 
