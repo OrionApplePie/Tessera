@@ -66,3 +66,5 @@ fastlane/test_output
 .env.
 # macOS
 .DS_Store
+
+PLAN.md
