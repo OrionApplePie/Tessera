@@ -53,6 +53,19 @@ struct TileMetrics: Equatable, Sendable {
   var surfaceCornerRadius: CGFloat { (10 * scale).rounded() }
   /// The height of the two lines of text under a thumbnail.
   var labelHeight: CGFloat { (30 * scale).rounded() }
+
+  /// Text grows with the tile, but not as fast as the tile does. A card three times
+  /// the size does not want a name three times the size — it wants a name that is
+  /// comfortably read, and past that the label starts crowding the picture it is
+  /// labelling. Damped to a bit over half the tile's own growth.
+  private var textScale: CGFloat { 1 + (scale - 1) * 0.6 }
+
+  /// The application's name, the window's title, and the number that picks the tile.
+  var nameFontSize: CGFloat { (15 * textScale).rounded() }
+  var titleFontSize: CGFloat { (13 * textScale).rounded() }
+  var shortcutFontSize: CGFloat { (12 * textScale).rounded() }
+  /// The heading over a group: smaller than a name, and it carries the same growth.
+  var headingFontSize: CGFloat { (11 * textScale).rounded() }
   /// The line under the map that says what is being typed. Always there, so that
   /// the map does not move when someone starts typing at it.
   var searchHeight: CGFloat { (20 * scale).rounded() }
@@ -352,11 +365,11 @@ private struct WindowGroup<Content: View>: View {
           if isFullscreen {
             // The Space of a fullscreen window: one window, and no room for another.
             Image(systemName: "arrow.up.left.and.arrow.down.right")
-              .font(.system(size: 9, weight: .semibold))
+              .font(.system(size: metrics.headingFontSize - 1, weight: .semibold))
               .foregroundStyle(Color.white.opacity(0.5))
           }
 
-          SectionHeading(title: title)
+          SectionHeading(title: title, fontSize: metrics.headingFontSize)
             .lineLimit(1)
 
           if cards > 1 {
@@ -366,9 +379,9 @@ private struct WindowGroup<Content: View>: View {
             // there at all.
             HStack(spacing: 3) {
               Image(systemName: "square.stack")
-                .font(.system(size: 9, weight: .semibold))
+                .font(.system(size: metrics.headingFontSize - 1, weight: .semibold))
               Text("\(cards)")
-                .font(.system(size: 10, weight: .semibold, design: .rounded))
+                .font(.system(size: metrics.headingFontSize, weight: .semibold, design: .rounded))
             }
             .foregroundStyle(Color.white.opacity(0.62))
           }
@@ -574,10 +587,11 @@ private struct SectionLayout: Identifiable {
 
 private struct SectionHeading: View {
   let title: String
+  var fontSize: CGFloat = 11
 
   var body: some View {
     Text(title)
-      .font(.system(size: 9.5, weight: .medium))
+      .font(.system(size: fontSize, weight: .medium))
       .tracking(1.1)
       .textCase(.uppercase)
       .foregroundStyle(Color.white.opacity(0.34))
@@ -616,7 +630,7 @@ private struct WindowTileButton: View {
       VStack(alignment: .leading, spacing: 3) {
         HStack(alignment: .firstTextBaseline, spacing: 6) {
           Text(tile.displayAppName)
-            .font(.system(size: 13, weight: .semibold))
+            .font(.system(size: metrics.nameFontSize, weight: .semibold))
             .foregroundStyle(tile.isActive ? Self.textOnAccent : Color.white)
             .lineLimit(1)
 
@@ -624,7 +638,7 @@ private struct WindowTileButton: View {
 
           if let shortcut = shortcutLabel {
             Text(shortcut)
-              .font(.system(size: 11, weight: .medium, design: .rounded))
+              .font(.system(size: metrics.shortcutFontSize, weight: .medium, design: .rounded))
               .foregroundStyle(
                 tile.isActive
                   ? Self.textOnAccent.opacity(0.7) : Color.white.opacity(0.5))
@@ -632,7 +646,7 @@ private struct WindowTileButton: View {
         }
 
         Text(tile.displayTitle)
-          .font(.system(size: 11))
+          .font(.system(size: metrics.titleFontSize))
           .foregroundStyle(
             tile.isActive ? Self.textOnAccent.opacity(0.8) : Color.white.opacity(0.62)
           )
