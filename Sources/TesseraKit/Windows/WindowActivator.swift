@@ -99,11 +99,34 @@ struct WindowActivator {
       throw WindowActivationError.applicationGone(window.displayAppName)
     }
 
+    // Some applications are the desktop rather than something on it. Quitting
+    // Finder takes the wallpaper, the icons and every desktop window with it, and
+    // nothing brings it back on its own — measured here, by a switcher that quit it
+    // and then could not switch to an empty desktop for the rest of the day,
+    // because handing the keyboard to the desktop had nobody left to hand it to.
+    // macOS hides Finder's own Quit item for the same reason. The window is closed
+    // instead, which is what "close" meant anyway.
+    guard !Self.isTheDesktopItself(application) else {
+      logger.info("\(window.displayAppName) runs the desktop; closing its window instead")
+
+      return try close(window)
+    }
+
     guard application.terminate() else {
       throw WindowActivationError.actionUnavailable(window.displayAppName, "quit")
     }
 
     logger.debug("Asked \(window.displayAppName) to quit")
+  }
+
+  /// Whether this application is part of the desktop rather than a thing on it.
+  private static func isTheDesktopItself(_ application: NSRunningApplication) -> Bool {
+    guard let identifier = application.bundleIdentifier else {
+      return false
+    }
+
+    return ["com.apple.finder", "com.apple.dock", "com.apple.systemuiserver"]
+      .contains(identifier)
   }
 
   /// Closes the window by pressing its own close button, the way a person would.
