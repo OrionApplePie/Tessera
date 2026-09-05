@@ -17,12 +17,16 @@ class Tessera < Formula
     system "swift", "build", "--disable-sandbox", "-c", "release"
 
     # The words the switcher says travel in a bundle beside the executable, and
-    # `Bundle.module` looks for it there — so the pair goes into libexec together
-    # and the command people type is a link to it. Installed apart, the binary
-    # cannot find its own strings.
+    # `Bundle.module` looks for it beside the path the process was started from —
+    # then stops with a fatal error when it is not there. Two layouts were measured
+    # failing: a binary in libexec linked into bin looks in bin, and a bundle
+    # installed into bin is not linked out of the Cellar at all, because Homebrew
+    # links executables and not directories. So the pair lives in libexec and bin
+    # gets a script that execs it, which is what makes the running process libexec's
+    # own.
     libexec.install ".build/release/Tessera" => "tessera"
     libexec.install ".build/release/Tessera_TesseraKit.bundle"
-    bin.install_symlink libexec/"tessera"
+    bin.write_exec_script libexec/"tessera"
     pkgshare.install "config.example.toml"
   end
 
