@@ -47,12 +47,6 @@ enum CLI {
     case "permissions":
       try runOnMainActor { printPermissions(config: config) }
 
-    case "move":
-      guard arguments.count >= 3, let windowID = CGWindowID(arguments[1]) else {
-        throw CLIError.invalidArguments("Usage: tessera move <window id> left|right")
-      }
-      try runOnMainActor { try await runMove(windowID, arguments[2], config: config) }
-
     case "space":
       guard arguments.count >= 2 else {
         throw CLIError.invalidArguments(
@@ -297,8 +291,6 @@ enum CLI {
         windows             List switchable windows as "<id> <app>: <title>"
         focus <id>          Bring the window with the given id to the front
         permissions         Report Screen Recording and Accessibility permission status
-        move <id> left|right
-                            Send a window to the desktop beside the one it is on
         space list          List the Spaces of the display in use, by index
         space add           Add a desktop to the display in use
         space close [i]     Close Space i, or the one the display in use is showing

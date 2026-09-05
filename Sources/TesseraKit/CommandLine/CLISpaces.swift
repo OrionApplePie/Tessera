@@ -9,61 +9,6 @@ import Foundation
 /// here goes through Mission Control, needs Accessibility, and shows itself on the
 /// screen for a moment — none of which is true of listing or focusing a window.
 extension CLI {
-  // MARK: - Moving a window between Spaces
-
-  /// `move <window id> left|right` — sends a window to the desktop beside the one
-  /// it is on, which is what `⌘⇧` and an arrow do in the overlay.
-  ///
-  /// Mission Control draws only the windows of the Space its display is showing, so
-  /// this works on a window that is in front. From the overlay the Space is shown
-  /// first; here, saying so is more honest than switching the screen under a script.
-  @MainActor
-  static func runMove(
-    _ windowID: CGWindowID,
-    _ direction: String,
-    config: AppConfig
-  ) async throws {
-    guard direction == "left" || direction == "right" else {
-      throw CLIError.invalidArguments("Unknown direction: \(direction). Use left or right")
-    }
-
-    let snapshot = try await WindowListService(config: config).snapshot()
-
-    guard let window = snapshot.windows.first(where: { $0.id == windowID }) else {
-      throw CLIError.commandFailed("No window with id \(windowID)")
-    }
-
-    let query = SpaceQuery(enabled: config.usesPrivateSpaceAPI, debugMode: config.debugMode)
-    let ordered = query.orderedSpaces()[window.displayID] ?? []
-
-    guard let space = query.spaces(of: [windowID])[windowID],
-      let index = ordered.firstIndex(where: { $0.id == space })
-    else {
-      throw CLIError.commandFailed("Cannot tell which Space that window is on")
-    }
-
-    let fullscreen = Set(ordered.enumerated().filter(\.element.isFullscreen).map(\.offset))
-
-    guard
-      let target = WindowCoordinator.space(
-        beside: index, of: ordered.count, skipping: fullscreen, forward: direction == "right")
-    else {
-      throw CLIError.commandFailed("That display has no desktop \(direction) of Space \(index)")
-    }
-
-    let moving = MissionControl.Window(
-      id: windowID, title: window.title, appName: window.appName, displayID: window.displayID)
-
-    guard
-      await MissionControl(config: config)
-        .move(moving, toSpaceAt: target, on: window.displayID)
-    else {
-      throw CLIError.commandFailed("\(moving.name) did not move to Space \(target)")
-    }
-
-    print("Moved \(moving.name) to Space \(target).")
-  }
-
   // MARK: - Space commands
 
   /// `space list`, `space add` and `space close`, on the display in use — the one

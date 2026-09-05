@@ -17,20 +17,6 @@ import Foundation
 /// reports success for a press that was delivered, not for a desktop that appeared.
 @MainActor
 struct MissionControl {
-  /// What the drag needs to know about a window: which one it is, what Mission
-  /// Control draws it under, and which display it is on.
-  struct Window {
-    let id: CGWindowID
-    let title: String
-    let appName: String
-    let displayID: CGDirectDisplayID
-
-    /// What to call it in a log line.
-    var name: String {
-      title.isEmpty ? appName : "\(appName): \(title)"
-    }
-  }
-
   /// What an action is expected to do to the number of Spaces on a display.
   enum Change {
     case more
@@ -110,92 +96,6 @@ struct MissionControl {
       return AXUIElementPerformAction(space, MissionControlTree.removeAction as CFString)
         == .success
     }
-  }
-
-  /// Moves a window to another Space of its display, by dragging its thumbnail
-  /// onto that Space in Mission Control's bar. Says whether the window really went.
-  ///
-  /// This is the only way that works. Every private call for it is shut on macOS 15
-  /// — see `docs/mechanisms.md` — and Mission Control's own gesture is not shut,
-  /// because it is a gesture: a press, a path and a release, which anyone may make.
-  ///
-  /// The answer comes from the window server, which is asked where the window is
-  /// before and after. The thumbnail leaving the screen would only say that Mission
-  /// Control redrew.
-  func move(_ window: Window, toSpaceAt index: Int, on target: CGDirectDisplayID) async -> Bool {
-    guard AXIsProcessTrusted() else {
-      logger.warning("Accessibility is not granted, so no window can be dragged")
-      return false
-    }
-
-    guard let dock = Self.dockProcess() else {
-      logger.warning("The Dock is not running, so there is no Mission Control to open")
-      return false
-    }
-
-    let before = spaces.spaces(of: [window.id])[window.id]
-
-    await openFresh(ofDock: dock)
-
-    guard let places = await places(of: window, toSpaceAt: index, on: target, ofDock: dock) else {
-      await putAway(ofDock: dock)
-      return false
-    }
-
-    await PointerDrag.drag(from: places.0, to: places.1)
-    await putAway(ofDock: dock)
-
-    let moved = await waitUntil { spaces.spaces(of: [window.id])[window.id] != before }
-
-    logger.info("Moved \(window.name) to Space \(index) of its display: \(moved)")
-
-    return moved
-  }
-
-  /// Where the drag starts and where it lands, or nothing when either is missing.
-  ///
-  /// The window is missing whenever it is not on the Space its display is showing:
-  /// Mission Control draws that Space's windows and no others.
-  private func places(
-    of window: Window,
-    toSpaceAt index: Int,
-    on display: CGDirectDisplayID,
-    ofDock dock: pid_t
-  ) async -> (CGPoint, CGPoint)? {
-    guard let home = await bar(on: window.displayID, ofDock: dock) else {
-      logger.warning("Mission Control did not show a Spaces bar for that display")
-      return nil
-    }
-
-    // The bar the window lands on need not be its own. Measured: a window dragged
-    // from the built-in display onto a Space in the external display's bar goes
-    // there, display and Space at once.
-    let bar =
-      display == window.displayID ? home : await self.bar(on: display, ofDock: dock)
-
-    guard let bar, let target = bar.spaces[safe: index],
-      let landing = MissionControlTree.frame(of: target)
-    else {
-      logger.warning("Display \(display) has no Space \(index) to drop a window on")
-      return nil
-    }
-
-    let drawn = MissionControlTree.thumbnails(
-      ofDock: dock, on: window.displayID, besides: [home, bar])
-
-    guard
-      let thumbnail = MissionControlTree.thumbnail(
-        titled: window.title, orNamed: window.appName, among: drawn)
-    else {
-      logger.info(
-        "Mission Control is not drawing \(window.name); it shows: \(drawn.map(\.title))")
-      return nil
-    }
-
-    return (
-      CGPoint(x: thumbnail.frame.midX, y: thumbnail.frame.midY),
-      CGPoint(x: landing.midX, y: landing.midY)
-    )
   }
 
   /// Opens Mission Control, presses something in one display's bar, checks what it

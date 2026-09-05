@@ -20,11 +20,6 @@ final class OverlayPanel: NSPanel {
   var onAddDesktop: (() -> Void)?
   /// Closes the empty Space the highlight is on.
   var onCloseSpace: (() -> Void)?
-  /// Walks the destination for the highlighted window across the map, while the
-  /// keys that started it are still held.
-  var onAimAtSpace: ((OverlayGrid.Direction) -> Void)?
-  /// Those keys were let go, so the window goes where the destination is.
-  var onSendAimed: (() -> Void)?
   /// A character typed at the map, with the Latin letter of the same key: the
   /// window may be named in either alphabet, and the search tries both.
   var onType: ((Character, Character?, [Character]) -> Void)?
@@ -106,19 +101,6 @@ final class OverlayPanel: NSPanel {
     return true
   }
 
-  /// The modifiers changed. A destination chosen while `⌘⇧` was held is acted on
-  /// the moment either of them is let go — which is the whole point of choosing it
-  /// with the keys down rather than sending the window on every arrow.
-  override func flagsChanged(with event: NSEvent) {
-    let held = event.modifierFlags.intersection(.deviceIndependentFlagsMask)
-
-    if !held.contains(.command) || !held.contains(.shift) {
-      onSendAimed?()
-    }
-
-    super.flagsChanged(with: event)
-  }
-
   private func matchesCloseHotkey(_ event: NSEvent) -> Bool {
     closeHotkey?.matches(keyCode: event.keyCode, modifiers: event.modifierFlags) == true
   }
@@ -155,8 +137,6 @@ final class OverlayPanel: NSPanel {
       onMoveTile?(direction)
     case [.command]:
       onSendWindow?(direction)
-    case [.command, .shift]:
-      onAimAtSpace?(direction)
     case [.option]:
       onPlaceWindow?(direction)
     case [.control, .option], [.control, .option, .shift]:

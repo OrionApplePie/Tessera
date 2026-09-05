@@ -137,10 +137,6 @@ struct TileMetrics: Equatable, Sendable {
 /// marks in one colour saying different things.
 enum OverlayPalette {
   static let highlight = Color(red: 0xD9 / 255, green: 0x77 / 255, blue: 0x57 / 255)
-  /// Where a window is about to be sent. Deliberately across the wheel from the
-  /// highlight: the two are on the map at the same time and mean opposite things —
-  /// one is where the keyboard is, the other is where the window is going.
-  static let destination = Color(red: 0x57 / 255, green: 0xA0 / 255, blue: 0xD9 / 255)
 }
 
 /// Which tile the keyboard is on. Owned by `OverlayWindowController`, which moves
@@ -166,9 +162,6 @@ extension EnvironmentValues {
 
 final class OverlaySelection: ObservableObject {
   @Published var index = 0
-  /// The Space the highlighted window is about to be sent to, while the keys that
-  /// choose it are held. Nothing has moved yet.
-  @Published var movingTo: WindowSectionID?
   /// What has been typed at the map so far. Shown on the panel, because a search
   /// nobody can see is a switcher that has started behaving oddly.
   @Published var query = ""
@@ -264,7 +257,6 @@ struct OverlayView: View {
       isEmpty: entry.section.tiles.isEmpty,
       isSelected: entry.section.tiles.isEmpty && entry.offset == selectedIndex,
       holdsSelection: range.contains(selectedIndex),
-      isDestination: selection.movingTo == entry.section.id,
       onFocus: { onFocusSpace(entry.section.id) },
       desktop: entry.section.tiles.isEmpty && !isMeasuring
         ? windowCoordinator.desktopImage(
@@ -359,33 +351,9 @@ private struct WindowGroup<Content: View>: View {
   /// The Space the highlight is in, which is not the Space you are on: one says
   /// where the keyboard is, the other where you are.
   var holdsSelection: Bool = false
-  /// Where the highlighted window will go when the keys are let go.
-  var isDestination: Bool = false
   var onFocus: () -> Void = {}
   var desktop: CGImage?
   @ViewBuilder let content: Content
-
-  /// The ground under a group. A destination shows through the strongest: it is
-  /// the answer to a question being asked right now.
-  private var fill: Color {
-    if isDestination {
-      return OverlayPalette.destination.opacity(0.18)
-    }
-
-    return holdsSelection
-      ? OverlayPalette.highlight.opacity(0.10)
-      : Color.white.opacity(isCurrent ? 0.09 : 0.035)
-  }
-
-  private var edge: Color {
-    if isDestination {
-      return OverlayPalette.destination
-    }
-
-    return holdsSelection
-      ? OverlayPalette.highlight.opacity(0.85)
-      : Color.white.opacity(isCurrent ? 0.28 : 0.08)
-  }
 
   var body: some View {
     if title.isEmpty {
@@ -454,12 +422,20 @@ private struct WindowGroup<Content: View>: View {
       .padding(metrics.groupPadding)
       .background(
         RoundedRectangle(cornerRadius: metrics.groupCornerRadius, style: .continuous)
-          .fill(fill)
+          .fill(
+            holdsSelection
+              ? OverlayPalette.highlight.opacity(0.10)
+              : Color.white.opacity(isCurrent ? 0.09 : 0.035)
+          )
       )
       .overlay(
         RoundedRectangle(cornerRadius: metrics.groupCornerRadius, style: .continuous)
           .stroke(
-            edge, lineWidth: isDestination ? 2 : (holdsSelection ? 1.25 : (isCurrent ? 0.75 : 0.5)))
+            holdsSelection
+              ? OverlayPalette.highlight.opacity(0.85)
+              : Color.white.opacity(isCurrent ? 0.28 : 0.08),
+            lineWidth: holdsSelection ? 1.25 : (isCurrent ? 0.75 : 0.5)
+          )
       )
     }
   }

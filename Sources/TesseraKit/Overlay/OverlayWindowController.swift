@@ -206,12 +206,6 @@ final class OverlayWindowController: NSWindowController, NSWindowDelegate {
     panel.onCloseSpace = { [weak self] in
       self?.closeSelectedSpace()
     }
-    panel.onAimAtSpace = { [weak self] direction in
-      self?.aimAtSpace(direction)
-    }
-    panel.onSendAimed = { [weak self] in
-      self?.commitMoveToSpace()
-    }
   }
 
   @available(*, unavailable)
@@ -352,10 +346,6 @@ final class OverlayWindowController: NSWindowController, NSWindowDelegate {
   func hideOverlay() {
     stepHotkeys?.stop()
 
-    // A destination is a question only the open map can answer, so it does not
-    // outlive it: reopening with one still marked would send a window somewhere
-    // chosen a while ago.
-    selection.movingTo = nil
     steppingActivation = nil
     window?.orderOut(nil)
     windowCoordinator.releaseList()

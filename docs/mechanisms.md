@@ -844,7 +844,7 @@ disabled. Hammerspoon has carried the same breakage since macOS 15.0 as an open
 issue. This is a hole between two mechanisms rather than a permanent state: the
 bridged operation is how it works on the next major version.
 
-### Except by hand, which is not shut
+### Except by hand, where it half works
 
 Every *call* is shut. The gesture is not: in Mission Control a window moves to
 another Space when its thumbnail is dragged onto that Space in the bar, and a
@@ -853,100 +853,27 @@ drag is a press, a path and a release, which anyone may make.
 Measured, with SIP enabled and no private call: a TextEdit window dragged from
 its thumbnail onto "Desktop 2" went there, and `SLSCopySpacesForWindows` — asked
 before and after, which is what answers here, because a thumbnail leaving the
-screen only says Mission Control redrew — reported the new Space. The switcher
-listed the window as off-screen afterwards, which is what a window on another
-Space looks like.
+screen only says Mission Control redrew — reported the new Space. Dragged onto
+the *other display's* bar it changed display and Space at once. The same drag,
+driven from `tessera move`, moved a window and the switcher then listed it as
+off-screen, which is what a window on another Space looks like.
 
-Three things this costs, and they are the reason it is a keystroke rather than
-something automatic:
+And then it was taken out. Driven from the map — choose a destination with the
+keys held, send on release — it failed more often than it worked: `Could not
+send Finder to that Space`, with the destination correct in the log and the
+window still where it started. Why the same drag lands from one caller and not
+from the other was not chased down. What is recorded here is that the door is
+not locked, not that the way through it is known.
 
-- The pointer really moves, and is put back afterwards. There is no way to make
-  the gesture without making it.
-- A single leap does not work. The window server wants movement: a press and a
-  release at two points move nothing, and neither does one jump between them, so
-  the path is walked in twenty steps.
+Three things any second attempt will meet:
+
+- The pointer really moves. There is no way to make the gesture without making
+  it, and it has to be put back afterwards.
+- A single leap does not work. The window server reads movement, not endpoints:
+  a press and a release at two points move nothing, and neither does one jump
+  between them, so the path has to be walked in steps.
 - Mission Control draws only the windows of the Space its display is showing. A
-  window anywhere else has to be brought forward first, which is visible — from
-  the overlay that is done for you, and `tessera move` refuses instead, because
-  switching the screen under a script is worse than saying no.
-
-## Creating and closing a Space
-
-Moving a window between Spaces is shut, but making and unmaking the Spaces
-themselves is not — through Mission Control's own buttons.
-
-The window server's calls for it exist: `SLSSpaceCreate`, `SLSSpaceDestroy`,
-`SLSSpaceSetType`, `SLSShowSpaces` and `SLSHideSpaces` are all exported by
-SkyLight on 15.7.5. Presence proves nothing here — `SLSMoveWindowsToManagedSpace`
-is exported too and does nothing — and this is the class of operation yabai
-performs from inside Dock, which is why it asks for SIP to be turned down. So the
-symbols were left alone and the user interface was used instead.
-
-Mission Control is drawn by the Dock, and while it is open the Dock publishes it
-as an ordinary Accessibility tree. Measured on 15.7.5 with two displays, one bar
-per display:
-
-```
-AXGroup                                       ← one bar, one display
-  AXList
-    AXButton  "Desktop 1"  [AXPress]
-    AXButton  "Telegram"   [AXPress, AXRemoveDesktop]
-  AXButton    ""           [AXPress]          ← adds a desktop to this display
-```
-
-Measured end to end by hand, on this machine, with SIP enabled and no private
-call: pressing the empty-titled button took the display from five Spaces to six,
-and `AXRemoveDesktop` on the new one took it back to five, both reported as
-`.success` and both confirmed by reading the bar again.
-
-Seven things this depends on, each of which cost an attempt:
-
-- **A press is not an outcome.** `AXPress` reports that the press was delivered.
-  Whether a desktop appeared is a separate question, so every action counts the
-  Spaces on that display before and after and answers with the difference.
-- **Nothing may be matched on a label.** Every title and description in this tree
-  is localised — the bar is "Панель Spaces" on a Russian system, the adding button
-  "добавить Рабочий стол" — so the shape of the tree identifies things instead.
-- **Shape alone is not enough either.** The group of window thumbnails above the
-  bar has exactly the same shape: a group whose first child is a group of buttons.
-  Matched on shape only, it was taken for a display's Spaces, and the action then
-  found no button to add a desktop with. A bar has to show one of the two things
-  only a bar has — the button that adds a desktop, or a Space that can be closed.
-- **A locked screen has no Mission Control.** With `CGSSessionScreenIsLocked` set,
-  the Dock keeps its one child and nothing ever appears; the frontmost application
-  is `loginwindow`. Three failures in a row were read as a code fault before the
-  session was looked at.
-- **Opening it is a toggle.** Opening Mission Control while it is already showing
-  puts it away. An action that leaves it up therefore makes the next one close it
-  and find no bars — and a bar left from that earlier showing hands out elements
-  that no longer answer: pressing one reported success and removed nothing. So it
-  is closed first when it is already up, and only then opened.
-- **One Escape is not always enough.** Posted the moment the Spaces have finished
-  changing, it is sometimes swallowed while the animation is still running, and
-  Mission Control stays on the screen — an eyesore, and a trap, because the next
-  action would then toggle it shut instead of opening it. The key goes out again
-  until the bars are gone.
-- **The action list fills in late.** For the first moment after the bars appear,
-  every button lists `AXPress` and nothing else; `AXRemoveDesktop` turns up a beat
-  later. Refusing a button that had not yet admitted it could be closed refused
-  Spaces that closed perfectly well when simply asked — measured, `AXRemoveDesktop`
-  returned `.success` on the same button 1.5 seconds later. The action is waited
-  for, and pressed for regardless; the count is what answers.
-
-Two smaller measurements. A new desktop is inserted after the last desktop of that
-display and before its fullscreen Spaces, not at the end. And macOS does not
-renumber the desktops it names when one goes: closing "Desktop 2" of one display
-left the other display calling its own desktops 3 and 4, with three desktops in
-the system as before.
-
-Which display a bar belongs to is decided by where the bar is drawn, not by the
-order the Dock lists them in: Accessibility measures from the top left of the main
-display and so does `CGDisplayBounds`, so the middle of a bar falls inside exactly
-one display's bounds.
-
-The price is that Mission Control is on the screen for about a second, which is
-why this is used for adding and closing a Space and not for switching between
-them — switching stays on the instant shortcut in `DesktopSwitcher`.
+  window anywhere else has to be brought forward first, which is visible.
 
 ## Telling a player to play
 
@@ -988,8 +915,8 @@ doing nothing at all, which is how this was found.
   bundle: it is refused, and refused silently.
 - Moving a window between Spaces on macOS 15 by any private call: neither
   `SLSMoveWindowsToManagedSpace` nor the `SLSSpaceSetCompatID` workaround does
-  anything, whatever permissions the caller holds. The drag in Mission Control
-  does, and is the only thing that does.
+  anything, whatever permissions the caller holds. Only the drag in Mission
+  Control does, and only sometimes — see above before spending a day on it.
 - Dragging a thumbnail in one jump, or with the press and the release alone: the
   window server reads movement, not endpoints.
 - Finding Mission Control's buttons by their labels, which are localised, or by
