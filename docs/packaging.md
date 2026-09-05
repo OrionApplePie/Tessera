@@ -47,7 +47,11 @@ brew test tessera                       # runs the formula's own test block
 1. Tag it: `git tag v0.1.0 && git push --tags`. The version in
    `Sources/TesseraKit/App/AppInfo.swift` is what `tessera` reports about itself
    and should say the same thing.
-2. Take the checksum of the tarball GitHub builds for that tag:
+2. Take the checksum of the tarball GitHub builds for that tag — of *that* URL and
+   no other. `gh api repos/<owner>/<repo>/tarball/<tag>` returns a different
+   archive: same contents, different root directory, different checksum, and
+   Homebrew refuses the download. Measured on v0.1.5: 234651 bytes from the API
+   against 234601 from the archive URL, and two unequal digests.
 
    ```sh
    curl -fsSL https://github.com/OrionApplePie/Tessera/archive/refs/tags/v0.1.0.tar.gz \
