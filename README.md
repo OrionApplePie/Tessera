@@ -672,6 +672,18 @@ Pick a combination nothing else owns, and prefer checking rather than assuming:
 setting in it. `Save and Restart` writes the file and replaces the running
 background app with one that has read it.
 
+Its pages are **App**, **Layout**, **Appearance**, **Timing**, **Keys** and
+**About**. Keys lists everything the overlay answers to, with the two shortcuts
+that are settings shown as they are actually bound — a switcher is used with the
+hands and read about once, so the list belongs in the window rather than only
+here. `Restore Defaults` fills the form with what Tessera ships with and stops
+there: nothing is written until you save, so the defaults can be read off the
+pages and then cancelled.
+
+Some controls apply only in some arrangements, and say so by greying out rather
+than by doing nothing: the row length is listened to by the fixed arrangement
+alone, and the arrangement itself only while the map grows into the screen.
+
 Two things worth knowing before using it:
 
 - The file is **regenerated whole**. The parser here reads a subset of TOML and

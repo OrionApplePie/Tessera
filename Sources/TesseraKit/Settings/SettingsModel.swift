@@ -10,43 +10,54 @@ import SwiftUI
 /// than telling them at the end what did not parse.
 @MainActor
 final class SettingsModel: ObservableObject {
-  @Published var hotkey: String
-  @Published var closeHotkey: String
-  @Published var ignoredApplications: String
-  @Published var background: Color
+  // The values below are placeholders, overwritten by `apply` before the window is
+  // ever shown. What Tessera actually ships with lives in `AppConfig.default` and
+  // nowhere else, so that a second copy cannot drift from it.
+  @Published var hotkey = ""
+  @Published var closeHotkey = ""
+  @Published var ignoredApplications = ""
+  @Published var background = Color.black
 
-  @Published var overlayColumns: Int
-  @Published var overlayMaxCells: Int
-  @Published var overlayMinTile: Double
-  @Published var windowOrder: WindowOrder
-  @Published var thumbnailMode: WindowThumbnailMode
-  @Published var thumbnailQuality: ThumbnailQuality
-  @Published var overlayLayout: OverlayLayout
-  @Published var overlayRowAlignment: OverlayRowAlignment
-  @Published var overlayDeck: OverlayDeckStyle
-  @Published var overlayArrows: OverlayArrowStep
-  @Published var overlaySearch: OverlaySearch
-  @Published var closeAction: CloseAction
-  @Published var ignoresMenuBarApplications: Bool
-  @Published var usesPrivateSpaceAPI: Bool
-  @Published var activationSettleSeconds: Double
-  @Published var unresponsiveAfterSeconds: Double
-  @Published var groupsDisplays: Bool
-  @Published var groupsSpaces: Bool
+  @Published var overlayColumns: Int = 0
+  @Published var overlayMaxCells: Int = 0
+  @Published var overlayMinTile: Double = 0
+  @Published var windowOrder = WindowOrder.title
+  @Published var thumbnailMode = WindowThumbnailMode.fit
+  @Published var thumbnailQuality = ThumbnailQuality.tile
+  @Published var overlayLayout = OverlayLayout.flow
+  @Published var overlayRowAlignment = OverlayRowAlignment.center
+  @Published var overlayDeck = OverlayDeckStyle.stack
+  @Published var overlayArrows = OverlayArrowStep.spaces
+  @Published var overlaySearch = OverlaySearch.letter
+  @Published var closeAction = CloseAction.closeWindow
+  @Published var ignoresMenuBarApplications = false
+  @Published var usesPrivateSpaceAPI = false
+  @Published var activationSettleSeconds: Double = 0
+  @Published var unresponsiveAfterSeconds: Double = 0
+  @Published var groupsDisplays = false
+  @Published var groupsSpaces = false
 
-  @Published var refreshIntervalSeconds: Double
-  @Published var windowThumbnailsStaleSeconds: Double
-  @Published var dimsStaleThumbnails: Bool
-  @Published var overlayFillsScreen: Bool
-  @Published var maxWindows: Int
+  @Published var refreshIntervalSeconds: Double = 0
+  @Published var windowThumbnailsStaleSeconds: Double = 0
+  @Published var dimsStaleThumbnails = false
+  @Published var overlayFillsScreen = false
+  @Published var maxWindows: Int = 0
 
-  @Published var closeAfterActivation: Bool
-  @Published var showMenuBarIcon: Bool
-  @Published var debugMode: Bool
+  @Published var closeAfterActivation = false
+  @Published var showMenuBarIcon = false
+  @Published var debugMode = false
 
   @Published private(set) var problem: String?
 
   init(config: AppConfig) {
+    apply(config)
+  }
+
+  /// Fills the form from a configuration.
+  ///
+  /// One mapping, used both to open the window and to put the defaults back, so
+  /// that a setting added to one is never missing from the other.
+  private func apply(_ config: AppConfig) {
     hotkey = config.hotkey?.displayName ?? ""
     closeHotkey = config.closeHotkey?.displayName ?? ""
     ignoredApplications = config.ignoredApplications.sorted().joined(separator: ", ")
@@ -77,6 +88,16 @@ final class SettingsModel: ObservableObject {
     closeAfterActivation = config.closeAfterActivation
     showMenuBarIcon = config.showMenuBarIcon
     debugMode = config.debugMode
+  }
+
+  /// Puts every field back to what Tessera ships with.
+  ///
+  /// Only the form: nothing is written until the window is saved, so this can be
+  /// undone by cancelling, and what the defaults actually are can be read off the
+  /// pages before committing to them.
+  func restoreDefaults() {
+    apply(.default)
+    problem = nil
   }
 
   /// The configuration as edited, or `nil` with `problem` set to what is wrong.

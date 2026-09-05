@@ -6,6 +6,7 @@ enum SettingsSection: String, CaseIterable, Identifiable {
   case layout
   case appearance
   case timing
+  case keys
   case about
 
   var id: String {
@@ -22,6 +23,8 @@ enum SettingsSection: String, CaseIterable, Identifiable {
       return "Appearance"
     case .timing:
       return "Timing"
+    case .keys:
+      return "Keys"
     case .about:
       return "About"
     }
@@ -37,6 +40,8 @@ enum SettingsSection: String, CaseIterable, Identifiable {
       return "paintpalette"
     case .timing:
       return "timer"
+    case .keys:
+      return "keyboard"
     case .about:
       return "info.circle"
     }
@@ -120,6 +125,8 @@ struct SettingsView: View {
       appearancePage
     case .timing:
       timingPage
+    case .keys:
+      keysPage
     case .about:
       aboutPage
     }
@@ -157,16 +164,24 @@ struct SettingsView: View {
   private var layoutPage: some View {
     Form {
       Section("The map") {
+        // First, because it decides whether anything below it is listened to. With
+        // it off the map is drawn at a fixed tile size and the row length is the
+        // only thing that shapes it; with it on the arrangement chooses, and works
+        // the row length out for itself unless it is the fixed one.
+        Toggle("Grow the map into the screen", isOn: $model.overlayFillsScreen)
+
         Picker("Arrange", selection: $model.overlayLayout) {
           Text("As large as the screen allows").tag(OverlayLayout.fitted)
           Text("A fixed number across").tag(OverlayLayout.rows)
           Text("A square, by how many there are").tag(OverlayLayout.count)
           Text("One after another, wrapping").tag(OverlayLayout.flow)
         }
+        .disabled(!model.overlayFillsScreen)
 
         Stepper(value: $model.overlayColumns, in: 1...12) {
           setting("Spaces across", "\(model.overlayColumns)")
         }
+        .disabled(model.overlayFillsScreen && model.overlayLayout != .rows)
 
         Stepper(value: $model.overlayMaxCells, in: 1...60) {
           setting("At most", "\(model.overlayMaxCells) Spaces")
@@ -185,8 +200,6 @@ struct SettingsView: View {
           Text("To the left").tag(OverlayRowAlignment.leading)
           Text("To the right").tag(OverlayRowAlignment.trailing)
         }
-
-        Toggle("Grow the map into the screen", isOn: $model.overlayFillsScreen)
       }
 
       Section("Groups") {
@@ -297,6 +310,12 @@ struct SettingsView: View {
 
       Spacer()
 
+      // Fills the form and stops there: nothing is written until Save, so the
+      // defaults can be read off the pages first, and Cancel is still a way out.
+      Button("Restore Defaults") {
+        model.restoreDefaults()
+      }
+
       Button("Cancel", action: onCancel)
         .keyboardShortcut(.cancelAction)
       Button("Save and Restart", action: onSave)
@@ -355,7 +374,7 @@ struct SettingsView: View {
   }
 
   /// What the numbers above mean together: a ceiling and a floor, and a row length
-  /// that only the fixed layout is told.
+  /// that only some of the arrangements are told.
   private var gridNote: String {
     let budget = String(
       localized: """
@@ -364,8 +383,17 @@ struct SettingsView: View {
         at that size is left off.
         """)
 
+    guard model.overlayFillsScreen else {
+      return budget + " "
+        + String(
+          localized: """
+            The map is drawn at a fixed tile size, so the arrangement above is not \
+            used and the row length is what shapes it.
+            """)
+    }
+
     guard model.overlayLayout == .rows else {
-      return budget + " " + String(localized: "This layout works its own row length out.")
+      return budget + " " + String(localized: "This arrangement works its own row length out.")
     }
 
     return budget
