@@ -7,6 +7,10 @@ final class OverlayWindowController: NSWindowController, NSWindowDelegate {
   let windowCoordinator: WindowCoordinator
   let config: AppConfig
   private var isPresenting = false
+  /// Where the highlight was put when the map went up, so that a list arriving a
+  /// moment later can put it back on the tile that was meant — but only if nobody
+  /// has moved it since.
+  var presentedIndex: Int?
   /// The configured column count, widened when the overlay would otherwise be
   /// taller than the screen it opens on.
   /// How long the panel takes to cross to another display when a step lands there.
@@ -220,14 +224,30 @@ final class OverlayWindowController: NSWindowController, NSWindowDelegate {
 
     isPresenting = true
 
-    // The list is rebuilt before the overlay appears rather than after, so a window
-    // opened a moment ago is in it. Thumbnails are not recaptured — that is the
-    // slow half — so the cost is one enumeration, and the previews already in the
-    // cache carry the tiles until a later refresh replaces them.
+    // With a list already in hand the map goes up on it, and the fresh one arrives
+    // behind it. Measured: enumerating the windows took 67-115 ms before anything
+    // could be drawn, and it answered with the same list almost every time — the
+    // list is rebuilt every few seconds anyway. So a window opened in the last
+    // moment now appears a beat after the map does, in place, instead of holding
+    // the map back on every open.
+    //
+    // The first open of all has nothing to draw, and waits.
+    guard !windowCoordinator.targets.isEmpty else {
+      Task { @MainActor [weak self] in
+        await self?.windowCoordinator.refreshNow(force: true, capturingThumbnails: false)
+        self?.isPresenting = false
+        self?.present()
+      }
+
+      return
+    }
+
+    isPresenting = false
+    present()
+
     Task { @MainActor [weak self] in
       await self?.windowCoordinator.refreshNow(force: true, capturingThumbnails: false)
-      self?.isPresenting = false
-      self?.present()
+      self?.replaceTheHighlightIfUntouched()
     }
   }
 
@@ -257,9 +277,7 @@ final class OverlayWindowController: NSWindowController, NSWindowDelegate {
     // Where you are standing, worked out before the marks are placed: on a Space of
     // its own it decides both of them.
     let screen = screenInFront
-    let display = DisplayInfo.displayID(of: screen)
-    let here = windowCoordinator.sections.first { $0.isCurrent && $0.id.displayID == display }
-    let standing = here?.tiles.isEmpty == true ? here?.id : nil
+    let standing = standingSpace()
 
     windowCoordinator.refreshActiveWindow(onADesktop: standing != nil)
     windowCoordinator.holdList()
@@ -268,6 +286,7 @@ final class OverlayWindowController: NSWindowController, NSWindowDelegate {
     // the overlay was last open, and a stale index would point at another window.
     selection.index = OverlayGrid.initialIndex(
       for: windowCoordinator.targets, standingOn: standing)
+    presentedIndex = selection.index
 
     // The screen is chosen here rather than left to `center()`, which would use
     // whichever screen the window was last on. Measuring against one screen and

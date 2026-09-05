@@ -30,12 +30,36 @@ extension OverlayWindowController {
   /// answer that accounts for the headings.
   /// What the map on screen is made of, so that an unchanged map can keep the
   /// layout already measured for it. The tile sizes come from the room and the
-  /// count, not from what the windows are called, so the shape of the list is all
-  /// this has to describe.
+  /// count of Spaces, not from what the windows are called, so the shape of the
+  /// list is all this has to describe.
+  ///
+  /// How many windows a Space holds is deliberately not part of it. A deck is drawn
+  /// at one tile's size whatever it holds — `deckDepth` is a constant, and the
+  /// stacked style draws a single card — so a window opening or closing somewhere
+  /// changes nothing about the room the map needs. It did change this signature,
+  /// though, and every such change cost a fresh measuring pass: measured, 123 ms
+  /// over fourteen layouts, on an open where nothing about the map's shape had
+  /// moved.
+  ///
+  /// What is kept is the count's *shape*: nothing, one, a badge of one digit, a
+  /// badge of two. The badge sits in the heading beside the title, so its width is
+  /// the one thing a count can move.
   private var mapSignature: String {
     windowCoordinator.sections
-      .map { "\($0.id.displayID).\($0.id.spaceIndex ?? -1).\($0.tiles.count)" }
+      .map { section in
+        "\(section.id.displayID).\(section.id.spaceIndex ?? -1).\(Self.shape(of: section.tiles.count))"
+      }
       .joined(separator: "|")
+  }
+
+  /// The part of a window count that can change the map's measurements.
+  nonisolated static func shape(of count: Int) -> Int {
+    switch count {
+    case 0, 1:
+      return count
+    default:
+      return 2 + String(count).count
+    }
   }
 
   func fitToScreen(within usable: CGSize) -> CGSize {

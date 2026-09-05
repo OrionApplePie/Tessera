@@ -23,7 +23,7 @@ final class WindowCoordinator: ObservableObject {
   }
 
   let config: AppConfig
-  private let logger: AppLogger
+  let logger: AppLogger
   private let windowListService: WindowListService
   private let thumbnailService: WindowThumbnailService
   let activator: WindowActivator
@@ -60,6 +60,13 @@ final class WindowCoordinator: ObservableObject {
   private let wallpaper = DesktopWallpaper()
   private var orderRegistry = WindowOrderRegistry()
   private var isListHeld = false
+  /// Whether a refresh is in flight, and whether another was asked for while it
+  /// was. Two at once is two window enumerations and two capture passes for one
+  /// answer — measured on closing the overlay, which asks for one while the
+  /// timer's is already running.
+  var isRefreshing = false
+  var refreshingWithThumbnails = false
+  var wantsAnotherRefresh = false
   private var pendingRaise: WindowTileModel?
   private var pendingRaiseDeadline: Task<Void, Never>?
   /// Set the first time a tile is dragged. The arrangement then outranks the
@@ -228,6 +235,12 @@ final class WindowCoordinator: ObservableObject {
       logger.debug("Skipping a refresh; the overlay is holding the list")
       return
     }
+
+    guard startRefresh(capturingThumbnails: capturingThumbnails) else {
+      return
+    }
+
+    defer { endRefresh() }
 
     logger.debug("Refreshing window model now")
 

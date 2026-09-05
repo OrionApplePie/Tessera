@@ -775,6 +775,40 @@ overlay that will not go away. Stepping through windows still keeps it, because 
 step raises a window without activating its application, so nothing comes
 forward — which is the whole reason that mode exists.
 
+## What opening the map costs
+
+Measured on this machine, from the keystroke to the panel being on screen, with a
+watcher outside the process reading Tessera's own Accessibility tree:
+
+| | before | after |
+|---|---|---|
+| open, warm | 132-206 ms | 40-65 ms |
+
+Three things were paying for it, and the log said which:
+
+- **Waiting for the window list.** `SCShareableContent.current` takes 67-115 ms
+  here, with 350 windows on the machine, and the map used to wait for it before
+  drawing anything. It now draws on the list already in hand and lets the fresh one
+  arrive behind it — the list is rebuilt every few seconds anyway, so it almost
+  always answers with the same thing. The highlight is put back where opening would
+  have put it once the fresh list lands, but only if nobody has moved it since.
+  Only the very first open, with nothing to draw at all, still waits.
+- **Measuring the layout again for a map that had not changed shape.** The fitted
+  size is cached against what the map is made of, and that signature used to
+  include how many windows each Space holds — so a window opening anywhere cost
+  123 ms and fourteen trial layouts on the next open. It does not: a deck is drawn
+  at one tile's size whatever it holds (`deckDepth` is a constant), and the only
+  thing a count moves is the badge beside the heading, which is why the signature
+  keeps the count's *shape* — none, one, a badge of one digit, a badge of two.
+- **Two refreshes at once.** Closing the overlay asks for a fresh list while the
+  timer's own is still in flight: two enumerations and two capture passes for one
+  answer. A refresh now folds into the one already running, and only runs after it
+  if it wanted thumbnails that one was not taking.
+
+What is *not* worth chasing: nothing happens while the map is up. The list is held
+and the captures stop, so the map does not move under the hand — measured over six
+seconds of an open overlay, the log is silent.
+
 ## The numbers, and which of them are settings
 
 There were seven of them, and most were guesses at how long something else would

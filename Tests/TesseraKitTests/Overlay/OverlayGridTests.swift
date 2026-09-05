@@ -579,3 +579,25 @@ extension OverlayGridTests {
         from: 1, matching: "c", in: tiles.map(OverlayTarget.window), field: .windowTitle) == 0)
   }
 }
+
+@Suite("What a window count does to the map's measurements")
+struct MapShapeTests {
+  /// The layout is measured again whenever the map's shape changes, and that costs
+  /// a tenth of a second — so the shape has to describe what actually moves the
+  /// measurements. A deck is drawn at one tile's size whatever it holds; only the
+  /// badge beside the heading grows, and only when the digits do.
+  @Test("Counts that draw the same badge share a shape")
+  func foldsCountsThatDrawAlike() {
+    #expect(OverlayWindowController.shape(of: 2) == OverlayWindowController.shape(of: 9))
+    #expect(OverlayWindowController.shape(of: 10) == OverlayWindowController.shape(of: 99))
+  }
+
+  /// The three that do differ: nothing at all, one window without a badge, and a
+  /// badge that has gained a digit.
+  @Test("Nothing, one, and a wider badge are different shapes")
+  func keepsCountsThatDrawDifferently() {
+    let shapes = [0, 1, 2, 10, 100].map(OverlayWindowController.shape(of:))
+
+    #expect(Set(shapes).count == shapes.count)
+  }
+}
