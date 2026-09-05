@@ -141,6 +141,8 @@ final class OverlayWindowController: NSWindowController, NSWindowDelegate {
   /// The panel reports what was pressed; this is where each of those becomes an
   /// action on the list.
   private func connect(_ panel: OverlayPanel) {
+    connectSpaces(panel)
+
     panel.onSelectIndex = { [weak self] index in
       self?.selectWindow(at: index)
     }
@@ -168,12 +170,6 @@ final class OverlayWindowController: NSWindowController, NSWindowDelegate {
     panel.onStepAndActivate = { [weak self] direction in
       self?.stepAndActivate(direction)
     }
-    panel.onAddDesktop = { [weak self] in
-      self?.addDesktop()
-    }
-    panel.onCloseSpace = { [weak self] in
-      self?.closeSelectedSpace()
-    }
     panel.closeHotkey = config.closeHotkey
     panel.onCloseWindow = { [weak self] in
       self?.closeSelectedWindow()
@@ -199,6 +195,19 @@ final class OverlayWindowController: NSWindowController, NSWindowDelegate {
     }
     panel.onDismiss = { [weak self] in
       self?.hideOverlay()
+    }
+  }
+
+  /// The keys that change the Spaces themselves rather than what is on them.
+  private func connectSpaces(_ panel: OverlayPanel) {
+    panel.onAddDesktop = { [weak self] in
+      self?.addDesktop()
+    }
+    panel.onCloseSpace = { [weak self] in
+      self?.closeSelectedSpace()
+    }
+    panel.onMoveToSpace = { [weak self] direction in
+      self?.moveToSpace(direction)
     }
   }
 

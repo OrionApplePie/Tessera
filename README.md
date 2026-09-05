@@ -308,6 +308,7 @@ background keeps its contrast without further tuning.
 | `⌘W` | Close the highlighted window — by default this quits its application |
 | `⌘N` | Add a desktop to the display the highlight is on |
 | `⌘⌫` | Close the highlighted empty Space |
+| `⌘⇧` `←` `→` | Send the highlighted window to the desktop that way |
 | `Esc` | Close the overlay without switching |
 | `Return`, `Space` | Switch to the highlighted window and close the overlay |
 
@@ -432,6 +433,13 @@ happens, because Mission Control's own buttons are what get pressed: macOS keeps
 its calls for making and unmaking Spaces to itself, and reaching them the way
 window managers do means turning off part of System Integrity Protection. This
 route needs nothing beyond the Accessibility permission Tessera already asks for.
+
+`⌘⇧` with an arrow sends the highlighted window to the desktop that way, skipping
+fullscreen Spaces — dropping a window on one of those asks for a split view rather
+than a move — and stopping at the ends rather than wrapping round. If the window is
+not on the Space its display is showing, that Space is shown first, because Mission
+Control draws no others. The pointer takes part: the move is a real drag, and the
+pointer goes back where it was afterwards.
 
 Closing is offered only for a Space with nothing on it. A Space with windows
 closes just as readily and macOS moves those windows to the neighbouring Space —
@@ -578,6 +586,7 @@ tessera permissions
 tessera space list
 tessera space add
 tessera space close 2
+tessera move 12345 right
 ```
 
 Primary lifecycle commands:
@@ -600,6 +609,10 @@ Debug / utility commands:
 - `space add` adds a desktop to that display
 - `space close [index]` closes that Space, or the one being shown when no index is
   given
+- `move <id> left|right` sends a window to the desktop beside the one it is on. It
+  works on a window that is in front: Mission Control draws only the windows of the
+  Space its display is showing, and a script that switched the screen to reach a
+  window would be worse than one that says no
 
 `show`, `toggle`, `quit`, and `restart` talk to the running background app through
 `DistributedNotificationCenter`.

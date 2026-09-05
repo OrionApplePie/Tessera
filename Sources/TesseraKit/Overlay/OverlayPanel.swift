@@ -20,6 +20,8 @@ final class OverlayPanel: NSPanel {
   var onAddDesktop: (() -> Void)?
   /// Closes the empty Space the highlight is on.
   var onCloseSpace: (() -> Void)?
+  /// Sends the highlighted window to the desktop the arrow points at.
+  var onMoveToSpace: ((OverlayGrid.Direction) -> Void)?
   /// A character typed at the map, with the Latin letter of the same key: the
   /// window may be named in either alphabet, and the search tries both.
   var onType: ((Character, Character?, [Character]) -> Void)?
@@ -137,6 +139,8 @@ final class OverlayPanel: NSPanel {
       onMoveTile?(direction)
     case [.command]:
       onSendWindow?(direction)
+    case [.command, .shift]:
+      onMoveToSpace?(direction)
     case [.option]:
       onPlaceWindow?(direction)
     case [.control, .option], [.control, .option, .shift]:

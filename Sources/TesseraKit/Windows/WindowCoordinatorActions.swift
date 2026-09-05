@@ -68,4 +68,54 @@ extension WindowCoordinator {
   func closeSpace(at index: Int, on displayID: CGDirectDisplayID) async -> Bool {
     await MissionControl(config: config).closeSpace(at: index, on: displayID)
   }
+
+  /// Moves a window to another Space of the display it is on. Says whether it went.
+  func moveWindow(_ tile: WindowTileModel, toSpaceAt index: Int) async -> Bool {
+    let window = MissionControl.Window(
+      id: tile.id, title: tile.title, appName: tile.appName, displayID: tile.displayID)
+
+    return await MissionControl(config: config).move(window, toSpaceAt: index)
+  }
+
+  /// The desktop next to one, on the same display, or nothing when there is none
+  /// that way.
+  func spaceBeside(
+    _ index: Int,
+    on displayID: CGDirectDisplayID,
+    forward: Bool
+  ) -> Int? {
+    let fullscreen = Set(
+      fullscreenSpaces.filter { $0.displayID == displayID }.compactMap(\.spaceIndex))
+
+    return Self.space(
+      beside: index, of: spaceCounts[displayID] ?? 0, skipping: fullscreen, forward: forward)
+  }
+
+  /// Which Space an arrow means, given how many a display has and which of them are
+  /// fullscreen.
+  ///
+  /// Fullscreen Spaces are stepped over: dropping a window on one asks macOS for a
+  /// split view, which is not what "the next desktop" means. Nothing wraps round
+  /// either — at the last desktop the arrow does nothing, because a keystroke that
+  /// quietly sends a window across every Space to the first one is not what it
+  /// looked like it would do.
+  nonisolated static func space(
+    beside index: Int,
+    of count: Int,
+    skipping fullscreen: Set<Int>,
+    forward: Bool
+  ) -> Int? {
+    let step = forward ? 1 : -1
+    var next = index + step
+
+    while next >= 0, next < count {
+      if !fullscreen.contains(next) {
+        return next
+      }
+
+      next += step
+    }
+
+    return nil
+  }
 }

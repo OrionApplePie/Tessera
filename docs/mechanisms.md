@@ -844,6 +844,32 @@ disabled. Hammerspoon has carried the same breakage since macOS 15.0 as an open
 issue. This is a hole between two mechanisms rather than a permanent state: the
 bridged operation is how it works on the next major version.
 
+### Except by hand, which is not shut
+
+Every *call* is shut. The gesture is not: in Mission Control a window moves to
+another Space when its thumbnail is dragged onto that Space in the bar, and a
+drag is a press, a path and a release, which anyone may make.
+
+Measured, with SIP enabled and no private call: a TextEdit window dragged from
+its thumbnail onto "Desktop 2" went there, and `SLSCopySpacesForWindows` — asked
+before and after, which is what answers here, because a thumbnail leaving the
+screen only says Mission Control redrew — reported the new Space. The switcher
+listed the window as off-screen afterwards, which is what a window on another
+Space looks like.
+
+Three things this costs, and they are the reason it is a keystroke rather than
+something automatic:
+
+- The pointer really moves, and is put back afterwards. There is no way to make
+  the gesture without making it.
+- A single leap does not work. The window server wants movement: a press and a
+  release at two points move nothing, and neither does one jump between them, so
+  the path is walked in twenty steps.
+- Mission Control draws only the windows of the Space its display is showing. A
+  window anywhere else has to be brought forward first, which is visible — from
+  the overlay that is done for you, and `tessera move` refuses instead, because
+  switching the screen under a script is worse than saying no.
+
 ## Creating and closing a Space
 
 Moving a window between Spaces is shut, but making and unmaking the Spaces
@@ -962,7 +988,10 @@ doing nothing at all, which is how this was found.
   bundle: it is refused, and refused silently.
 - Moving a window between Spaces on macOS 15 by any private call: neither
   `SLSMoveWindowsToManagedSpace` nor the `SLSSpaceSetCompatID` workaround does
-  anything, whatever permissions the caller holds.
+  anything, whatever permissions the caller holds. The drag in Mission Control
+  does, and is the only thing that does.
+- Dragging a thumbnail in one jump, or with the press and the release alone: the
+  window server reads movement, not endpoints.
 - Finding Mission Control's buttons by their labels, which are localised, or by
   their shape alone, which the row of window thumbnails shares; or expecting the
   Spaces to sit in an `AXGroup` — they sit in an `AXList`.

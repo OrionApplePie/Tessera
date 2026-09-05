@@ -182,6 +182,80 @@ enum MissionControlTree {
     }
   }
 
+  /// One window as Mission Control draws it while it is open.
+  struct Thumbnail {
+    let element: AXUIElement
+    let title: String
+    let frame: CGRect
+  }
+
+  /// The windows Mission Control is showing for one display: every button drawn on
+  /// that display that is not part of a Spaces bar.
+  ///
+  /// Only the windows of the Space that display is on. Mission Control shows no
+  /// others, which is why moving a window that is somewhere else means showing its
+  /// Space first.
+  static func thumbnails(
+    ofDock dock: pid_t,
+    on displayID: CGDirectDisplayID,
+    besides bars: [Bar]
+  ) -> [Thumbnail] {
+    let displays = displayBounds()
+    let taken = bars.flatMap { $0.spaces + [$0.add].compactMap { $0 } }
+    var found: [Thumbnail] = []
+    var seen = 0
+
+    collectButtons(
+      AXUIElementCreateApplication(dock), depth: 0, seen: &seen, into: &found)
+
+    return found.filter { thumbnail in
+      guard display(forBarAt: thumbnail.frame, among: displays) == displayID else {
+        return false
+      }
+
+      return !taken.contains { CFEqual($0, thumbnail.element) }
+    }
+  }
+
+  /// Every button in the tree, with where it is drawn.
+  private static func collectButtons(
+    _ element: AXUIElement,
+    depth: Int,
+    seen: inout Int,
+    into found: inout [Thumbnail]
+  ) {
+    guard depth < 12, seen < 4000 else {
+      return
+    }
+
+    seen += 1
+
+    if string(kAXRoleAttribute, of: element) == kAXButtonRole, let box = frame(of: element) {
+      found.append(
+        Thumbnail(
+          element: element, title: string(kAXTitleAttribute, of: element) ?? "", frame: box))
+    }
+
+    for child in children(of: element) {
+      collectButtons(child, depth: depth + 1, seen: &seen, into: &found)
+    }
+  }
+
+  /// The thumbnail of one window, by the name it is drawn under.
+  ///
+  /// Mission Control labels a thumbnail with the window's title, and with the
+  /// application's name when the window has none — so both are tried, and the
+  /// whole thing is refused rather than guessed when neither matches.
+  static func thumbnail(
+    titled title: String,
+    orNamed name: String,
+    among thumbnails: [Thumbnail]
+  ) -> Thumbnail? {
+    thumbnails.first { $0.title == title }
+      ?? thumbnails.first { !title.isEmpty && $0.title.contains(title) }
+      ?? thumbnails.first { $0.title == name }
+  }
+
   // MARK: - Reading one element
 
   static func children(of element: AXUIElement) -> [AXUIElement] {

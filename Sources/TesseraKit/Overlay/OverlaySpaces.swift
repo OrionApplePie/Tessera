@@ -62,6 +62,50 @@ extension OverlayWindowController {
     }
   }
 
+  /// Sends the highlighted window to the desktop beside the one it is on.
+  ///
+  /// Mission Control draws only the windows of the Space a display is showing, so a
+  /// window that is somewhere else has to be brought forward first — which is
+  /// visible, and is the price of the only gesture macOS leaves open for this.
+  func moveToSpace(_ direction: OverlayGrid.Direction) {
+    guard let tile = windowCoordinator.targets[safe: selection.index]?.window else {
+      logger.info("Nothing to move: the highlight is on a Space, not a window")
+      return
+    }
+
+    guard direction == .left || direction == .right else {
+      logger.info("A window moves to the desktop left or right of the one it is on")
+      return
+    }
+
+    guard let from = tile.spaceIndex,
+      let target = windowCoordinator.spaceBeside(
+        from, on: tile.displayID, forward: direction == .right)
+    else {
+      logger.info("\(tile.displayAppName) has no desktop that way")
+      return
+    }
+
+    Task { @MainActor [weak self] in
+      guard let self else {
+        return
+      }
+
+      if windowCoordinator.currentSpaces[tile.displayID] != from {
+        await windowCoordinator.showSpace(at: from, on: tile.displayID, handingBack: false)
+      }
+
+      hideOverlay()
+
+      guard await windowCoordinator.moveWindow(tile, toSpaceAt: target) else {
+        logger.info("Could not move \(tile.displayAppName) to Space \(target)")
+        return
+      }
+
+      await windowCoordinator.refreshNow(force: true)
+    }
+  }
+
   /// The display the highlight is on, whether it sits on a window or on an empty
   /// Space.
   private func selectedDisplay() -> CGDirectDisplayID? {

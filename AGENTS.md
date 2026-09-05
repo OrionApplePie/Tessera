@@ -168,6 +168,10 @@ Strict concurrency checking is on. This is the area agents most often get wrong.
   opening Mission Control while it is open closes it again; a button's action list
   fills in a moment after the bars appear, so never gate on it; and Mission Control
   does not open at all while the screen is locked.
+- A window moves between Spaces only by dragging its thumbnail in Mission Control
+  (`PointerDrag`, `MissionControl.move`). Every private call for it is shut on
+  macOS 15. The drag needs real movement in steps, and the window must be on the
+  Space its display is showing, because Mission Control draws no others.
 - Paths: use `FileManager.url(for:in:appropriateFor:create:)`. Never hardcode
   `~/Library/...` or assume the app bundle location.
 - Target is Apple Silicon; do not add x86-specific workarounds.
