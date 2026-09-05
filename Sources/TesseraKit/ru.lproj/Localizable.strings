@@ -6,7 +6,7 @@
 "%lld pt" = "%lld пт";
 "%lld windows" = "%lld окон";
 "1 – 9" = "1 – 9";
-"A Space of several windows" = "Спейс с несколькими окнами";
+"A Space of several windows" = "Тесера с несколькими карточками";
 "A fixed number across" = "Заданное число в ряду";
 "A square, by how many there are" = "Квадрат, по числу спейсов";
 "A window switcher for macOS." = "Переключатель окон для macOS.";
@@ -28,7 +28,7 @@
 "Background" = "Фон";
 "Cancel" = "Отмена";
 "Capture at" = "Снимать в";
-"Cards side by side" = "Карты рядом";
+"Cards fanned out" = "Тусовать карты: колода веером";
 "Choosing" = "Выбор";
 "Clear what was typed, then close the map" = "Стереть набранное, затем закрыть карту";
 "Close a window" = "Закрыть окно";
@@ -75,7 +75,8 @@
 "Not granted — only applications can be raised" = "Не выдано — поднимать можно только приложения";
 "Not granted — the list will be empty" = "Не выдано — список будет пуст";
 "One after another, wrapping" = "Подряд, с переносом";
-"One card, turned through" = "Одна карта, листаем сквозь неё";
+"One card, dealt in place" = "Сдача: карта просто меняется";
+"One card, flipped through" = "Флип: карта переворачивается";
 "Opening it" = "Открытие";
 "Order" = "Порядок";
 "Pause Background Refresh" = "Приостановить фоновое обновление";

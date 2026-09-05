@@ -28,7 +28,7 @@
 "Background" = "Background";
 "Cancel" = "Cancel";
 "Capture at" = "Capture at";
-"Cards side by side" = "Cards side by side";
+"Cards fanned out" = "Cards fanned out";
 "Choosing" = "Choosing";
 "Clear what was typed, then close the map" = "Clear what was typed, then close the map";
 "Close a window" = "Close a window";
@@ -75,7 +75,8 @@
 "Not granted — only applications can be raised" = "Not granted — only applications can be raised";
 "Not granted — the list will be empty" = "Not granted — the list will be empty";
 "One after another, wrapping" = "One after another, wrapping";
-"One card, turned through" = "One card, turned through";
+"One card, dealt in place" = "One card, dealt in place";
+"One card, flipped through" = "One card, flipped through";
 "Opening it" = "Opening it";
 "Order" = "Order";
 "Pause Background Refresh" = "Pause Background Refresh";

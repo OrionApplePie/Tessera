@@ -204,8 +204,9 @@ struct SettingsView: View {
 
       Section(localized("Groups")) {
         Picker(localized("A Space of several windows"), selection: $model.overlayDeck) {
-          Text(localized("One card, turned through")).tag(OverlayDeckStyle.stack)
-          Text(localized("Cards side by side")).tag(OverlayDeckStyle.fan)
+          Text(localized("One card, flipped through")).tag(OverlayDeckStyle.stack)
+          Text(localized("Cards fanned out")).tag(OverlayDeckStyle.fan)
+          Text(localized("One card, dealt in place")).tag(OverlayDeckStyle.deal)
         }
 
         Toggle(localized("Group by display"), isOn: $model.groupsDisplays)

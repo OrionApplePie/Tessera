@@ -666,6 +666,13 @@ Pick a combination nothing else owns, and prefer checking rather than assuming:
   Shortcuts, or bind something else. The tab key carries no system shortcut at
   all, which makes `alt+tab` a safe choice.
 
+## What things are called
+
+The overlay is the **map**; each Space on it is a **tessera**; a window inside one
+is a **card**; several cards shown as a stack are a **deck**. [docs/glossary.md](docs/glossary.md)
+has the full list with the Russian words beside them, and says where the code still
+uses an older name.
+
 ## Language
 
 The interface is English and Russian, and follows the system: `ru-RU` at the top of

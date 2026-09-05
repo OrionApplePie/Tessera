@@ -483,6 +483,8 @@ private struct WindowDeck: View {
       fanned
     case .stack:
       stacked
+    case .deal:
+      dealt
     }
   }
 
@@ -527,6 +529,22 @@ private struct WindowDeck: View {
       height: metrics.deckSize(for: .stack).height
     )
     .animation(.easeInOut(duration: 0.2), value: selectedIndex)
+  }
+
+  /// One card and nothing moving: the next one is simply there. The turn in
+  /// `stacked` is what makes a swap read as a step rather than as a redraw, so this
+  /// is the mode for a map that should sit still while it is being read.
+  private var dealt: some View {
+    ZStack {
+      if let front {
+        card(at: front.position, tile: front.tile)
+          .id(front.tile.id)
+      }
+    }
+    .frame(
+      width: metrics.deckSize(for: .deal).width,
+      height: metrics.deckSize(for: .deal).height
+    )
   }
 
   /// The card on top: the highlighted one while the highlight is in this Space, and

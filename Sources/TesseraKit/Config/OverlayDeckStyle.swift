@@ -1,10 +1,11 @@
 import Foundation
 
-/// How the windows of one Space are stacked in its group.
+/// How the cards of one tessera are drawn — the windows of one Space.
 ///
 /// A Space of several windows has to say two things at once: which window is
-/// chosen, and that there are others behind it. The two styles answer that
-/// differently — one shows the others, the other counts them.
+/// chosen, and that there are others behind it. The three styles answer that
+/// differently — one shows the others, two count them and differ in what stepping
+/// through them looks like.
 enum OverlayDeckStyle: Equatable, Sendable, CaseIterable {
   /// Each card peeks out from behind the one in front of it by a strip down its
   /// side: the windows of a Space are all visible at once, at the cost of a wider
@@ -14,6 +15,9 @@ enum OverlayDeckStyle: Equatable, Sendable, CaseIterable {
   /// many there are. A Space takes the room of one window however many it holds,
   /// and stepping through it turns the card over rather than moving the stack.
   case stack
+  /// One card, like `stack`, but the next one is simply there: no turn, no motion.
+  /// Dealt rather than flipped — for a map that should sit still while it is read.
+  case deal
 
   init(parsing text: String) throws {
     switch text.trimmingCharacters(in: .whitespaces).lowercased() {
@@ -21,6 +25,8 @@ enum OverlayDeckStyle: Equatable, Sendable, CaseIterable {
       self = .fan
     case "stack", "pile", "single":
       self = .stack
+    case "deal", "plain", "swap":
+      self = .deal
     default:
       throw OverlayDeckStyleError.unknown(text)
     }
@@ -32,6 +38,8 @@ enum OverlayDeckStyle: Equatable, Sendable, CaseIterable {
       return "fan"
     case .stack:
       return "stack"
+    case .deal:
+      return "deal"
     }
   }
 }

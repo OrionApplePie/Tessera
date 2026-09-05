@@ -59,6 +59,8 @@ from the toolchain, not from this code, and does not appear in CI.
 ## Layout
 
 ```
+docs/glossary.md         what things are called, in Russian, in English and in
+                         the code — read before naming anything new
 docs/mechanisms.md       why the non-obvious parts work as they do — read before
                          changing window enumeration, Spaces, thumbnails or
                          activation, it records what was already tried

@@ -447,6 +447,14 @@ extension AppConfigLoaderTests {
       #expect(loader.load().overlayDeck == .stack)
     }
 
+    try withConfigFile("overlay_deck = \"deal\"") { loader in
+      #expect(try loader.load().overlayDeck == .deal)
+    }
+
+    try withConfigFile("overlay_deck = \"plain\"") { loader in
+      #expect(try loader.load().overlayDeck == .deal)
+    }
+
     try withConfigFile("overlay_deck = \"fan\"") { loader in
       #expect(loader.load().overlayDeck == .fan)
     }
