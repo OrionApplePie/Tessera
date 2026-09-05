@@ -844,6 +844,79 @@ disabled. Hammerspoon has carried the same breakage since macOS 15.0 as an open
 issue. This is a hole between two mechanisms rather than a permanent state: the
 bridged operation is how it works on the next major version.
 
+## Creating and closing a Space
+
+Moving a window between Spaces is shut, but making and unmaking the Spaces
+themselves is not — through Mission Control's own buttons.
+
+The window server's calls for it exist: `SLSSpaceCreate`, `SLSSpaceDestroy`,
+`SLSSpaceSetType`, `SLSShowSpaces` and `SLSHideSpaces` are all exported by
+SkyLight on 15.7.5. Presence proves nothing here — `SLSMoveWindowsToManagedSpace`
+is exported too and does nothing — and this is the class of operation yabai
+performs from inside Dock, which is why it asks for SIP to be turned down. So the
+symbols were left alone and the user interface was used instead.
+
+Mission Control is drawn by the Dock, and while it is open the Dock publishes it
+as an ordinary Accessibility tree. Measured on 15.7.5 with two displays, one bar
+per display:
+
+```
+AXGroup                                       ← one bar, one display
+  AXList
+    AXButton  "Desktop 1"  [AXPress]
+    AXButton  "Telegram"   [AXPress, AXRemoveDesktop]
+  AXButton    ""           [AXPress]          ← adds a desktop to this display
+```
+
+Measured end to end by hand, on this machine, with SIP enabled and no private
+call: pressing the empty-titled button took the display from five Spaces to six,
+and `AXRemoveDesktop` on the new one took it back to five, both reported as
+`.success` and both confirmed by reading the bar again.
+
+Six things this depends on, each of which cost an attempt:
+
+- **A press is not an outcome.** `AXPress` reports that the press was delivered.
+  Whether a desktop appeared is a separate question, so every action counts the
+  Spaces on that display before and after and answers with the difference.
+- **Nothing may be matched on a label.** Every title and description in this tree
+  is localised — the bar is "Панель Spaces" on a Russian system, the adding button
+  "добавить Рабочий стол" — so the shape of the tree identifies things instead.
+- **Shape alone is not enough either.** The group of window thumbnails above the
+  bar has exactly the same shape: a group whose first child is a group of buttons.
+  Matched on shape only, it was taken for a display's Spaces, and the action then
+  found no button to add a desktop with. A bar has to show one of the two things
+  only a bar has — the button that adds a desktop, or a Space that can be closed.
+- **A locked screen has no Mission Control.** With `CGSSessionScreenIsLocked` set,
+  the Dock keeps its one child and nothing ever appears; the frontmost application
+  is `loginwindow`. Three failures in a row were read as a code fault before the
+  session was looked at.
+- **Opening it is a toggle.** Opening Mission Control while it is already showing
+  puts it away. An action that leaves it up therefore makes the next one close it
+  and find no bars — and a bar left from that earlier showing hands out elements
+  that no longer answer: pressing one reported success and removed nothing. So it
+  is closed first when it is already up, and only then opened.
+- **The action list fills in late.** For the first moment after the bars appear,
+  every button lists `AXPress` and nothing else; `AXRemoveDesktop` turns up a beat
+  later. Refusing a button that had not yet admitted it could be closed refused
+  Spaces that closed perfectly well when simply asked — measured, `AXRemoveDesktop`
+  returned `.success` on the same button 1.5 seconds later. The action is waited
+  for, and pressed for regardless; the count is what answers.
+
+Two smaller measurements. A new desktop is inserted after the last desktop of that
+display and before its fullscreen Spaces, not at the end. And macOS does not
+renumber the desktops it names when one goes: closing "Desktop 2" of one display
+left the other display calling its own desktops 3 and 4, with three desktops in
+the system as before.
+
+Which display a bar belongs to is decided by where the bar is drawn, not by the
+order the Dock lists them in: Accessibility measures from the top left of the main
+display and so does `CGDisplayBounds`, so the middle of a bar falls inside exactly
+one display's bounds.
+
+The price is that Mission Control is on the screen for about a second, which is
+why this is used for adding and closing a Space and not for switching between
+them — switching stays on the instant shortcut in `DesktopSwitcher`.
+
 ## Telling a player to play
 
 A media key is a system-defined event, and macOS gives it to whatever it already
@@ -885,3 +958,11 @@ doing nothing at all, which is how this was found.
 - Moving a window between Spaces on macOS 15 by any private call: neither
   `SLSMoveWindowsToManagedSpace` nor the `SLSSpaceSetCompatID` workaround does
   anything, whatever permissions the caller holds.
+- Finding Mission Control's buttons by their labels, which are localised, or by
+  their shape alone, which the row of window thumbnails shares; or expecting the
+  Spaces to sit in an `AXGroup` — they sit in an `AXList`.
+- Reading a button's action list the instant Mission Control opens and believing
+  what it says about what that button can do.
+- Opening Mission Control without checking whether it is already open.
+- Reading a failure to open Mission Control as a bug before checking whether the
+  screen was locked.

@@ -57,4 +57,15 @@ extension WindowCoordinator {
   func toggleFullscreen(_ tile: WindowTileModel) -> Bool {
     activator.toggleFullscreen(tile)
   }
+
+  /// Adds a desktop to a display. Says whether one appeared.
+  func addDesktop(on displayID: CGDirectDisplayID) async -> Bool {
+    await MissionControl(config: config).addDesktop(on: displayID)
+  }
+
+  /// Closes one Space of a display, by its index among that display's Spaces. Says
+  /// whether it went.
+  func closeSpace(at index: Int, on displayID: CGDirectDisplayID) async -> Bool {
+    await MissionControl(config: config).closeSpace(at: index, on: displayID)
+  }
 }

@@ -16,6 +16,10 @@ final class OverlayPanel: NSPanel {
   /// playing.
   var onMedia: ((MediaKeys.Command) -> Void)?
   var onStepAndActivate: ((OverlayGrid.Direction) -> Void)?
+  /// Adds a desktop to the display the highlight is on.
+  var onAddDesktop: (() -> Void)?
+  /// Closes the empty Space the highlight is on.
+  var onCloseSpace: (() -> Void)?
   /// A character typed at the map, with the Latin letter of the same key: the
   /// window may be named in either alphabet, and the search tries both.
   var onType: ((Character, Character?, [Character]) -> Void)?
@@ -76,6 +80,10 @@ final class OverlayPanel: NSPanel {
       onMedia?(.next)
     case UInt16(kVK_ANSI_LeftBracket):
       onMedia?(.previous)
+    case UInt16(kVK_ANSI_N):
+      onAddDesktop?()
+    case UInt16(kVK_Delete):
+      onCloseSpace?()
     default:
       // The key by its place on the board, so a Russian layout finds it too — and
       // by its character as well, because a synthesized keystroke carries the

@@ -168,6 +168,12 @@ final class OverlayWindowController: NSWindowController, NSWindowDelegate {
     panel.onStepAndActivate = { [weak self] direction in
       self?.stepAndActivate(direction)
     }
+    panel.onAddDesktop = { [weak self] in
+      self?.addDesktop()
+    }
+    panel.onCloseSpace = { [weak self] in
+      self?.closeSelectedSpace()
+    }
     panel.closeHotkey = config.closeHotkey
     panel.onCloseWindow = { [weak self] in
       self?.closeSelectedWindow()

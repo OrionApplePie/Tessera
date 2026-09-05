@@ -306,6 +306,8 @@ background keeps its contrast without further tuning.
 | `⌘\` | Play or pause what the highlighted window's application is playing |
 | `⌘]` `⌘[` | Next and previous, for the same |
 | `⌘W` | Close the highlighted window — by default this quits its application |
+| `⌘N` | Add a desktop to the display the highlight is on |
+| `⌘⌫` | Close the highlighted empty Space |
 | `Esc` | Close the overlay without switching |
 | `Return`, `Space` | Switch to the highlighted window and close the overlay |
 
@@ -421,6 +423,21 @@ built-in display sits at negative coordinates where such mistakes hide well.
 With Spaces in `overlay_grouping`, tiles are grouped by Space and the one you are
 looking at comes first — so the `1`–`9` shortcuts keep landing on the windows in front of
 you. Inside a group the order is by application.
+
+### Adding and closing a desktop
+
+`⌘N` adds a desktop to the display the highlight is on, and `⌘⌫` closes the empty
+Space under the highlight. Mission Control appears for about a second while it
+happens, because Mission Control's own buttons are what get pressed: macOS keeps
+its calls for making and unmaking Spaces to itself, and reaching them the way
+window managers do means turning off part of System Integrity Protection. This
+route needs nothing beyond the Accessibility permission Tessera already asks for.
+
+Closing is offered only for a Space with nothing on it. A Space with windows
+closes just as readily and macOS moves those windows to the neighbouring Space —
+too large a thing to happen from one keystroke, and the map cannot show it before
+it is done. The same two actions are available as `tessera space add` and
+`tessera space close`, where an index may be given explicitly.
 
 ### How the Spaces are worked out
 
@@ -558,6 +575,9 @@ tessera restart
 tessera windows
 tessera focus 12345
 tessera permissions
+tessera space list
+tessera space add
+tessera space close 2
 ```
 
 Primary lifecycle commands:
@@ -575,6 +595,11 @@ Debug / utility commands:
   `<id>\t<app>: <title>\t(<display>[, off-screen | minimized])`
 - `focus <id>` brings the window with that id to the front
 - `permissions` reports Screen Recording and Accessibility status
+- `space list` lists the Spaces of the display in use, by index, marking the one
+  it is showing
+- `space add` adds a desktop to that display
+- `space close [index]` closes that Space, or the one being shown when no index is
+  given
 
 `show`, `toggle`, `quit`, and `restart` talk to the running background app through
 `DistributedNotificationCenter`.

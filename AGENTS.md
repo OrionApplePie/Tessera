@@ -160,6 +160,14 @@ Strict concurrency checking is on. This is the area agents most often get wrong.
   context pointer are not `Sendable`, while the main-actor `HotkeyController` is,
   so only the controller reference crosses. Do not "fix" that hop with
   `nonisolated(unsafe)`.
+- Spaces can be created and closed, but only through Mission Control's own
+  buttons in the Dock's Accessibility tree (`MissionControl`,
+  `MissionControlTree`). The SkyLight calls for it are exported and privileged.
+  Match those buttons by the shape of the tree and never by their labels, which
+  are localised; a press is not an outcome, so count the Spaces before and after;
+  opening Mission Control while it is open closes it again; a button's action list
+  fills in a moment after the bars appear, so never gate on it; and Mission Control
+  does not open at all while the screen is locked.
 - Paths: use `FileManager.url(for:in:appropriateFor:create:)`. Never hardcode
   `~/Library/...` or assume the app bundle location.
 - Target is Apple Silicon; do not add x86-specific workarounds.
