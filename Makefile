@@ -60,6 +60,14 @@ format-check: ## Проверить форматирование, ничего �
 lint: ## SwiftLint, строгий режим
 	$(LINT_ENV) swiftlint --strict
 
+.PHONY: formula
+formula: ## brew style для формулы. Пропускается там, где нет Homebrew.
+	@if command -v brew >/dev/null 2>&1; then \
+		brew style Formula/tessera.rb; \
+	else \
+		echo "formula: brew не найден, пропускаю"; \
+	fi
+
 .PHONY: analyze
 analyze: ## SwiftLint analyzer: мёртвый код, лишние импорты. Требует полной пересборки.
 	swift package clean
@@ -67,7 +75,7 @@ analyze: ## SwiftLint analyzer: мёртвый код, лишние импорт
 	$(LINT_ENV) swiftlint analyze --strict --compiler-log-path $(BUILD_LOG)
 
 .PHONY: check
-check: format-check lint build test ## Всё сразу. Обязательно перед завершением работы.
+check: format-check lint formula build test ## Всё сразу. Обязательно перед завершением работы.
 	@echo "check: ok"
 
 .PHONY: clean
