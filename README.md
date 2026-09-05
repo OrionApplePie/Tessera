@@ -666,6 +666,21 @@ Pick a combination nothing else owns, and prefer checking rather than assuming:
   Shortcuts, or bind something else. The tab key carries no system shortcut at
   all, which makes `alt+tab` a safe choice.
 
+## Language
+
+The interface is English and Russian, and follows the system: `ru-RU` at the top of
+your language list gets Russian, anything else gets English. The switcher says which
+it chose in its log at startup, because a program speaking the wrong language is
+hard to argue with otherwise.
+
+The command line and the logs stay English — they are read by scripts and pasted
+into reports.
+
+Adding a language is two steps: copy `Sources/TesseraKit/en.lproj` to
+`<language>.lproj`, translate the right-hand side of each line, and run
+`make strings`, which lists anything the code asks for that the new file does not
+have yet.
+
 ## Settings window
 
 `tessera settings`, or `Settings…` in the menu bar, opens a window with every

@@ -60,6 +60,10 @@ format-check: ## Проверить форматирование, ничего �
 lint: ## SwiftLint, строгий режим
 	$(LINT_ENV) swiftlint --strict
 
+.PHONY: strings
+strings: ## Пересобрать таблицы строк из кода. Непереведённое печатает списком.
+	python3 Tools/localize.py
+
 .PHONY: formula
 formula: ## brew style для формулы. Пропускается там, где нет Homebrew.
 	@if command -v brew >/dev/null 2>&1; then \

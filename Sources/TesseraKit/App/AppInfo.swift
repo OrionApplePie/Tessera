@@ -16,13 +16,13 @@ enum AppInfo {
   /// looking at this page is usually looking because they have just granted it.
   static var screenRecordingStatus: String {
     CGPreflightScreenCaptureAccess()
-      ? String(localized: "Granted") : String(localized: "Not granted — the list will be empty")
+      ? localized("Granted") : localized("Not granted — the list will be empty")
   }
 
   static var accessibilityStatus: String {
     AXIsProcessTrusted()
-      ? String(localized: "Granted")
-      : String(localized: "Not granted — only applications can be raised")
+      ? localized("Granted")
+      : localized("Not granted — only applications can be raised")
   }
 
   static var configurationDirectory: String {

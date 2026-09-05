@@ -415,7 +415,7 @@ struct WindowTileSection: Identifiable {
     // the Space into view. Unplugging a display is enough to get there, since its
     // fullscreen Spaces move to the one that is left. It says what it is instead.
     guard !named.isEmpty else {
-      return namesSpace ? String(localized: "Fullscreen") : ""
+      return namesSpace ? localized("Fullscreen") : ""
     }
 
     return named.joined(separator: " · ")

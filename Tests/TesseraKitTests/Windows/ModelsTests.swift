@@ -163,7 +163,7 @@ struct WindowTileSectionTests {
       fullscreenSpaces: [fullscreen]
     )
 
-    #expect(sections.map(\.title) == ["Desktop 1", "Fullscreen"])
+    #expect(sections.map(\.title) == ["Desktop 1", localized("Fullscreen")])
   }
 
   /// With a display's name beside it the Space still says nothing: the mark and the

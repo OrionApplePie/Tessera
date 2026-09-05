@@ -941,6 +941,36 @@ starts Spotify from silence, because macOS remembers which player was last.
 Returning after the refusal — which is what the first version did — left the key
 doing nothing at all, which is how this was found.
 
+## Saying it in another language
+
+Three separate things send a package's strings somewhere they are not, and all three
+fail the same way — by handing back the key. The keys here are English sentences, so
+a broken lookup reads as a program that simply has no translation. Each of these was
+measured failing before it was fixed.
+
+- **`Bundle.main` is not where they live.** A plain executable has no bundle of its
+  own to hold resources, and both SwiftUI's `Text("…")` and a bare
+  `String(localized:)` look there.
+- **`Resources` is not where they are either.** SwiftPM puts the `.lproj` folders at
+  the root of its resource bundle and leaves an empty `Resources` folder beside them.
+  Foundation sees that folder, concludes the bundle keeps its resources inside it,
+  and looks for the tables in the empty copies. Measured:
+  `Bundle.module.localizedString(forKey: "Cancel")` answered `Cancel` while `Отмена`
+  sat in `ru.lproj/Localizable.strings` two directories away. Naming the language
+  folder as the bundle fixes the lookup — and then `String(localized:bundle:)` fails
+  in its own way, because it looks for a `.lproj` folder *inside* the bundle it is
+  given. `localizedString(forKey:value:table:)` is what answers.
+- **The system's own choice of language is not the system's.** Measured, in a process
+  whose `Locale.preferredLanguages` was `["ru-RU", "en-RU"]`, offered a bundle
+  carrying both: `Bundle.preferredLocalizations(from:)` answered `["en"]`. A process
+  with no bundle of its own has no language of its own as far as that call is
+  concerned, so the match — region ignored, the person's order kept — is made in
+  `language(preferring:among:)`.
+
+Installed, the bundle has to travel with the binary: Homebrew puts both in `libexec`
+and links the command into `bin`, because `Bundle.module` looks beside the executable
+and *crashes* when it finds nothing. Measured through that layout: `using=ru.lproj`.
+
 ## What a reader should not try again
 
 - Pairing `NSScreen` frames with ScreenCaptureKit frames without flipping Y.
@@ -974,3 +1004,6 @@ doing nothing at all, which is how this was found.
 - Opening Mission Control without checking whether it is already open.
 - Reading a failure to open Mission Control as a bug before checking whether the
   screen was locked.
+- Trusting `String(localized:)`, `Text("…")` or `Bundle.preferredLocalizations` in a
+  package that ships its own strings: each of the three answers plausibly and
+  wrongly.

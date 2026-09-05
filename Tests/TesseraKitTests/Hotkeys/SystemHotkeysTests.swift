@@ -105,7 +105,9 @@ struct SystemHotkeysTests {
 
     let conflict = try #require(SystemHotkeys.conflict(with: binding, among: hotkeys))
     #expect(conflict.id == 61)
-    #expect(conflict.name == "Select the next source in the Input menu")
+    // Named in whatever language the switcher is speaking, so the name is compared
+    // against the same table rather than against English.
+    #expect(conflict.name == localized("Select the next source in the Input menu"))
   }
 
   @Test("A binding macOS does not claim reports nothing")
@@ -128,6 +130,9 @@ struct SystemHotkeysTests {
   func namesUnknownShortcutsByID() {
     let hotkey = SystemHotkey(id: 999, keyCode: 49, modifiers: [.control])
 
-    #expect(hotkey.name == "a macOS shortcut (id 999)")
+    // What matters is that a shortcut nobody has a name for still says which one it
+    // is; the sentence around the number is a translated string.
+    #expect(hotkey.name.contains("999"))
+    #expect(hotkey.name == localized("a macOS shortcut (id %lld)", 999))
   }
 }

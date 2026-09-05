@@ -48,7 +48,7 @@ public enum TesseraApp {
       exit(1)
     }
 
-    logger.info("Starting background app")
+    logger.info("Starting background app; language: \(chosenLanguage)")
     logger.debug("Debug logging enabled")
 
     singleInstanceLock = lock

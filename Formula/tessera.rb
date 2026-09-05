@@ -1,8 +1,8 @@
 class Tessera < Formula
   desc "Native macOS window switcher with a map of every Space"
   homepage "https://github.com/OrionApplePie/Tessera"
-  url "https://github.com/OrionApplePie/Tessera/archive/refs/tags/v0.1.9.tar.gz"
-  sha256 "7f4bc44e2feed9d2795d5790bd1189cdcec8ee08b370346ae3ff62e4c90da3be"
+  url "https://github.com/OrionApplePie/Tessera/archive/refs/tags/v0.1.8.tar.gz"
+  sha256 "ecedd45b7f220a1acde9087111214edfebd9c0b8716a70637c881fca8941ec66"
   license "GPL-3.0-or-later"
   head "https://github.com/OrionApplePie/Tessera.git", branch: "main"
 
@@ -16,7 +16,13 @@ class Tessera < Formula
     # build, and SwiftPM's refuses to write its cache under it.
     system "swift", "build", "--disable-sandbox", "-c", "release"
 
-    bin.install ".build/release/Tessera" => "tessera"
+    # The words the switcher says travel in a bundle beside the executable, and
+    # `Bundle.module` looks for it there — so the pair goes into libexec together
+    # and the command people type is a link to it. Installed apart, the binary
+    # cannot find its own strings.
+    libexec.install ".build/release/Tessera" => "tessera"
+    libexec.install ".build/release/Tessera_TesseraKit.bundle"
+    bin.install_symlink libexec/"tessera"
     pkgshare.install "config.example.toml"
   end
 
@@ -56,7 +62,6 @@ class Tessera < Formula
         cp #{opt_pkgshare}/config.example.toml ~/.config/tessera/config.toml
     EOS
   end
-
   test do
     # No subcommand prints the help, which is the one thing that works without
     # any permission at all.

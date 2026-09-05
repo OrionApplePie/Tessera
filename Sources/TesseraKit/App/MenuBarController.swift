@@ -16,9 +16,9 @@ final class MenuBarController: NSObject {
   /// offers both at once makes the reader work out which of them is the state and
   /// which is the offer.
   private let refreshToggleItem = NSMenuItem(
-    title: "Pause Background Refresh", action: nil, keyEquivalent: "")
+    title: localized("Pause Background Refresh"), action: nil, keyEquivalent: "")
   private let accessibilityItem = NSMenuItem(
-    title: "Grant Accessibility Permission…", action: nil, keyEquivalent: "")
+    title: localized("Grant Accessibility Permission…"), action: nil, keyEquivalent: "")
   /// Shown only when there are more desktops than macOS binds shortcuts to, because
   /// those last ones cannot be switched to when they are empty.
   private let tooManySpacesItem = NSMenuItem(title: "", action: nil, keyEquivalent: "")
@@ -51,16 +51,16 @@ final class MenuBarController: NSObject {
 
     refreshToggleItem.title =
       paused
-      ? String(localized: "Resume Background Refresh")
-      : String(localized: "Pause Background Refresh")
+      ? localized("Resume Background Refresh")
+      : localized("Pause Background Refresh")
     refreshToggleItem.image = Self.icon(paused ? "play" : "pause")
     // Nothing to grant once the permission is already there.
     accessibilityItem.isHidden = windowCoordinator.isAccessibilityTrusted
 
     let unreachable = windowCoordinator.unreachableDesktops
     tooManySpacesItem.isHidden = unreachable == 0
-    tooManySpacesItem.title = String(
-      localized: "\(unreachable) desktop(s) past the eighth have no macOS shortcut")
+    tooManySpacesItem.title = localized(
+      "%lld desktop(s) past the eighth have no macOS shortcut", unreachable)
   }
 
   private func configureStatusItem() {
@@ -74,13 +74,16 @@ final class MenuBarController: NSObject {
 
     let menu = NSMenu()
     menu.addItem(
-      item("Show Switcher", symbol: "square.grid.2x2", action: #selector(showSwitcherAction)))
+      item(
+        localized("Show Switcher"), symbol: "square.grid.2x2", action: #selector(showSwitcherAction)
+      ))
     menu.addItem(NSMenuItem.separator())
 
     // The two ways of saying "look again" stand together: one does it now, the
     // other decides whether it keeps happening on its own.
     menu.addItem(
-      item("Refresh Now", symbol: "arrow.clockwise", action: #selector(refreshNowAction)))
+      item(localized("Refresh Now"), symbol: "arrow.clockwise", action: #selector(refreshNowAction))
+    )
     refreshToggleItem.action = #selector(toggleRefreshAction)
     menu.addItem(refreshToggleItem)
     menu.addItem(NSMenuItem.separator())
@@ -93,10 +96,12 @@ final class MenuBarController: NSObject {
     menu.addItem(tooManySpacesItem)
     menu.addItem(NSMenuItem.separator())
     menu.addItem(
-      item("Settings…", symbol: "gearshape", action: #selector(openSettingsAction), key: ","))
+      item(
+        localized("Settings…"), symbol: "gearshape", action: #selector(openSettingsAction), key: ","
+      ))
     menu.addItem(NSMenuItem.separator())
     menu.addItem(
-      item("Quit", symbol: "power", action: #selector(quitAction), key: "q"))
+      item(localized("Quit"), symbol: "power", action: #selector(quitAction), key: "q"))
 
     for item in menu.items where item.action != nil {
       item.target = self

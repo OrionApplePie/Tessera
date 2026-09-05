@@ -24,7 +24,7 @@ final class SettingsWindowController: NSWindowController {
       backing: .buffered,
       defer: false
     )
-    window.title = "Tessera Settings"
+    window.title = localized("Tessera Settings")
     window.isReleasedWhenClosed = false
 
     // Reopens where it was left, which is what every other settings window on the
@@ -85,7 +85,15 @@ final class SettingsWindowController: NSWindowController {
       tallest = max(tallest, page.fittingSize.height, probe.contentMinSize.height)
     }
 
-    return NSSize(width: contentWidth, height: height)
+    // And no taller than the smallest screen attached, not the one it happens to
+    // open on: a window sized for a 1440-point display cannot be dragged back into
+    // view on a laptop. A page can outgrow that — the list of keys does — and a
+    // grouped form scrolls on its own, so the room it does not get is room it can
+    // still reach.
+    let smallest = NSScreen.screens.map(\.visibleFrame.height).min() ?? 900
+    let room = smallest * 0.8
+
+    return NSSize(width: contentWidth, height: min(height, room))
   }
 
   @available(*, unavailable)

@@ -153,7 +153,14 @@ Strict concurrency checking is on. This is the area agents most often get wrong.
   without it activation raises the owning application but not a specific window.
   Never fail silently on a missing permission — surface it, the way
   `WindowActivator` and `tessera permissions` already do.
-- User-visible strings go through `String(localized:)`, never hardcoded inline.
+- User-visible strings go through `localized(…)` — never `String(localized:)`,
+  never a bare SwiftUI `Text("…")`. Three separate things send a package's strings
+  to the wrong place, and all three fail by showing the key, which is English and
+  therefore looks like a translation that was not needed; `Support/Localized.swift`
+  records what each of them was. Anything with a number or a name in it is a format
+  (`"Desktop %lld"`), because that is what the tables hold. After adding a string,
+  run `make strings`: it regenerates the tables from the code and lists what has no
+  Russian yet. The CLI's own output and every log line stay English.
 - The global hotkey is Carbon (`RegisterEventHotKey`): it needs no permission and
   it consumes the key press, which an `NSEvent` global monitor cannot do. Its C
   callback decodes the event before hopping to the main actor — `EventRef` and the

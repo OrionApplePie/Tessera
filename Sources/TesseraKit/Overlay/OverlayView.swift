@@ -761,7 +761,7 @@ private struct WindowThumbnailContent: View {
               }
 
               if tile.isMinimized {
-                Text("Minimized")
+                Text(localized("Minimized"))
                   .font(.system(size: 10, weight: .medium))
                   .foregroundStyle(Color.white.opacity(0.42))
               }
@@ -786,11 +786,11 @@ private struct WindowThumbnailContent: View {
 private struct EmptyOverlayContent: View {
   var body: some View {
     VStack(spacing: 6) {
-      Text("No switchable windows")
+      Text(localized("No switchable windows"))
         .font(.system(size: 15, weight: .medium))
         .foregroundStyle(Color.white.opacity(0.72))
 
-      Text("Tessera needs Screen Recording permission to see open windows.")
+      Text(localized("Tessera needs Screen Recording permission to see open windows."))
         .font(.system(size: 12))
         .foregroundStyle(Color.white.opacity(0.45))
     }

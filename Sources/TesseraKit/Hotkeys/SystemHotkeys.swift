@@ -20,18 +20,18 @@ struct SystemHotkey: Equatable, Sendable {
   /// What System Settings calls this shortcut, for the ones worth naming. An
   /// unnamed one still identifies itself by number, which is enough to find it.
   var name: String {
-    Self.namesByID[id] ?? String(localized: "a macOS shortcut (id \(id))")
+    Self.namesByID[id] ?? localized("a macOS shortcut (id %lld)", id)
   }
 
   private static let namesByID: [Int: String] = [
-    32: String(localized: "Mission Control"),
-    33: String(localized: "Application windows"),
-    60: String(localized: "Select the previous input source"),
-    61: String(localized: "Select the next source in the Input menu"),
-    64: String(localized: "Show Spotlight search"),
-    65: String(localized: "Show Spotlight file window"),
-    79: String(localized: "Move left a space"),
-    81: String(localized: "Move right a space"),
+    32: localized("Mission Control"),
+    33: localized("Application windows"),
+    60: localized("Select the previous input source"),
+    61: localized("Select the next source in the Input menu"),
+    64: localized("Show Spotlight search"),
+    65: localized("Show Spotlight file window"),
+    79: localized("Move left a space"),
+    81: localized("Move right a space"),
   ]
 }
 

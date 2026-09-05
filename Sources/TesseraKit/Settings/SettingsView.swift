@@ -16,17 +16,17 @@ enum SettingsSection: String, CaseIterable, Identifiable {
   var title: String {
     switch self {
     case .app:
-      return "App"
+      return localized("App")
     case .layout:
-      return "Layout"
+      return localized("Layout")
     case .appearance:
-      return "Appearance"
+      return localized("Appearance")
     case .timing:
-      return "Timing"
+      return localized("Timing")
     case .keys:
-      return "Keys"
+      return localized("Keys")
     case .about:
-      return "About"
+      return localized("About")
     }
   }
 
@@ -135,26 +135,26 @@ struct SettingsView: View {
   /// How the overlay looks, and what its tiles show.
   private var appearancePage: some View {
     Form {
-      Section("Surface") {
-        ColorPicker("Background", selection: $model.background, supportsOpacity: true)
+      Section(localized("Surface")) {
+        ColorPicker(localized("Background"), selection: $model.background, supportsOpacity: true)
       }
 
-      Section("Tiles") {
-        Picker("Show", selection: $model.thumbnailMode) {
-          Text("The whole window").tag(WindowThumbnailMode.fit)
-          Text("Its corner, at actual size").tag(WindowThumbnailMode.corner)
-          Text("Its corner, twice as much").tag(WindowThumbnailMode.cornerDouble)
-          Text("Roughly a quarter of it").tag(WindowThumbnailMode.quarter)
-          Text("Three quarters of it").tag(WindowThumbnailMode.threeQuarters)
+      Section(localized("Tiles")) {
+        Picker(localized("Show"), selection: $model.thumbnailMode) {
+          Text(localized("The whole window")).tag(WindowThumbnailMode.fit)
+          Text(localized("Its corner, at actual size")).tag(WindowThumbnailMode.corner)
+          Text(localized("Its corner, twice as much")).tag(WindowThumbnailMode.cornerDouble)
+          Text(localized("Roughly a quarter of it")).tag(WindowThumbnailMode.quarter)
+          Text(localized("Three quarters of it")).tag(WindowThumbnailMode.threeQuarters)
         }
 
-        Picker("Capture at", selection: $model.thumbnailQuality) {
-          Text("What the tile shows").tag(ThumbnailQuality.tile)
-          Text("HD, sharper and heavier").tag(ThumbnailQuality.hd)
-          Text("The most, and the most memory").tag(ThumbnailQuality.max)
+        Picker(localized("Capture at"), selection: $model.thumbnailQuality) {
+          Text(localized("What the tile shows")).tag(ThumbnailQuality.tile)
+          Text(localized("HD, sharper and heavier")).tag(ThumbnailQuality.hd)
+          Text(localized("The most, and the most memory")).tag(ThumbnailQuality.max)
         }
 
-        Toggle("Fade a stale preview", isOn: $model.dimsStaleThumbnails)
+        Toggle(localized("Fade a stale preview"), isOn: $model.dimsStaleThumbnails)
       }
     }
   }
@@ -163,70 +163,70 @@ struct SettingsView: View {
   /// and what a keypress moves through.
   private var layoutPage: some View {
     Form {
-      Section("The map") {
+      Section(localized("The map")) {
         // First, because it decides whether anything below it is listened to. With
         // it off the map is drawn at a fixed tile size and the row length is the
         // only thing that shapes it; with it on the arrangement chooses, and works
         // the row length out for itself unless it is the fixed one.
-        Toggle("Grow the map into the screen", isOn: $model.overlayFillsScreen)
+        Toggle(localized("Grow the map into the screen"), isOn: $model.overlayFillsScreen)
 
-        Picker("Arrange", selection: $model.overlayLayout) {
-          Text("As large as the screen allows").tag(OverlayLayout.fitted)
-          Text("A fixed number across").tag(OverlayLayout.rows)
-          Text("A square, by how many there are").tag(OverlayLayout.count)
-          Text("One after another, wrapping").tag(OverlayLayout.flow)
+        Picker(localized("Arrange"), selection: $model.overlayLayout) {
+          Text(localized("As large as the screen allows")).tag(OverlayLayout.fitted)
+          Text(localized("A fixed number across")).tag(OverlayLayout.rows)
+          Text(localized("A square, by how many there are")).tag(OverlayLayout.count)
+          Text(localized("One after another, wrapping")).tag(OverlayLayout.flow)
         }
         .disabled(!model.overlayFillsScreen)
 
         Stepper(value: $model.overlayColumns, in: 1...12) {
-          setting("Spaces across", "\(model.overlayColumns)")
+          setting(localized("Spaces across"), "\(model.overlayColumns)")
         }
         .disabled(model.overlayFillsScreen && model.overlayLayout != .rows)
 
         Stepper(value: $model.overlayMaxCells, in: 1...60) {
-          setting("At most", "\(model.overlayMaxCells) Spaces")
+          setting(localized("At most"), localized("%lld Spaces", model.overlayMaxCells))
         }
 
         Stepper(value: $model.overlayMinTile, in: 90...400, step: 10) {
-          setting("Smallest tile", "\(Int(model.overlayMinTile)) pt")
+          setting(localized("Smallest tile"), localized("%lld pt", Int(model.overlayMinTile)))
         }
 
         Text(gridNote)
           .font(.caption)
           .foregroundStyle(.secondary)
 
-        Picker("Short rows sit", selection: $model.overlayRowAlignment) {
-          Text("In the middle").tag(OverlayRowAlignment.center)
-          Text("To the left").tag(OverlayRowAlignment.leading)
-          Text("To the right").tag(OverlayRowAlignment.trailing)
+        Picker(localized("Short rows sit"), selection: $model.overlayRowAlignment) {
+          Text(localized("In the middle")).tag(OverlayRowAlignment.center)
+          Text(localized("To the left")).tag(OverlayRowAlignment.leading)
+          Text(localized("To the right")).tag(OverlayRowAlignment.trailing)
         }
       }
 
-      Section("Groups") {
-        Picker("A Space of several windows", selection: $model.overlayDeck) {
-          Text("One card, turned through").tag(OverlayDeckStyle.stack)
-          Text("Cards side by side").tag(OverlayDeckStyle.fan)
+      Section(localized("Groups")) {
+        Picker(localized("A Space of several windows"), selection: $model.overlayDeck) {
+          Text(localized("One card, turned through")).tag(OverlayDeckStyle.stack)
+          Text(localized("Cards side by side")).tag(OverlayDeckStyle.fan)
         }
 
-        Toggle("Group by display", isOn: $model.groupsDisplays)
-        Toggle("Group by Space", isOn: $model.groupsSpaces)
+        Toggle(localized("Group by display"), isOn: $model.groupsDisplays)
+        Toggle(localized("Group by Space"), isOn: $model.groupsSpaces)
       }
 
-      Section("Order") {
-        Picker("Arrows move by", selection: $model.overlayArrows) {
-          Text("Space, Tab for its windows").tag(OverlayArrowStep.spaces)
-          Text("Window").tag(OverlayArrowStep.windows)
+      Section(localized("Order")) {
+        Picker(localized("Arrows move by"), selection: $model.overlayArrows) {
+          Text(localized("Space, Tab for its windows")).tag(OverlayArrowStep.spaces)
+          Text(localized("Window")).tag(OverlayArrowStep.windows)
         }
 
-        Picker("Typing a letter", selection: $model.overlaySearch) {
-          Text("Walks the windows of that name").tag(OverlaySearch.letter)
-          Text("Searches, letter by letter").tag(OverlaySearch.fuzzy)
+        Picker(localized("Typing a letter"), selection: $model.overlaySearch) {
+          Text(localized("Walks the windows of that name")).tag(OverlaySearch.letter)
+          Text(localized("Searches, letter by letter")).tag(OverlaySearch.fuzzy)
         }
 
-        Picker("Windows in a group", selection: $model.windowOrder) {
-          Text("Application and title").tag(WindowOrder.title)
-          Text("Application only").tag(WindowOrder.application)
-          Text("Never reorder").tag(WindowOrder.stable)
+        Picker(localized("Windows in a group"), selection: $model.windowOrder) {
+          Text(localized("Application and title")).tag(WindowOrder.title)
+          Text(localized("Application only")).tag(WindowOrder.application)
+          Text(localized("Never reorder")).tag(WindowOrder.stable)
         }
       }
     }
@@ -236,25 +236,25 @@ struct SettingsView: View {
   /// a real desktop rather than a value with a right answer, so each is here.
   private var timingPage: some View {
     Form {
-      Section("Refresh") {
+      Section(localized("Refresh")) {
         Stepper(value: $model.refreshIntervalSeconds, in: 0.5...60, step: 0.5) {
-          setting("Every", seconds(model.refreshIntervalSeconds))
+          setting(localized("Every"), seconds(model.refreshIntervalSeconds))
         }
 
         Stepper(value: $model.windowThumbnailsStaleSeconds, in: 1...600, step: 5) {
-          setting("Stale after", seconds(model.windowThumbnailsStaleSeconds))
+          setting(localized("Stale after"), seconds(model.windowThumbnailsStaleSeconds))
         }
       }
 
-      Section("Reaching a window") {
+      Section(localized("Reaching a window")) {
         Stepper(value: $model.activationSettleSeconds, in: 0.5...10, step: 0.5) {
-          setting("Let the system settle for", seconds(model.activationSettleSeconds))
+          setting(localized("Let the system settle for"), seconds(model.activationSettleSeconds))
         }
       }
 
-      Section("Waiting for an answer") {
+      Section(localized("Waiting for an answer")) {
         Stepper(value: $model.unresponsiveAfterSeconds, in: 0.5...30, step: 0.5) {
-          setting("Wedged after", seconds(model.unresponsiveAfterSeconds))
+          setting(localized("Wedged after"), seconds(model.unresponsiveAfterSeconds))
         }
       }
     }
@@ -262,39 +262,45 @@ struct SettingsView: View {
 
   private var appPage: some View {
     Form {
-      Section("Shortcut") {
-        TextField("Show the overlay", text: $model.hotkey, prompt: Text("ctrl+alt+space"))
+      Section(localized("Shortcut")) {
+        TextField(
+          localized("Show the overlay"), text: $model.hotkey,
+          prompt: Text(localized("ctrl+alt+space")))
 
-        TextField("Close a window", text: $model.closeHotkey, prompt: Text("cmd+w"))
+        TextField(
+          localized("Close a window"), text: $model.closeHotkey, prompt: Text(localized("cmd+w")))
 
-        Picker("Closing", selection: $model.closeAction) {
-          Text("Closes the window").tag(CloseAction.closeWindow)
-          Text("Quits the application").tag(CloseAction.quitApplication)
+        Picker(localized("Closing"), selection: $model.closeAction) {
+          Text(localized("Closes the window")).tag(CloseAction.closeWindow)
+          Text(localized("Quits the application")).tag(CloseAction.quitApplication)
         }
       }
 
-      Section("Windows") {
+      Section(localized("Windows")) {
         TextField(
-          "Ignore applications",
+          localized("Ignore applications"),
           text: $model.ignoredApplications,
-          prompt: Text("AmneziaVPN, Some Tray App")
+          prompt: Text(localized("AmneziaVPN, Some Tray App"))
         )
         Stepper(value: $model.maxWindows, in: 1...96) {
-          setting("Never list more than", "\(model.maxWindows) windows")
+          setting(localized("Never list more than"), localized("%lld windows", model.maxWindows))
         }
 
         Text(windowsNote)
           .font(.caption)
           .foregroundStyle(.secondary)
 
-        Toggle("Close the overlay after switching", isOn: $model.closeAfterActivation)
-        Toggle("Leave out menu bar applications", isOn: $model.ignoresMenuBarApplications)
+        Toggle(localized("Close the overlay after switching"), isOn: $model.closeAfterActivation)
+        Toggle(
+          localized("Leave out menu bar applications"), isOn: $model.ignoresMenuBarApplications)
       }
 
-      Section("The switcher itself") {
-        Toggle("Ask the window server which Space a window is on", isOn: $model.usesPrivateSpaceAPI)
-        Toggle("Show the menu bar icon", isOn: $model.showMenuBarIcon)
-        Toggle("Verbose logging", isOn: $model.debugMode)
+      Section(localized("The switcher itself")) {
+        Toggle(
+          localized("Ask the window server which Space a window is on"),
+          isOn: $model.usesPrivateSpaceAPI)
+        Toggle(localized("Show the menu bar icon"), isOn: $model.showMenuBarIcon)
+        Toggle(localized("Verbose logging"), isOn: $model.debugMode)
       }
     }
   }
@@ -312,13 +318,13 @@ struct SettingsView: View {
 
       // Fills the form and stops there: nothing is written until Save, so the
       // defaults can be read off the pages first, and Cancel is still a way out.
-      Button("Restore Defaults") {
+      Button(localized("Restore Defaults")) {
         model.restoreDefaults()
       }
 
-      Button("Cancel", action: onCancel)
+      Button(localized("Cancel"), action: onCancel)
         .keyboardShortcut(.cancelAction)
-      Button("Save and Restart", action: onSave)
+      Button(localized("Save and Restart"), action: onSave)
         .keyboardShortcut(.defaultAction)
     }
     .padding(16)
@@ -334,25 +340,25 @@ struct SettingsView: View {
     Form {
       Section {
         VStack(alignment: .leading, spacing: 4) {
-          Text("Tessera")
+          Text(localized("Tessera"))
             .font(.system(size: 15, weight: .semibold))
-          Text("A window switcher for macOS.")
+          Text(localized("A window switcher for macOS."))
             .foregroundStyle(.secondary)
-          Text("Version \(AppInfo.version)")
+          Text(localized("Version %@", AppInfo.version))
             .foregroundStyle(.secondary)
             .monospacedDigit()
         }
         .padding(.vertical, 2)
       }
 
-      Section("Permissions") {
-        setting("Screen Recording", AppInfo.screenRecordingStatus)
-        setting("Accessibility", AppInfo.accessibilityStatus)
+      Section(localized("Permissions")) {
+        setting(localized("Screen Recording"), AppInfo.screenRecordingStatus)
+        setting(localized("Accessibility"), AppInfo.accessibilityStatus)
       }
 
-      Section("Files") {
+      Section(localized("Files")) {
         VStack(alignment: .leading, spacing: 4) {
-          Text("Settings and the windows it has learned to leave out:")
+          Text(localized("Settings and the windows it has learned to leave out:"))
             .foregroundStyle(.secondary)
           Text(AppInfo.configurationDirectory)
             .font(.system(size: 11, design: .monospaced))
@@ -365,23 +371,22 @@ struct SettingsView: View {
   /// Why there are two numbers that both start with "at most": one is the list the
   /// switcher keeps, the other is the map it draws from it.
   private var windowsNote: String {
-    String(
-      localized: """
-        How many windows the switcher keeps in mind at all — every one of them holds \
-        a preview in memory. What the overlay draws from that list is capped \
-        separately, under Layout.
-        """)
+    localized(
+      """
+      How many windows the switcher keeps in mind at all — every one of them holds \
+      a preview in memory. What the overlay draws from that list is capped \
+      separately, under Layout.
+      """)
   }
 
   /// What the numbers above mean together: a ceiling and a floor, and a row length
   /// that only some of the arrangements are told.
   private var gridNote: String {
-    let budget = String(
-      localized: """
-        At most \(model.overlayMaxCells) Spaces on the map, shared out between the displays, \
-        and none drawn smaller than \(Int(model.overlayMinTile)) points — what will not fit \
-        at that size is left off.
-        """)
+    let budget = localized(
+      """
+      At most %lld Spaces on the map, shared out between the displays, and none drawn \
+      smaller than %lld points — what will not fit at that size is left off.
+      """, model.overlayMaxCells, Int(model.overlayMinTile))
 
     guard model.overlayFillsScreen else {
       return budget + " "
@@ -393,7 +398,7 @@ struct SettingsView: View {
     }
 
     guard model.overlayLayout == .rows else {
-      return budget + " " + String(localized: "This arrangement works its own row length out.")
+      return budget + " " + localized("This arrangement works its own row length out.")
     }
 
     return budget

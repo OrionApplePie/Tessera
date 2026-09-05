@@ -12,47 +12,50 @@ extension SettingsView {
   /// open rather than in a file on disk.
   var keysPage: some View {
     Form {
-      Section("Opening it") {
-        key(model.hotkey.isEmpty ? "not set" : model.hotkey, "Show the map")
-        key("⌃⌥ + arrows", "Step through windows, and switch when the keys are let go")
+      Section(localized("Opening it")) {
+        key(model.hotkey.isEmpty ? localized("not set") : model.hotkey, localized("Show the map"))
+        key(
+          localized("⌃⌥ + arrows"),
+          localized("Step through windows, and switch when the keys are let go"))
       }
 
-      Section("Choosing") {
-        key("arrows", "Move the highlight")
-        key("1 – 9", "Pick that tile")
+      Section(localized("Choosing")) {
+        key(localized("arrows"), localized("Move the highlight"))
+        key(localized("1 – 9"), localized("Pick that tile"))
         key(
-          model.overlaySearch == .fuzzy ? "any letters" : "a letter",
+          model.overlaySearch == .fuzzy ? localized("any letters") : localized("a letter"),
           model.overlaySearch == .fuzzy
-            ? "Search as you type; Backspace takes a letter back"
-            : "Walk the windows whose name starts with it")
-        key("Tab, ⇧Tab", "The next and previous window inside a Space")
-        key("Return, Space", "Switch to what the highlight is on")
-        key("Esc", "Clear what was typed, then close the map")
+            ? localized("Search as you type; Backspace takes a letter back")
+            : localized("Walk the windows whose name starts with it"))
+        key(localized("Tab, ⇧Tab"), localized("The next and previous window inside a Space"))
+        key(localized("Return, Space"), localized("Switch to what the highlight is on"))
+        key(localized("Esc"), localized("Clear what was typed, then close the map"))
       }
 
-      Section("Doing something to a window") {
-        key("⌘ + arrows", "Send it to the display that way")
-        key("⌥ + arrows", "Put it in that half of its screen")
-        key("⌘⏎", "Fill the screen with it")
-        key("⌘F", "Hand it to the application's own fullscreen")
-        key("⇧ + arrows", "Move the tile itself, within its group")
-        key("⌃⌥⇧ + arrows", "Switch to the window that way, keeping the map up")
+      Section(localized("Doing something to a window")) {
+        key(localized("⌘ + arrows"), localized("Send it to the display that way"))
+        key(localized("⌥ + arrows"), localized("Put it in that half of its screen"))
+        key(localized("⌘⏎"), localized("Fill the screen with it"))
+        key(localized("⌘F"), localized("Hand it to the application's own fullscreen"))
+        key(localized("⇧ + arrows"), localized("Move the tile itself, within its group"))
         key(
-          model.closeHotkey.isEmpty ? "not set" : model.closeHotkey,
+          localized("⌃⌥⇧ + arrows"), localized("Switch to the window that way, keeping the map up"))
+        key(
+          model.closeHotkey.isEmpty ? localized("not set") : model.closeHotkey,
           model.closeAction == .quitApplication
-            ? "Quit the application the window belongs to"
-            : "Close the window")
+            ? localized("Quit the application the window belongs to")
+            : localized("Close the window"))
       }
 
-      Section("Spaces") {
-        key("⌘N", "Add a desktop to the display the highlight is on")
-        key("⌘⌫", "Close the highlighted empty Space")
+      Section(localized("Spaces")) {
+        key(localized("⌘N"), localized("Add a desktop to the display the highlight is on"))
+        key(localized("⌘⌫"), localized("Close the highlighted empty Space"))
       }
 
-      Section("Whatever is playing") {
-        key("⌘\\", "Play or pause it")
-        key("⌘]", "Next")
-        key("⌘[", "Previous")
+      Section(localized("Whatever is playing")) {
+        key(localized("⌘\\"), localized("Play or pause it"))
+        key(localized("⌘]"), localized("Next"))
+        key(localized("⌘["), localized("Previous"))
       }
     }
   }

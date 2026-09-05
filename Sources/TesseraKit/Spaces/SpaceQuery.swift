@@ -338,7 +338,7 @@ final class SpaceQuery {
 
       guard space.isFullscreen else {
         desktopNumber += 1
-        names[id] = String(localized: "Desktop \(desktopNumber)")
+        names[id] = localized("Desktop %lld", desktopNumber)
         continue
       }
 

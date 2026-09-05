@@ -18,6 +18,9 @@ let strictConcurrency: [SwiftSetting] = [
 
 let package = Package(
   name: "Tessera",
+  // Without this a package has no localisations at all, and `.lproj` folders in
+  // its resources are copied without ever being consulted.
+  defaultLocalization: "en",
   platforms: [
     .macOS(.v13)
   ],
@@ -39,6 +42,10 @@ let package = Package(
     ),
     .target(
       name: "TesseraKit",
+      // The words the switcher says, in the languages it says them. They travel
+      // in a bundle of their own beside the executable, because a plain binary
+      // has no bundle of its own to keep them in.
+      resources: [.process("en.lproj"), .process("ru.lproj")],
       swiftSettings: strictConcurrency
     ),
     .testTarget(
