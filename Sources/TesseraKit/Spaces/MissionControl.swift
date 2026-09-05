@@ -31,21 +31,28 @@ struct MissionControl {
   /// How long the bars are waited for, and how often they are looked for. The wait
   /// covers the opening animation; the step is short enough not to add to it.
   private static let openDeadline = Duration.milliseconds(2500)
-  private static let pollStep = Duration.milliseconds(50)
+  private static let pollStep = Duration.milliseconds(20)
 
   /// How long a pressed button is given to change the Spaces, and how long
   /// Mission Control is given to go away when it has to be closed first.
   private static let actionDeadline = Duration.milliseconds(2000)
 
+  /// How long the bar is given to show what the press did, before the screen is
+  /// handed back.
+  private static let barSettle = Duration.milliseconds(600)
+
   /// How long one Escape is given to take effect, and how many are sent before
   /// giving up and saying so.
-  private static let dismissDeadline = Duration.milliseconds(700)
-  private static let dismissAttempts = 3
+  private static let dismissDeadline = Duration.milliseconds(300)
+  private static let dismissAttempts = 5
 
   private let logger: AppLogger
+  /// Asked how many Spaces a display has once the screen has been given back.
+  private let spaces: SpaceQuery
 
   init(config: AppConfig) {
     self.logger = AppLogger(debugMode: config.debugMode, category: .trigger)
+    self.spaces = SpaceQuery(enabled: config.usesPrivateSpaceAPI, debugMode: config.debugMode)
   }
 
   /// Adds a desktop to one display. Says whether one appeared.
@@ -116,15 +123,26 @@ struct MissionControl {
       return false
     }
 
-    let before = opened.spaces.count
+    let before = spaceCount(on: displayID) ?? opened.spaces.count
+    let shown = opened.spaces.count
 
     guard await press(opened) else {
       await putAway(ofDock: dock)
       return false
     }
 
-    let after = await count(on: displayID, ofDock: dock, changingFrom: before)
+    // The bar is given its moment to redraw before the key that closes Mission
+    // Control goes out. Measured, this is the whole difference between a flash and
+    // a pause: Escape sent while the Space is still appearing is swallowed, the
+    // retry comes 700 ms later, and Mission Control sits on the screen for 1.1 s —
+    // against 0.7 s when the press is allowed to land first. It costs 40-80 ms.
+    _ = await waitUntil(within: Self.barSettle) {
+      Self.visibleBars(ofDock: dock).first { $0.displayID == displayID }?.spaces.count != shown
+    }
+
     await putAway(ofDock: dock)
+
+    let after = await count(on: displayID, ofDock: dock, changingFrom: before)
 
     logger.info("Display \(displayID): Spaces went from \(before) to \(after)")
 
@@ -149,9 +167,8 @@ struct MissionControl {
   /// The number of Spaces on a display once it has moved, or the number it started
   /// at if it never does.
   ///
-  /// Waited for rather than sampled once: a desktop appears and goes with an
-  /// animation of its own, and reading the bar back too early counts the Spaces as
-  /// they were.
+  /// Waited for rather than sampled once: a Space appears and goes with an
+  /// animation of its own, and asking too early counts the Spaces as they were.
   private func count(
     on displayID: CGDirectDisplayID,
     ofDock dock: pid_t,
@@ -160,17 +177,28 @@ struct MissionControl {
     var last = before
 
     _ = await waitUntil {
-      guard let now = Self.visibleBars(ofDock: dock).first(where: { $0.displayID == displayID })
+      guard
+        let now = spaceCount(on: displayID)
+          ?? Self.visibleBars(ofDock: dock)
+          .first(where: { $0.displayID == displayID })?.spaces.count
       else {
         return false
       }
 
-      last = now.spaces.count
+      last = now
 
       return last != before
     }
 
     return last
+  }
+
+  /// How many Spaces a display has, according to the window server.
+  ///
+  /// Nothing when the private Space calls are switched off, and then the bar is
+  /// counted instead — which works, but only while Mission Control is still up.
+  private func spaceCount(on displayID: CGDirectDisplayID) -> Int? {
+    spaces.orderedSpaces()[displayID]?.count
   }
 
   /// Polls until something is true, or until the deadline. Says which.
@@ -238,9 +266,18 @@ struct MissionControl {
   /// sometimes swallowed — the animation is still running — and Mission Control
   /// stays on the screen. That is both an eyesore and a trap, since the next
   /// action would then toggle it shut instead of opening it. So the key goes out
-  /// again until the bars are gone.
+  /// again until the bars are gone, and soon: waiting 700 ms between attempts left
+  /// Mission Control up for 1.2 s on the external display against 0.6 s on the
+  /// built-in, which was the whole of the difference between them.
   private func putAway(ofDock dock: pid_t) async {
     for _ in 0..<Self.dismissAttempts {
+      // Looked at before every attempt, not only after: an Escape sent at a
+      // Mission Control that has already gone lands in whatever is in front, and
+      // Escape means something there.
+      guard !Self.visibleBars(ofDock: dock).isEmpty else {
+        return
+      }
+
       escape()
 
       let gone = await waitUntil(within: Self.dismissDeadline) {
