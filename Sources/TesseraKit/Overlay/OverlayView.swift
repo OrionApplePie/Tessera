@@ -629,6 +629,16 @@ private struct WindowTileButton: View {
 
       VStack(alignment: .leading, spacing: 3) {
         HStack(alignment: .firstTextBaseline, spacing: 6) {
+          if tile.isSounding {
+            // Sound is the one thing about a window that a picture cannot show, and
+            // it is what makes a tile worth pressing a key at rather than switching
+            // to. What is playing cannot be known — only that something is.
+            Image(systemName: "speaker.wave.2.fill")
+              .font(.system(size: metrics.shortcutFontSize, weight: .semibold))
+              .foregroundStyle(
+                tile.isActive ? Self.textOnAccent : OverlayPalette.highlight)
+          }
+
           Text(tile.displayAppName)
             .font(.system(size: metrics.nameFontSize, weight: .semibold))
             .foregroundStyle(tile.isActive ? Self.textOnAccent : Color.white)

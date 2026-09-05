@@ -12,6 +12,9 @@ final class OverlayPanel: NSPanel {
   /// Fills the screen with the chosen window, and its fullscreen counterpart.
   var onFillScreen: (() -> Void)?
   var onFullscreen: (() -> Void)?
+  /// Play, pause and step through whatever the chosen window's application is
+  /// playing.
+  var onMedia: ((MediaKeys.Command) -> Void)?
   var onStepAndActivate: ((OverlayGrid.Direction) -> Void)?
   /// A character typed at the map, with the Latin letter of the same key: the
   /// window may be named in either alphabet, and the search tries both.
@@ -67,6 +70,12 @@ final class OverlayPanel: NSPanel {
     switch event.keyCode {
     case UInt16(kVK_Return), UInt16(kVK_ANSI_KeypadEnter):
       onFillScreen?()
+    case UInt16(kVK_ANSI_Backslash):
+      onMedia?(.playPause)
+    case UInt16(kVK_ANSI_RightBracket):
+      onMedia?(.next)
+    case UInt16(kVK_ANSI_LeftBracket):
+      onMedia?(.previous)
     default:
       // The key by its place on the board, so a Russian layout finds it too — and
       // by its character as well, because a synthesized keystroke carries the

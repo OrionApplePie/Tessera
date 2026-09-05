@@ -303,6 +303,8 @@ background keeps its contrast without further tuning.
 | `⌘⏎` | Fill the screen with the highlighted window |
 | `⌘F` | Hand the window to its application's own fullscreen mode |
 | `⌃⌥⇧` + arrows | Switch to the window in that direction, keeping the overlay up |
+| `⌘\` | Play or pause what the highlighted window's application is playing |
+| `⌘]` `⌘[` | Next and previous, for the same |
 | `⌘W` | Close the highlighted window — by default this quits its application |
 | `Esc` | Close the overlay without switching |
 | `Return`, `Space` | Switch to the highlighted window and close the overlay |
@@ -359,6 +361,14 @@ proportion — a window against the right edge arrives against the right edge �
 is taken down to fit only if it is too large for the screen it arrives on. With
 displays keeping separate Spaces, it lands on whatever Space the other display is
 showing.
+
+A tile whose application is putting sound out is marked with a speaker, and the
+three keys above act on it. What is playing cannot be shown — since macOS 15.4
+the now-playing information needs an entitlement Apple does not hand out — so the
+mark says that something is playing and no more. The keys are the ordinary media
+keys, which macOS routes to whatever it considers the application that is
+playing; pressed at a window that is silent they would reach something else, so
+they are refused there and the log says why.
 
 `⌥` with an arrow tiles by geometry rather than by asking the application: the
 window takes that half of the screen its display leaves free, so two windows put

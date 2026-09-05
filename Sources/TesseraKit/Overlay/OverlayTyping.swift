@@ -1,6 +1,32 @@
 import AppKit
 import Foundation
 
+// MARK: - Playing
+
+/// Play, pause and step, for a window whose application is making a sound.
+extension OverlayWindowController {
+  /// Sends a media key, if the highlight is on something that is playing.
+  ///
+  /// Refused otherwise, and said so: the key is a system-wide event that macOS
+  /// routes to whatever it considers the application that is playing, so pressing
+  /// it at a silent window would pause something else — a window somewhere the
+  /// person is not looking at. When the highlighted application is the one making
+  /// the sound, which is the case this exists for, the two are the same thing.
+  func control(_ command: MediaKeys.Command) {
+    guard let tile = windowCoordinator.targets[safe: selection.index]?.window else {
+      return
+    }
+
+    guard tile.isSounding else {
+      logger.info("\(tile.displayAppName) is not playing anything, so the media key is not sent")
+      return
+    }
+
+    let sent = MediaKeys.send(command)
+    logger.info("Media key for \(tile.displayAppName): sent=\(sent)")
+  }
+}
+
 // MARK: - Typing
 
 /// Finding a window by typing at the map, in either of the two ways the

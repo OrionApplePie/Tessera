@@ -44,6 +44,10 @@ struct WindowTileModel: Identifiable {
   let icon: NSImage?
   var thumbnail: CGImage?
   var isThumbnailStale: Bool
+  /// Whether this window's application is putting sound out right now. What is
+  /// playing cannot be known — macOS keeps that behind an entitlement — so this is
+  /// the whole of what a tile can say about sound.
+  var isSounding: Bool = false
 
   var displayAppName: String {
     appName.isEmpty ? "Unknown" : appName

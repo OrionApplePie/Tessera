@@ -828,7 +828,8 @@ extension WindowCoordinator {
     displayNames: [CGDirectDisplayID: String]
   ) {
     let all = WindowTileSection.sections(
-      from: tiles, displayNames: displayNames, grouping: config.overlayGrouping,
+      from: AudioActivity(debugMode: config.debugMode).marking(tiles),
+      displayNames: displayNames, grouping: config.overlayGrouping,
       spaceCounts: spaceCounts, displayOrder: displayOrder, currentSpaces: currentSpaces,
       spaceNames: spaceNames, fullscreenSpaces: fullscreenSpaces)
 

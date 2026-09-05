@@ -159,6 +159,9 @@ final class OverlayWindowController: NSWindowController, NSWindowDelegate {
     panel.onFullscreen = { [weak self] in
       self?.putFullscreen()
     }
+    panel.onMedia = { [weak self] command in
+      self?.control(command)
+    }
     panel.onMoveTile = { [weak self] direction in
       self?.moveTile(direction)
     }
