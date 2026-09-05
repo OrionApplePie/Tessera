@@ -122,7 +122,7 @@ struct MissionControl {
   /// The answer comes from the window server, which is asked where the window is
   /// before and after. The thumbnail leaving the screen would only say that Mission
   /// Control redrew.
-  func move(_ window: Window, toSpaceAt index: Int) async -> Bool {
+  func move(_ window: Window, toSpaceAt index: Int, on target: CGDirectDisplayID) async -> Bool {
     guard AXIsProcessTrusted() else {
       logger.warning("Accessibility is not granted, so no window can be dragged")
       return false
@@ -137,7 +137,7 @@ struct MissionControl {
 
     await openFresh(ofDock: dock)
 
-    guard let places = await places(of: window, toSpaceAt: index, ofDock: dock) else {
+    guard let places = await places(of: window, toSpaceAt: index, on: target, ofDock: dock) else {
       await putAway(ofDock: dock)
       return false
     }
@@ -159,22 +159,29 @@ struct MissionControl {
   private func places(
     of window: Window,
     toSpaceAt index: Int,
+    on display: CGDirectDisplayID,
     ofDock dock: pid_t
   ) async -> (CGPoint, CGPoint)? {
-    guard let bar = await bar(on: window.displayID, ofDock: dock) else {
+    guard let home = await bar(on: window.displayID, ofDock: dock) else {
       logger.warning("Mission Control did not show a Spaces bar for that display")
       return nil
     }
 
-    guard let target = bar.spaces[safe: index],
+    // The bar the window lands on need not be its own. Measured: a window dragged
+    // from the built-in display onto a Space in the external display's bar goes
+    // there, display and Space at once.
+    let bar =
+      display == window.displayID ? home : await self.bar(on: display, ofDock: dock)
+
+    guard let bar, let target = bar.spaces[safe: index],
       let landing = MissionControlTree.frame(of: target)
     else {
-      logger.warning("That display has no Space \(index) to drop a window on")
+      logger.warning("Display \(display) has no Space \(index) to drop a window on")
       return nil
     }
 
     let drawn = MissionControlTree.thumbnails(
-      ofDock: dock, on: window.displayID, besides: [bar])
+      ofDock: dock, on: window.displayID, besides: [home, bar])
 
     guard
       let thumbnail = MissionControlTree.thumbnail(

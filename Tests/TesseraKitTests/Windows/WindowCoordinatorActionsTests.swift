@@ -2,6 +2,60 @@ import Testing
 
 @testable import TesseraKit
 
+@Suite("Choosing a Space to send a window to")
+struct WindowSectionStepTests {
+  private let sections = [
+    WindowSectionID(displayID: 1, spaceIndex: 0),
+    WindowSectionID(displayID: 1, spaceIndex: 1),
+    WindowSectionID(displayID: 2, spaceIndex: 0),
+    WindowSectionID(displayID: 2, spaceIndex: 1),
+  ]
+
+  /// The destination walks the map as it is drawn, so it crosses from one display
+  /// to the next the way the eye does.
+  @Test("The destination walks on into the next display")
+  func crossesDisplays() {
+    let next = WindowCoordinator.section(
+      beside: 1, among: sections, fullscreen: [], forward: true)
+
+    #expect(next == 2)
+  }
+
+  /// A fullscreen Space is not a destination: a window dropped on one asks macOS
+  /// for a split view, which is not what was meant.
+  @Test("A fullscreen Space is stepped over")
+  func stepsOverFullscreen() {
+    let next = WindowCoordinator.section(
+      beside: 0, among: sections, fullscreen: [sections[1], sections[2]], forward: true)
+
+    #expect(next == 3)
+  }
+
+  @Test("The end of the map is an end")
+  func refusesToWrap() {
+    #expect(
+      WindowCoordinator.section(beside: 3, among: sections, fullscreen: [], forward: true) == nil)
+    #expect(
+      WindowCoordinator.section(beside: 0, among: sections, fullscreen: [], forward: false) == nil)
+  }
+
+  /// Which group of the map the highlight is in, which is where a destination
+  /// starts from.
+  @Test("A highlight belongs to the section its index falls in")
+  func findsTheSectionOfATarget() {
+    #expect(WindowCoordinator.section(ofTarget: 0, in: [2, 3, 1]) == 0)
+    #expect(WindowCoordinator.section(ofTarget: 2, in: [2, 3, 1]) == 1)
+    #expect(WindowCoordinator.section(ofTarget: 5, in: [2, 3, 1]) == 2)
+    #expect(WindowCoordinator.section(ofTarget: 6, in: [2, 3, 1]) == nil)
+  }
+
+  /// An empty map has no section to start from, and saying so beats picking one.
+  @Test("Nothing to be in when the map is empty")
+  func refusesOnAnEmptyMap() {
+    #expect(WindowCoordinator.section(ofTarget: 0, in: []) == nil)
+  }
+}
+
 @Suite("Stepping a window to the next desktop")
 struct WindowCoordinatorActionsTests {
   /// Fullscreen Spaces are stepped over. Dropping a window on one asks macOS for a

@@ -69,12 +69,59 @@ extension WindowCoordinator {
     await MissionControl(config: config).closeSpace(at: index, on: displayID)
   }
 
-  /// Moves a window to another Space of the display it is on. Says whether it went.
-  func moveWindow(_ tile: WindowTileModel, toSpaceAt index: Int) async -> Bool {
+  /// Moves a window to a Space, which may be on another display: measured, a window
+  /// dragged onto another display's bar changes display and Space at once. Says
+  /// whether it went.
+  func moveWindow(_ tile: WindowTileModel, to section: WindowSectionID) async -> Bool {
+    guard let index = section.spaceIndex else {
+      return false
+    }
+
     let window = MissionControl.Window(
       id: tile.id, title: tile.title, appName: tile.appName, displayID: tile.displayID)
 
-    return await MissionControl(config: config).move(window, toSpaceAt: index)
+    return await MissionControl(config: config)
+      .move(window, toSpaceAt: index, on: section.displayID)
+  }
+
+  /// Which section of the map a highlight falls in, given how many targets each
+  /// section holds.
+  nonisolated static func section(ofTarget index: Int, in counts: [Int]) -> Int? {
+    var start = 0
+
+    for (position, count) in counts.enumerated() {
+      if index >= start, index < start + count {
+        return position
+      }
+
+      start += count
+    }
+
+    return nil
+  }
+
+  /// The section beside one, in the order the map draws them.
+  ///
+  /// Fullscreen Spaces are stepped over: a window dropped on one asks macOS for a
+  /// split view, not a move. Nothing wraps round, so the ends of the map are ends.
+  nonisolated static func section(
+    beside position: Int,
+    among sections: [WindowSectionID],
+    fullscreen: Set<WindowSectionID>,
+    forward: Bool
+  ) -> Int? {
+    let step = forward ? 1 : -1
+    var next = position + step
+
+    while next >= 0, next < sections.count {
+      if !fullscreen.contains(sections[next]) {
+        return next
+      }
+
+      next += step
+    }
+
+    return nil
   }
 
   /// The desktop next to one, on the same display, or nothing when there is none

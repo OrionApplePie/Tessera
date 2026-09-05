@@ -62,27 +62,53 @@ extension OverlayWindowController {
     }
   }
 
-  /// Sends the highlighted window to the desktop beside the one it is on.
+  /// Choosing where to send the highlighted window: `⌘⇧` with the arrows walks a
+  /// destination across the map, and letting the keys go sends the window there.
   ///
-  /// Mission Control draws only the windows of the Space a display is showing, so a
-  /// window that is somewhere else has to be brought forward first — which is
-  /// visible, and is the price of the only gesture macOS leaves open for this.
-  func moveToSpace(_ direction: OverlayGrid.Direction) {
-    guard let tile = windowCoordinator.targets[safe: selection.index]?.window else {
-      logger.info("Nothing to move: the highlight is on a Space, not a window")
+  /// Two keys rather than one, and nothing happens until they are released, because
+  /// a Space has to be chosen first — the arrows would otherwise move a window one
+  /// desktop at a time, through every desktop on the way, which is a different
+  /// thing from putting it where you meant.
+  func aimAtSpace(_ direction: OverlayGrid.Direction) {
+    guard windowCoordinator.targets[safe: selection.index]?.window != nil else {
+      logger.info("Nothing to send: the highlight is on a Space, not a window")
       return
     }
 
-    guard direction == .left || direction == .right else {
-      logger.info("A window moves to the desktop left or right of the one it is on")
+    let sections = windowCoordinator.sections.map(\.id)
+    let counts = windowCoordinator.sections.map(\.targets.count)
+
+    guard let home = WindowCoordinator.section(ofTarget: selection.index, in: counts) else {
       return
     }
 
-    guard let from = tile.spaceIndex,
-      let target = windowCoordinator.spaceBeside(
-        from, on: tile.displayID, forward: direction == .right)
+    let from = selection.movingTo.flatMap { sections.firstIndex(of: $0) } ?? home
+
+    guard
+      let next = WindowCoordinator.section(
+        beside: from,
+        among: sections,
+        fullscreen: windowCoordinator.fullscreenSpaces,
+        forward: direction == .right || direction == .down)
     else {
-      logger.info("\(tile.displayAppName) has no desktop that way")
+      return
+    }
+
+    selection.movingTo = sections[next]
+  }
+
+  /// The keys were let go: the Space the destination is on is where the window goes.
+  ///
+  /// A destination that is the Space the window is already on is a choice made and
+  /// unmade, so nothing happens and nothing is said.
+  func commitMoveToSpace() {
+    guard let section = selection.movingTo else {
+      return
+    }
+
+    selection.movingTo = nil
+
+    guard let tile = windowCoordinator.targets[safe: selection.index]?.window else {
       return
     }
 
@@ -91,14 +117,16 @@ extension OverlayWindowController {
         return
       }
 
-      if windowCoordinator.currentSpaces[tile.displayID] != from {
-        await windowCoordinator.showSpace(at: from, on: tile.displayID, handingBack: false)
+      // Mission Control draws only the windows of the Space its display is showing,
+      // so a window that is elsewhere is brought forward before it can be dragged.
+      if let space = tile.spaceIndex, windowCoordinator.currentSpaces[tile.displayID] != space {
+        await windowCoordinator.showSpace(at: space, on: tile.displayID, handingBack: false)
       }
 
       hideOverlay()
 
-      guard await windowCoordinator.moveWindow(tile, toSpaceAt: target) else {
-        logger.info("Could not move \(tile.displayAppName) to Space \(target)")
+      guard await windowCoordinator.moveWindow(tile, to: section) else {
+        logger.info("Could not send \(tile.displayAppName) to that Space")
         return
       }
 

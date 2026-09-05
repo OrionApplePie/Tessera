@@ -54,7 +54,10 @@ extension CLI {
     let moving = MissionControl.Window(
       id: windowID, title: window.title, appName: window.appName, displayID: window.displayID)
 
-    guard await MissionControl(config: config).move(moving, toSpaceAt: target) else {
+    guard
+      await MissionControl(config: config)
+        .move(moving, toSpaceAt: target, on: window.displayID)
+    else {
       throw CLIError.commandFailed("\(moving.name) did not move to Space \(target)")
     }
 
