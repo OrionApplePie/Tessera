@@ -37,6 +37,11 @@ struct MissionControl {
   /// Mission Control is given to go away when it has to be closed first.
   private static let actionDeadline = Duration.milliseconds(2000)
 
+  /// How long one Escape is given to take effect, and how many are sent before
+  /// giving up and saying so.
+  private static let dismissDeadline = Duration.milliseconds(700)
+  private static let dismissAttempts = 3
+
   private let logger: AppLogger
 
   init(config: AppConfig) {
@@ -107,19 +112,19 @@ struct MissionControl {
 
     guard let opened = await bar(on: displayID, ofDock: dock) else {
       logger.warning("Mission Control did not show a Spaces bar for display \(displayID)")
-      dismiss()
+      await putAway(ofDock: dock)
       return false
     }
 
     let before = opened.spaces.count
 
     guard await press(opened) else {
-      dismiss()
+      await putAway(ofDock: dock)
       return false
     }
 
     let after = await count(on: displayID, ofDock: dock, changingFrom: before)
-    dismiss()
+    await putAway(ofDock: dock)
 
     logger.info("Display \(displayID): Spaces went from \(before) to \(after)")
 
@@ -135,8 +140,7 @@ struct MissionControl {
   /// that no longer answer: pressing one reported success and removed nothing.
   private func openFresh(ofDock dock: pid_t) async {
     if !Self.visibleBars(ofDock: dock).isEmpty {
-      dismiss()
-      _ = await waitUntil { Self.visibleBars(ofDock: dock).isEmpty }
+      await putAway(ofDock: dock)
     }
 
     NSWorkspace.shared.open(URL(fileURLWithPath: Self.applicationPath))
@@ -170,8 +174,11 @@ struct MissionControl {
   }
 
   /// Polls until something is true, or until the deadline. Says which.
-  private func waitUntil(_ done: () -> Bool) async -> Bool {
-    let deadline = ContinuousClock.now + Self.actionDeadline
+  private func waitUntil(
+    within limit: Duration = Self.actionDeadline,
+    _ done: () -> Bool
+  ) async -> Bool {
+    let deadline = ContinuousClock.now + limit
 
     while ContinuousClock.now < deadline {
       if done() {
@@ -225,12 +232,35 @@ struct MissionControl {
     return nil
   }
 
-  /// Puts Mission Control away with the key that always does it.
-  private func dismiss() {
-    let escape = CGKeyCode(kVK_Escape)
+  /// Puts Mission Control away, and makes sure it went.
+  ///
+  /// Measured: one Escape, posted the moment the Spaces have finished changing, is
+  /// sometimes swallowed — the animation is still running — and Mission Control
+  /// stays on the screen. That is both an eyesore and a trap, since the next
+  /// action would then toggle it shut instead of opening it. So the key goes out
+  /// again until the bars are gone.
+  private func putAway(ofDock dock: pid_t) async {
+    for _ in 0..<Self.dismissAttempts {
+      escape()
 
-    guard let down = CGEvent(keyboardEventSource: nil, virtualKey: escape, keyDown: true),
-      let up = CGEvent(keyboardEventSource: nil, virtualKey: escape, keyDown: false)
+      let gone = await waitUntil(within: Self.dismissDeadline) {
+        Self.visibleBars(ofDock: dock).isEmpty
+      }
+
+      if gone {
+        return
+      }
+    }
+
+    logger.warning("Mission Control would not close")
+  }
+
+  /// Sends the key that closes Mission Control.
+  private func escape() {
+    let key = CGKeyCode(kVK_Escape)
+
+    guard let down = CGEvent(keyboardEventSource: nil, virtualKey: key, keyDown: true),
+      let up = CGEvent(keyboardEventSource: nil, virtualKey: key, keyDown: false)
     else {
       logger.warning("Could not build the keystroke that closes Mission Control")
       return

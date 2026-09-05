@@ -873,7 +873,7 @@ call: pressing the empty-titled button took the display from five Spaces to six,
 and `AXRemoveDesktop` on the new one took it back to five, both reported as
 `.success` and both confirmed by reading the bar again.
 
-Six things this depends on, each of which cost an attempt:
+Seven things this depends on, each of which cost an attempt:
 
 - **A press is not an outcome.** `AXPress` reports that the press was delivered.
   Whether a desktop appeared is a separate question, so every action counts the
@@ -895,6 +895,11 @@ Six things this depends on, each of which cost an attempt:
   and find no bars — and a bar left from that earlier showing hands out elements
   that no longer answer: pressing one reported success and removed nothing. So it
   is closed first when it is already up, and only then opened.
+- **One Escape is not always enough.** Posted the moment the Spaces have finished
+  changing, it is sometimes swallowed while the animation is still running, and
+  Mission Control stays on the screen — an eyesore, and a trap, because the next
+  action would then toggle it shut instead of opening it. The key goes out again
+  until the bars are gone.
 - **The action list fills in late.** For the first moment after the bars appear,
   every button lists `AXPress` and nothing else; `AXRemoveDesktop` turns up a beat
   later. Refusing a button that had not yet admitted it could be closed refused
