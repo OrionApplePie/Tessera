@@ -9,7 +9,7 @@ import Foundation
 /// named so that the packaging change which introduces a bundle can replace this
 /// with the bundle's own value and nothing else.
 enum AppInfo {
-  static let version = "0.1.6"
+  static let version = "0.1.7"
 
   /// Both permissions are reported as the system answers them right now rather than
   /// as they were at launch: granting one does not restart the app, and someone
