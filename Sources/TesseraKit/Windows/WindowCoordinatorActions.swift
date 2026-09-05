@@ -10,6 +10,33 @@ import Foundation
 /// or refuse fullscreen — so the answer comes from reading the window back, and the
 /// caller is expected to do something with a `false`.
 extension WindowCoordinator {
+  func publish(
+    _ tiles: [WindowTileModel],
+    displayNames: [CGDirectDisplayID: String]
+  ) {
+    let all = WindowTileSection.sections(
+      from: AudioActivity(debugMode: config.debugMode).marking(tiles),
+      displayNames: displayNames, grouping: config.overlayGrouping,
+      spaceCounts: spaceCounts, displayOrder: displayOrder, currentSpaces: currentSpaces,
+      spaceNames: spaceNames, fullscreenSpaces: fullscreenSpaces)
+
+    let budgets = OverlayGrid.budgets(forSections: all, config: config, on: activeDisplay)
+
+    let fitted = WindowTileSection.fitting(
+      all, cellsByDisplay: budgets, stacked: config.overlayDeck == .stack)
+    let signature = WindowTileSection.signature(of: fitted)
+
+    // Assigned only when the drawing would differ. The list is rebuilt several times
+    // a second and almost always comes out the same; publishing it anyway redrew
+    // every tile, which is what made the overlay feel heavy under the hand.
+    guard signature != drawnSignature else {
+      return
+    }
+
+    drawnSignature = signature
+    draw(fitted)
+  }
+
   /// Whether anything at all is making a sound, which decides whether a media key
   /// would interrupt something the person cannot see.
   var isAnythingPlaying: Bool {

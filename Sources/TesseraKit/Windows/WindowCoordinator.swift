@@ -38,17 +38,25 @@ final class WindowCoordinator: ObservableObject {
   private var exactSpaceIndices: [CGWindowID: Int] = [:]
   /// How many Spaces each display has, so the empty ones still get a place on the
   /// map, and which of them is showing now.
-  private var spaceCounts: [CGDirectDisplayID: Int] = [:]
-  private var currentSpaces: [CGDirectDisplayID: Int] = [:]
+  var spaceCounts: [CGDirectDisplayID: Int] = [:]
+  var currentSpaces: [CGDirectDisplayID: Int] = [:]
   /// What each group is called: a desktop by its number among desktops, a
   /// fullscreen Space by the application filling it — the way Mission Control
   /// names them.
-  private var spaceNames: [WindowSectionID: String] = [:]
-  private var fullscreenSpaces: Set<WindowSectionID> = []
+  var spaceNames: [WindowSectionID: String] = [:]
+  var fullscreenSpaces: Set<WindowSectionID> = []
   private var spaceOrder: [CGDirectDisplayID: [SpaceQuery.Space]] = [:]
+  /// What the map on screen is made of, so an identical rebuild does not redraw it.
+  var drawnSignature = 0
+
+  /// Puts a map on screen. The building of it lives next door, in the extension
+  /// that publishes; the setter stays here so nothing else can quietly replace it.
+  func draw(_ map: [WindowTileSection]) {
+    sections = map
+  }
   /// The displays as they are physically arranged, top to bottom and then left to
   /// right, so the map is laid out the way the screens stand.
-  private var displayOrder: [CGDirectDisplayID] = []
+  var displayOrder: [CGDirectDisplayID] = []
   private let wallpaper = DesktopWallpaper()
   private var orderRegistry = WindowOrderRegistry()
   private var isListHeld = false
@@ -823,21 +831,6 @@ extension WindowCoordinator {
 // MARK: - Tiles
 
 extension WindowCoordinator {
-  private func publish(
-    _ tiles: [WindowTileModel],
-    displayNames: [CGDirectDisplayID: String]
-  ) {
-    let all = WindowTileSection.sections(
-      from: AudioActivity(debugMode: config.debugMode).marking(tiles),
-      displayNames: displayNames, grouping: config.overlayGrouping,
-      spaceCounts: spaceCounts, displayOrder: displayOrder, currentSpaces: currentSpaces,
-      spaceNames: spaceNames, fullscreenSpaces: fullscreenSpaces)
-
-    let budgets = OverlayGrid.budgets(forSections: all, config: config, on: activeDisplay)
-
-    sections = WindowTileSection.fitting(
-      all, cellsByDisplay: budgets, stacked: config.overlayDeck == .stack)
-  }
 
   /// Shows the Space a group stands for. Choosing an empty one is the only way onto
   /// an empty desktop: there is no window there to activate.

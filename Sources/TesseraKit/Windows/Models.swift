@@ -187,6 +187,41 @@ struct WindowTileSection: Identifiable {
     }
   }
 
+  /// What the map would draw, in a form cheap to compare.
+  ///
+  /// The list is rebuilt several times a second — the refresh loop, a Space change,
+  /// every thumbnail as it arrives — and each rebuilt list that reaches the view
+  /// redraws every tile, pictures and all. Most of those rebuilds are identical to
+  /// what is already on screen, and this is how they are recognised: everything the
+  /// drawing depends on goes in, and nothing else does, so a rebuild that changes
+  /// nothing changes no pixels either.
+  static func signature(of sections: [WindowTileSection]) -> Int {
+    var hasher = Hasher()
+
+    for section in sections {
+      hasher.combine(section.id.displayID)
+      hasher.combine(section.id.spaceIndex)
+      hasher.combine(section.title)
+      hasher.combine(section.isCurrent)
+      hasher.combine(section.isFullscreen)
+
+      for tile in section.tiles {
+        hasher.combine(tile.id)
+        hasher.combine(tile.appName)
+        hasher.combine(tile.title)
+        hasher.combine(tile.isActive)
+        hasher.combine(tile.isMinimized)
+        hasher.combine(tile.isSounding)
+        hasher.combine(tile.isThumbnailStale)
+        // The picture itself by identity: a new capture is a new object, and that is
+        // exactly when the tile has to be drawn again.
+        hasher.combine(tile.thumbnail.map { UInt(bitPattern: ObjectIdentifier($0).hashValue) })
+      }
+    }
+
+    return hasher.finalize()
+  }
+
   /// Takes one window off the map, keeping the place it was on.
   ///
   /// A Space with nothing left on it is an empty desktop, and the map draws it as
