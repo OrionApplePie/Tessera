@@ -364,9 +364,10 @@ showing.
 
 A tile whose application is putting sound out is marked with a speaker, and the
 three keys above act on it. A player that is merely open — Spotify sitting there
-paused — can be started too: Spotify, Music, TV and VLC take addressed commands,
-so the key reaches that application and nothing else. The first time, macOS asks
-whether Tessera may control it. What is playing cannot be shown — since macOS 15.4
+paused — is started too. Spotify, Music, TV and VLC are asked directly where macOS
+allows it, and where it does not — a binary without an app bundle is refused
+permission to send Apple events, silently — the media key is sent instead, which
+starts whichever player was last playing. What is playing cannot be shown — since macOS 15.4
 the now-playing information needs an entitlement Apple does not hand out — so the
 mark says that something is playing and no more. The keys are the ordinary media
 keys, which macOS routes to whatever it considers the application that is

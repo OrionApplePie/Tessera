@@ -844,6 +844,25 @@ disabled. Hammerspoon has carried the same breakage since macOS 15.0 as an open
 issue. This is a hole between two mechanisms rather than a permanent state: the
 bridged operation is how it works on the next major version.
 
+## Telling a player to play
+
+A media key is a system-defined event, and macOS gives it to whatever it already
+considers the application that is playing. That is right for pausing what you can
+hear and useless for starting something silent, so a scriptable player — Spotify,
+Music, TV, VLC — is addressed with an Apple event instead, which reaches the
+application it names and no other.
+
+Except that it does not, here. Measured: `Not authorized to send Apple events to
+Spotify`, with no dialog shown and nothing to allow afterwards. Automation
+permission is granted to a *bundle*, and this is a plain executable with no bundle
+identifier for the system to attribute the request to — the same reason the Screen
+Recording prompt names the terminal rather than Tessera. So the addressed command
+is attempted, and when it is refused the media key is sent anyway: measured, that
+starts Spotify from silence, because macOS remembers which player was last.
+
+Returning after the refusal — which is what the first version did — left the key
+doing nothing at all, which is how this was found.
+
 ## What a reader should not try again
 
 - Pairing `NSScreen` frames with ScreenCaptureKit frames without flipping Y.
@@ -861,6 +880,8 @@ bridged operation is how it works on the next major version.
 - Expecting Accessibility to list a window that is on another Space, whichever
   application owns it.
 - Looking for a public field that marks a window its application has forgotten.
+- Expecting an Apple event to be permitted from a binary that is not an app
+  bundle: it is refused, and refused silently.
 - Moving a window between Spaces on macOS 15 by any private call: neither
   `SLSMoveWindowsToManagedSpace` nor the `SLSSpaceSetCompatID` workaround does
   anything, whatever permissions the caller holds.

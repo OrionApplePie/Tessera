@@ -30,7 +30,14 @@ extension OverlayWindowController {
       logger.info(
         "Asked \(tile.displayAppName) directly: ran=\(result.ran) \(result.problem ?? "")")
 
-      return
+      // Only when it was actually taken. macOS refuses Apple events to an
+      // application that is not a bundle — which this is not — and refuses them
+      // silently, without the dialog that would let anybody allow it. Returning
+      // there left the key doing nothing at all; the media key below is the thing
+      // that still works.
+      if result.ran {
+        return
+      }
     }
 
     // Nothing is playing anywhere, so there is nothing for the key to interrupt: it
