@@ -459,7 +459,14 @@ final class OverlayWindowController: NSWindowController, NSWindowDelegate {
   }
 
   func selectWindow(at index: Int) {
-    logger.info("Chosen at index \(index) of \(windowCoordinator.targets.count) targets")
+    // Named, not just numbered. An index says nothing when the question is "it
+    // brought up the other window of that application", and that question has to be
+    // answerable from the log alone.
+    logger.info(
+      """
+      Chosen at index \(index) of \(windowCoordinator.targets.count) targets: \
+      \(selectedApplicationName)
+      """)
 
     switch windowCoordinator.targets[safe: index] {
     case .window(let tile):

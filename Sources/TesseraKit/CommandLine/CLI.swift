@@ -1,3 +1,4 @@
+import AppKit
 import CoreGraphics
 import Foundation
 
@@ -164,8 +165,58 @@ enum CLI {
       isThumbnailStale: false
     )
 
-    try WindowActivator(config: config).activate(tile)
+    let outcome = try WindowActivator(config: config).activate(tile)
+
+    guard outcome == .raisedTheWindow else {
+      // Accessibility lists no window of a Space that is not showing, so the
+      // application came forward and chose a window for itself — with two open,
+      // as likely as not the other one. Measured: asked for the second VS Code
+      // window while its desktop was hidden, this said "Focused ... — Tessera"
+      // and the system focused "... — Fires". The Window menu is the only public
+      // list that names a window on another Space.
+      guard await raiseThroughTheWindowMenu(tile, config: config) else {
+        throw CLIError.commandFailed(
+          """
+          Brought \(tile.displayAppName) forward, but could not aim at that window: \
+          it is on a Space that is not showing
+          """)
+      }
+
+      print("Raised \(tile.displayAppName): \(tile.displayTitle) through its Window menu.")
+      return
+    }
+
     print("Focused \(tile.displayAppName): \(tile.displayTitle)")
+  }
+
+  /// Presses the item that names this window in its application's Window menu.
+  ///
+  /// Nothing is pressed until the application is in front: measured in
+  /// `WindowMenuActivator`, an item of an application that is not frontmost reports
+  /// success and does nothing at all.
+  @MainActor
+  private static func raiseThroughTheWindowMenu(
+    _ tile: WindowTileModel,
+    config: AppConfig
+  ) async -> Bool {
+    guard let application = NSRunningApplication(processIdentifier: tile.processID) else {
+      return false
+    }
+
+    let deadline = ContinuousClock.now + .seconds(config.activationSettleSeconds)
+
+    while !application.isActive, ContinuousClock.now < deadline {
+      try? await Task.sleep(for: .milliseconds(50))
+    }
+
+    guard application.isActive else {
+      return false
+    }
+
+    return WindowMenuActivator(
+      timeout: config.unresponsiveAfterSeconds, debugMode: config.debugMode
+    )
+    .raiseWindow(titled: tile.title, processID: tile.processID)
   }
 
   @MainActor

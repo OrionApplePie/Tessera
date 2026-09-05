@@ -337,6 +337,19 @@ Electron, no `.sdef`, no `NSAppleScriptEnabled`.
 permission at all, but measured on Chrome it visited two of four windows, so it is
 bounded by the active Space like everything else.
 
+### The one-shot command needs the same fallback
+
+`tessera focus <id>` used to activate the application, discard what the raise
+answered, and print "Focused …" either way. Measured with two VS Code windows,
+one of them on a desktop that was not showing: it printed
+`Focused Code: … — Tessera` while the system focused `… — Fires`, the other
+window — because Accessibility lists no window of a Space that is not showing, so
+the application came forward and chose for itself.
+
+It now falls through to the Window menu, as the overlay does, and says which way
+the window was reached. A command that reports something it did not do is worse
+than one that fails.
+
 ### The Window menu, for windows on another Space
 
 Every fullscreen window is a Space of its own, and Accessibility lists only the
