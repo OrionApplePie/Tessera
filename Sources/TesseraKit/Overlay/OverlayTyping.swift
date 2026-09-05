@@ -17,7 +17,26 @@ extension OverlayWindowController {
       return
     }
 
-    guard tile.isSounding else {
+    // A player that is silent can still be told to start, as long as it takes Apple
+    // events: those are addressed, where a media key is not. Spotify sitting there
+    // paused is the case this is for.
+    let bundle = NSRunningApplication(processIdentifier: tile.processID)?.bundleIdentifier
+    let addressed =
+      tile.isSounding
+      ? nil : MediaControl.script(forBundleIdentifier: bundle, command)
+
+    if let addressed {
+      let result = MediaControl.run(addressed)
+      logger.info(
+        "Asked \(tile.displayAppName) directly: ran=\(result.ran) \(result.problem ?? "")")
+
+      return
+    }
+
+    // Nothing is playing anywhere, so there is nothing for the key to interrupt: it
+    // goes to whichever player macOS remembers, which is the same thing the key on
+    // a keyboard would do.
+    guard tile.isSounding || windowCoordinator.isAnythingPlaying == false else {
       logger.info("\(tile.displayAppName) is not playing anything, so the media key is not sent")
       return
     }

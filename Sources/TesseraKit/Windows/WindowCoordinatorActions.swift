@@ -10,6 +10,12 @@ import Foundation
 /// or refuse fullscreen — so the answer comes from reading the window back, and the
 /// caller is expected to do something with a `false`.
 extension WindowCoordinator {
+  /// Whether anything at all is making a sound, which decides whether a media key
+  /// would interrupt something the person cannot see.
+  var isAnythingPlaying: Bool {
+    !AudioActivity(debugMode: config.debugMode).playingApplications().isEmpty
+  }
+
   /// Sends a window to another display. Says whether it went.
   func sendWindow(_ tile: WindowTileModel, toDisplay displayID: CGDirectDisplayID) -> Bool {
     activator.send(tile, toDisplay: displayID)

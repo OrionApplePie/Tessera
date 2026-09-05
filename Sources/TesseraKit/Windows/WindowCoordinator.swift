@@ -22,7 +22,7 @@ final class WindowCoordinator: ObservableObject {
     sections.flatMap(\.targets)
   }
 
-  private let config: AppConfig
+  let config: AppConfig
   private let logger: AppLogger
   private let windowListService: WindowListService
   private let thumbnailService: WindowThumbnailService
