@@ -405,7 +405,12 @@ private struct WindowGroup<Content: View>: View {
             .foregroundStyle(Color.white.opacity(0.62))
           }
         }
-        .frame(maxWidth: .infinity, alignment: .leading)
+        // The width of one tile, exactly, and never the width of the words: the
+        // group takes its ideal size, and a heading offered `.infinity` reported
+        // its whole text as that ideal. A Space called "VG27AQL1A · Рабочий стол 2"
+        // then stood 23 points wider than its neighbours — measured — and the row
+        // stopped lining up. Too long a heading is truncated instead.
+        .frame(width: metrics.width, alignment: .leading)
         .contentShape(Rectangle())
         .onTapGesture(perform: onFocus)
 
@@ -644,6 +649,10 @@ private struct SectionHeading: View {
       .textCase(.uppercase)
       .foregroundStyle(Color.white.opacity(0.34))
       .lineLimit(1)
+      // From the middle, because both ends carry the name: the display at the
+      // front and the number of the desktop at the back. Cut from the end, every
+      // Space of a long-named display reads "VG27AQL1A · Рабочий сто…".
+      .truncationMode(.middle)
       .padding(.leading, 2)
   }
 }
