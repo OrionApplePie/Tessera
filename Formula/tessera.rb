@@ -1,8 +1,8 @@
 class Tessera < Formula
   desc "Native macOS window switcher with a map of every Space"
   homepage "https://github.com/OrionApplePie/Tessera"
-  url "https://github.com/OrionApplePie/Tessera/archive/refs/tags/v0.1.10.tar.gz"
-  sha256 "bb5e82d05aeb30bc7a9be0af9c5345e72a1bdfd502cef53b42112f7974ed9202"
+  url "https://github.com/OrionApplePie/Tessera/archive/refs/tags/v0.1.11.tar.gz"
+  sha256 "07b0d1cf8fccbf2610ce28cd0072c5903ad691dc446783d30e171b306e128659"
   license "GPL-3.0-or-later"
   head "https://github.com/OrionApplePie/Tessera.git", branch: "main"
 
