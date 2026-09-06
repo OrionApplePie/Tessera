@@ -96,12 +96,22 @@ struct TileMetrics: Equatable, Sendable {
     CGSize(width: width, height: width)
   }
 
-  /// The card inside a fan: small enough that the deepest one still fits the box
-  /// above once it has been stepped down and across.
-  var fannedCardWidth: CGFloat {
-    max(
+  /// The card inside a fan of `cards`: small enough that the last one still fits
+  /// the box above once it has been stepped across and down.
+  ///
+  /// Only as small as that fan needs. A Space holding one window is drawn at full
+  /// size, exactly as it would be flipped — shrinking those too made the whole
+  /// overlay smaller for the sake of the one Space that fans.
+  func fannedCardWidth(cards: Int) -> CGFloat {
+    let steps = min(max(cards - 1, 0), deckDepth)
+
+    guard steps > 0 else {
+      return width
+    }
+
+    return max(
       TileMetrics.range.lowerBound / 2,
-      width - max(deckStep.width, deckStep.height) * CGFloat(deckDepth))
+      width - max(deckStep.width, deckStep.height) * CGFloat(steps))
   }
 
   /// How many tiles fit across a screen this wide, counting the gaps between them
@@ -492,7 +502,7 @@ private struct WindowDeck: View {
   /// and downwards, so a deck reads as a deck rather than as a row.
   private var fanned: some View {
     let size = metrics.deckSize
-    let inner = TileMetrics(width: metrics.fannedCardWidth)
+    let inner = TileMetrics(width: metrics.fannedCardWidth(cards: tiles.count))
 
     return ZStack(alignment: .topLeading) {
       ForEach(Array(tiles.enumerated()), id: \.element.id) { item in
