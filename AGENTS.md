@@ -61,6 +61,11 @@ from the toolchain, not from this code, and does not appear in CI.
 ```
 docs/glossary.md         what things are called, in Russian, in English and in
                          the code — read before naming anything new
+docs/keys.md             every key the overlay answers to
+docs/settings.md         every setting, what it costs, and the config file
+docs/spaces.md           displays and Spaces: known, learned, and refused
+docs/cli.md              the commands, the background app and its log
+docs/development.md      building, the source layout, the tests
 docs/mechanisms.md       why the non-obvious parts work as they do — read before
                          changing window enumeration, Spaces, thumbnails or
                          activation, it records what was already tried
