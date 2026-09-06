@@ -107,39 +107,49 @@ struct WindowThumbnailModeTests {
   /// A crop keeps the tile's shape, and the tile is square — so a window far from
   /// square loses exactly what identifies it. Measured on the window that prompted
   /// this: 338 by 612 points, three quarters of which is its top third.
-  @Test("A tall narrow window counts as long")
+  /// The picture is drawn in a landscape space, so a window lying across it loses
+  /// most of itself to a crop even at a ratio that sounds modest.
+  @Test("A window lying across the picture counts as long")
   func spotsATallWindow() {
-    #expect(WindowThumbnailMode.isLong(CGSize(width: 338, height: 612)))
-    #expect(WindowThumbnailMode.isLong(CGSize(width: 2000, height: 600)))
+    let area = CGSize(width: 360, height: 274)
+
+    #expect(WindowThumbnailMode.isLong(CGSize(width: 338, height: 612), comparedTo: area))
+    #expect(WindowThumbnailMode.isLong(CGSize(width: 560, height: 784), comparedTo: area))
+    #expect(WindowThumbnailMode.isLong(CGSize(width: 2000, height: 600), comparedTo: area))
   }
 
   /// An ordinary window is not: it is close enough to the tile's shape that a piece
   /// of it still says which window it is.
-  /// Measured on this desktop: ordinary windows run from 1.40 to 1.60 sides, and
-  /// the ones this rule is for start at 1.8.
-  @Test("An ordinary window is not long")
+  /// A window the same way up as the picture keeps enough of itself in a crop,
+  /// whatever its sides say: measured, an editor at 1512 by 944 and a 16 by 9
+  /// window both stay cropped.
+  @Test("A window the same way up as the picture is not long")
   func leavesOrdinaryWindowsAlone() {
-    #expect(!WindowThumbnailMode.isLong(CGSize(width: 1512, height: 944)))
-    #expect(!WindowThumbnailMode.isLong(CGSize(width: 1200, height: 800)))
-    #expect(!WindowThumbnailMode.isLong(CGSize(width: 900, height: 900)))
-    #expect(!WindowThumbnailMode.isLong(.zero))
+    let area = CGSize(width: 360, height: 274)
+
+    #expect(!WindowThumbnailMode.isLong(CGSize(width: 1512, height: 944), comparedTo: area))
+    #expect(!WindowThumbnailMode.isLong(CGSize(width: 1920, height: 1080), comparedTo: area))
+    #expect(!WindowThumbnailMode.isLong(CGSize(width: 900, height: 900), comparedTo: area))
+    #expect(!WindowThumbnailMode.isLong(.zero, comparedTo: area))
   }
 
   /// The setting decides, and only for the windows the rule catches: everything
   /// else is captured the way it was asked for.
   @Test("A long window is taken whole only when that is asked for")
   func takesLongWindowsWholeWhenAsked() {
+    let area = CGSize(width: 360, height: 274)
     let long = CGSize(width: 338, height: 612)
     let ordinary = CGSize(width: 1200, height: 800)
 
     #expect(
-      WindowThumbnailMode.capturing(long, wanted: .threeQuarters, takingLongWindowsWhole: true)
-        == .fit)
+      WindowThumbnailMode.capturing(
+        long, wanted: .threeQuarters, area: area, takingLongWindowsWhole: true) == .fit)
     #expect(
-      WindowThumbnailMode.capturing(long, wanted: .threeQuarters, takingLongWindowsWhole: false)
+      WindowThumbnailMode.capturing(
+        long, wanted: .threeQuarters, area: area, takingLongWindowsWhole: false)
         == .threeQuarters)
     #expect(
-      WindowThumbnailMode.capturing(ordinary, wanted: .corner, takingLongWindowsWhole: true)
-        == .corner)
+      WindowThumbnailMode.capturing(
+        ordinary, wanted: .corner, area: area, takingLongWindowsWhole: true) == .corner)
   }
 }

@@ -805,24 +805,20 @@ private struct WindowThumbnailContent: View {
       .antialiased(true)
 
     let size = CGSize(width: thumbnail.width, height: thumbnail.height)
+    let area = CGSize(width: metrics.contentWidth, height: metrics.thumbnailHeight)
 
-    if WindowThumbnailMode.isLong(size) {
+    if WindowThumbnailMode.isLong(size, comparedTo: area) {
       // On the overlay's own grey, not on the desktop and not on the highlight:
       // wallpaper behind it would read as a Space holding this one window, and the
       // colour of the highlight showing through the sides made a chosen card look
       // like a different kind of tile. Inset a little all round, so the window
       // reads as standing in the card rather than as cropped by it.
-      ZStack {
-        // The same ground a tile with no picture stands on: the overlay's own
-        // colour so the highlight cannot show through, and the same lift of white
-        // over it, so a window drawn whole sits on what every other tile sits on.
-        ground
-        Color.white.opacity(0.06)
-
-        picture
-          .scaledToFit()
-          .padding(metrics.padding * 2)
-      }
+      // Nothing painted behind it: what shows at the sides is the card's own
+      // ground, the same one every other tile stands on. A ground of its own was
+      // tried and read as a different kind of tile.
+      picture
+        .scaledToFit()
+        .padding(metrics.padding * 2)
     } else {
       picture.scaledToFill()
     }

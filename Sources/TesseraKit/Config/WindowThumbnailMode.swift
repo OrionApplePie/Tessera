@@ -64,18 +64,30 @@ enum WindowThumbnailMode: Equatable, Sendable, CaseIterable {
   /// identifies such a window at a glance. Measured on a 338 by 612 window: three
   /// quarters of it in a tile's shape is its top 56 per cent.
   ///
-  /// The threshold is the window's own sides and not a comparison with the tile,
-  /// which was the first attempt and caught nothing: a tile is drawn landscape
-  /// — 360 by 274 with its label — so a ratio against it put the bar at 2.4 and the
-  /// window that prompted all this sat at 1.8. Measured on this desktop, ordinary
-  /// windows run from 1.40 to 1.60 and the long ones start at 1.8, so 1.7 divides
-  /// them with room on both sides.
-  static func isLong(_ window: CGSize, ratio: CGFloat = 1.7) -> Bool {
-    guard window.width > 0, window.height > 0 else {
+  /// Measured against the space the picture is drawn in rather than against the
+  /// window's own sides, because which way a window is long is what decides how
+  /// much of it a crop keeps. That space is landscape — 360 by 274 with the tile's
+  /// label taken out — so a landscape window of the same proportions loses little,
+  /// while a portrait one loses most of its height at a ratio that sounds modest.
+  ///
+  /// Measured on this desktop: an editor at 1512 by 944 sits at 1.60 the same way
+  /// up as the picture's 1.31 and is cropped; a settings window at 560 by 784 and a
+  /// player at 338 by 612 lie across it at 0.71 and 0.55, and are drawn whole. The
+  /// ratio of 1.5 puts the line between them, and catches a very wide window on the
+  /// other side as well.
+  static func isLong(
+    _ window: CGSize,
+    comparedTo area: CGSize,
+    ratio: CGFloat = 1.5
+  ) -> Bool {
+    guard window.width > 0, window.height > 0, area.width > 0, area.height > 0 else {
       return false
     }
 
-    return max(window.width / window.height, window.height / window.width) >= ratio
+    let windowSides = window.width / window.height
+    let areaSides = area.width / area.height
+
+    return windowSides <= areaSides / ratio || windowSides >= areaSides * ratio
   }
 
   /// The mode a particular window is actually captured with: the one asked for,
@@ -83,9 +95,10 @@ enum WindowThumbnailMode: Equatable, Sendable, CaseIterable {
   static func capturing(
     _ window: CGSize,
     wanted: WindowThumbnailMode,
+    area: CGSize,
     takingLongWindowsWhole: Bool
   ) -> WindowThumbnailMode {
-    guard takingLongWindowsWhole, isLong(window) else {
+    guard takingLongWindowsWhole, isLong(window, comparedTo: area) else {
       return wanted
     }
 

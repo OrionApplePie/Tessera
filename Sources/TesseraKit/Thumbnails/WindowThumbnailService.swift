@@ -165,7 +165,9 @@ final class WindowThumbnailService {
   @available(macOS 14.0, *)
   private func configuration(for windowSize: CGSize) -> SCStreamConfiguration {
     let mode = WindowThumbnailMode.capturing(
-      windowSize, wanted: mode, takingLongWindowsWhole: takesLongWindowsWhole)
+      windowSize, wanted: mode,
+      area: CGSize(width: captureTile.contentWidth, height: captureTile.thumbnailHeight),
+      takingLongWindowsWhole: takesLongWindowsWhole)
     let configuration = SCStreamConfiguration()
     configuration.showsCursor = false
     configuration.ignoreShadowsSingleWindow = true

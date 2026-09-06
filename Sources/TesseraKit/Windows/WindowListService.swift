@@ -32,6 +32,20 @@ struct WindowListService {
   /// status-bar scraps rather than things a user would switch to.
   private static let minimumWindowEdge: CGFloat = 40
 
+  /// This application's own panels, which are the overlay and nothing anybody
+  /// switches to.
+  ///
+  /// Every window of this process used to be left out, which took the settings
+  /// window with it — an ordinary window, on a Space of its own as often as not,
+  /// and the one window of this application there is any reason to look for.
+  private static func ownPanels() -> Set<CGWindowID> {
+    Set(
+      NSApp?.windows.compactMap { window in
+        window is NSPanel && window.windowNumber > 0
+          ? CGWindowID(window.windowNumber) : nil
+      } ?? [])
+  }
+
   init(config: AppConfig = .default, learnedWindows: LearnedWindowStore? = nil) {
     self.config = config
     self.learnedWindows =
@@ -43,7 +57,7 @@ struct WindowListService {
 
   func snapshot() async throws -> WindowSnapshot {
     let content = try await SCShareableContent.current
-    let ownProcessID = ProcessInfo.processInfo.processIdentifier
+    let ownPanels = Self.ownPanels()
     let names = DisplayInfo.localizedNames()
 
     let displays = content.displays.map { display in
@@ -80,7 +94,7 @@ struct WindowListService {
           && !isLearnedAbsent(window, applicationName: owner.applicationName)
           && window.frame.width >= Self.minimumWindowEdge
           && window.frame.height >= Self.minimumWindowEdge
-          && owner.processID != ownProcessID
+          && !ownPanels.contains(window.windowID)
       }
       .map { window in
         (window, window.owningApplication?.processID ?? 0)
