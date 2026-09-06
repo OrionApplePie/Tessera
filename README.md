@@ -86,10 +86,11 @@ and switch when the keys are let go.
 |---|---|
 | arrows | Move the highlight |
 | `Return`, `Space` | Switch to what is highlighted |
-| `1`–`9` | Pick that tile |
+| `1` – `9` | Pick that tile |
 | a letter | Jump to a window by name |
-| `⌘` + arrows | Send the window to that display |
-| `⌘N`, `⌘⌫` | Add a desktop, close an empty one |
+| `⌘ + arrows` | Send the window to that display |
+| `⌘ + N` | Add a desktop to that display |
+| `⌘ + Delete` | Close the Space under the highlight, if nothing is on it |
 | `Esc` | Close the overlay |
 
 The rest — placing a window in half a screen, fullscreen, playback, closing a

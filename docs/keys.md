@@ -6,26 +6,34 @@ shown as they are actually bound.
 
 ## Overlay keys
 
+Every combination is written with a plus between its keys, modifiers included,
+and a key that has a name is called by it — `Return`, `Delete`, `Tab` — rather
+than by a symbol. The settings window's **Keys** page says the same thing the same
+way, and shows the two that are settings as they are actually bound.
+
 | Key | Action |
 |---|---|
 | `←` `→` | Move the highlight one tile, wrapping at the ends of the list |
 | `↑` `↓` | Move the highlight one row, crossing into the next group; stops at the top and bottom |
-| `Return` `Space` | Activate the highlighted window |
-| `1`–`9` | Activate that tile directly |
-| A letter | Move to the next window whose name starts with it; press again to cycle |
-| `⇧` + arrows | Move the highlighted tile itself, within its group |
-| `⌘` + arrows | Send the highlighted window to the display the arrow points at |
-| `⌥` + arrows | Put the highlighted window in that half of its screen |
-| `⌘⏎` | Fill the screen with the highlighted window |
-| `⌘F` | Hand the window to its application's own fullscreen mode |
-| `⌃⌥⇧` + arrows | Switch to the window in that direction, keeping the overlay up |
-| `⌘\` | Play or pause what the highlighted window's application is playing |
-| `⌘]` `⌘[` | Next and previous, for the same |
-| `⌘W` | Close the highlighted window — by default this quits its application |
-| `⌘N` | Add a desktop to the display the highlight is on |
-| `⌘⌫` | Close the highlighted empty Space |
-| `Esc` | Close the overlay without switching |
 | `Return`, `Space` | Switch to the highlighted window and close the overlay |
+| `1` – `9` | Activate that tile directly |
+| A letter | Move to the next window whose name starts with it; press again to cycle |
+| `Tab`, `⇧ + Tab` | The next and previous window inside a Space |
+| `⇧ + arrows` | Move the highlighted tile itself, within its group |
+| `⌘ + arrows` | Send the highlighted window to the display the arrow points at |
+| `⌥ + arrows` | Put the highlighted window in that half of its screen |
+| `⌘ + Return` | Fill the screen with the highlighted window |
+| `⌘ + F` | Hand the window to its application's own fullscreen mode |
+| `⌃ + ⌥ + ⇧ + arrows` | Switch to the window in that direction, keeping the overlay up |
+| `⌘ + \` | Play or pause what the highlighted window's application is playing |
+| `⌘ + ]`, `⌘ + [` | Next and previous, for the same |
+| `⌘ + W` | Close the highlighted window — by default this quits its application |
+| `⌘ + N` | Add a desktop to the display the highlight is on |
+| `⌘ + Delete` | Close the Space under the highlight, if nothing is on it |
+| `Esc` | Close the overlay without switching |
+
+`Delete` is the key marked *delete* on a Mac keyboard — backspace, the one above
+the backslash — not the forward delete of a full-size board.
 
 `Esc`, `Return` and `Space` keep working after a step has given the keyboard to
 another application: they are held system-wide for as long as the overlay is up,

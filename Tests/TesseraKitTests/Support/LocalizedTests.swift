@@ -53,9 +53,9 @@ struct LocalizedTests {
   @Test("Everything is translated, or is a word that does not change")
   func translatesEverythingElse() {
     let unchanged: Set<String> = [
-      "Esc", "Mission Control", "Return, Space", "Tab, ⇧Tab", "Tessera", "cmd+w",
-      "ctrl+alt+space", "1 – 9", "⌘F", "⌘N", "⌘[", "⌘\\", "⌘]", "⌘⌫", "⌘⏎",
-      "AmneziaVPN, Some Tray App",
+      "Esc", "Mission Control", "Return, Space", "Tab, ⇧ + Tab", "Tessera", "cmd+w",
+      "ctrl+alt+space", "1 – 9", "⌘ + Delete", "⌘ + F", "⌘ + N", "⌘ + Return", "⌘ + [",
+      "⌘ + \\", "⌘ + ]", "AmneziaVPN, Some Tray App",
     ]
 
     let english = strings(of: "en")
