@@ -33,18 +33,44 @@ you. Inside a group the order is by application.
 
 ### Adding and closing a desktop
 
-`⌘N` adds a desktop to the display the highlight is on, and `⌘⌫` closes the empty
-Space under the highlight. Mission Control appears for about a second while it
-happens, because Mission Control's own buttons are what get pressed: macOS keeps
-its calls for making and unmaking Spaces to itself, and reaching them the way
-window managers do means turning off part of System Integrity Protection. This
-route needs nothing beyond the Accessibility permission Tessera already asks for.
+`⌘ + N` adds a desktop to the display the highlight is on. Mission Control appears
+for about a second while it happens, because Mission Control's own buttons are what
+get pressed: macOS keeps its calls for making and unmaking Spaces to itself, and
+reaching them the way window managers do means turning off part of System Integrity
+Protection. This route needs nothing beyond the Accessibility permission Tessera
+already asks for.
 
-Closing is offered only for a Space with nothing on it. A Space with windows
-closes just as readily and macOS moves those windows to the neighbouring Space —
-too large a thing to happen from one keystroke, and the overlay cannot show it before
-it is done. The same two actions are available as `tessera space add` and
-`tessera space close`, where an index may be given explicitly.
+#### Closing an empty one
+
+An empty Space is a section of the overlay with no tiles in it, headed by its own
+name — `Desktop 4`. The highlight stands on the section itself there, since there
+is nothing inside it to stand on, and that is the thing `⌘ + Delete` closes:
+
+1. Open the overlay with `⌃⌥Space`.
+2. Move the highlight onto the empty Space with the arrow keys, or reach it by
+   typing its name — `desktop 4` — with `overlay_search = "fuzzy"`.
+3. Press `⌘ + Delete`. `Delete` is the key marked *delete*, the backspace one.
+
+The overlay goes away, Mission Control flashes for about half a second, and the
+desktop is gone. Nothing happens, and the log says why, in three cases: the
+highlight is on a window rather than on an empty Space, the Space still has windows
+on it, or it is the only desktop that display has — macOS will not remove the last
+one.
+
+Closing is offered only for a Space with nothing on it. A Space with windows closes
+just as readily and macOS moves those windows to the neighbouring Space — too large
+a thing to happen from one keystroke, and the overlay cannot show it before it is
+done. To close one anyway, empty it first, or use Mission Control itself.
+
+From the command line the same two actions carry no such rule, and an index may be
+given explicitly:
+
+```sh
+tessera space list          # the Spaces of the display in use, with their indexes
+tessera space add           # one more desktop
+tessera space close         # the current Space
+tessera space close 4       # that one, windows or no windows
+```
 
 ### How the Spaces are worked out
 
