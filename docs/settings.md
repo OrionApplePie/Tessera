@@ -259,7 +259,24 @@ To leave an application out without waiting to be taught:
 ignored_apps = "AmneziaVPN, Some Tray App"
 ```
 
-Comma separated, case-insensitive, empty by default.
+Comma separated, case-insensitive, empty by default. This one names applications,
+whatever kind they are.
+
+### Leaving out a whole kind
+
+```toml
+ignore_menu_bar_apps = true
+```
+
+Off by default, and a different question from the field above: rather than naming
+an application, this leaves out every application with no Dock icon. That is what
+AppKit calls an `.accessory` activation policy and what people call living in the
+menu bar. Their windows are panels they put up themselves rather than places to
+switch to, and Accessibility commonly will not raise them at all — a tile for one
+is a tile that does nothing.
+
+It is not a cure for the leftover window above: an application that keeps a closed
+window alive is usually `regular` all the same, and stays listed.
 
 ## Reaching a particular window
 
@@ -331,12 +348,12 @@ close_hotkey = "cmd+w"
 close_action = "quit"
 
 ignored_apps = ""
+ignore_menu_bar_apps = false
 overlay_columns = 4
 window_order = "title"
 overlay_grouping = "displays"
 overlay_background = "#2B2E33C2"
 
-close_after_activation = true
 show_menu_bar_icon = true
 debug_mode = false
 ```

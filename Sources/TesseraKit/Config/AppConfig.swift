@@ -5,7 +5,6 @@ struct AppConfig: Equatable {
   var refreshIntervalSeconds: TimeInterval
   var windowThumbnailsStaleSeconds: TimeInterval
   var maxWindows: Int
-  var closeAfterActivation: Bool
   var showMenuBarIcon: Bool
   var debugMode: Bool
   /// Whether to leave out applications with no Dock icon.
@@ -94,7 +93,6 @@ struct AppConfig: Equatable {
     refreshIntervalSeconds: 3,
     windowThumbnailsStaleSeconds: 30,
     maxWindows: 24,
-    closeAfterActivation: false,
     showMenuBarIcon: true,
     debugMode: false,
     ignoresMenuBarApplications: false,

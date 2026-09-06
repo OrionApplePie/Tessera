@@ -44,7 +44,6 @@ final class SettingsModel: ObservableObject {
   @Published var overlayFillsScreen = false
   @Published var maxWindows: Int = 0
 
-  @Published var closeAfterActivation = false
   @Published var showMenuBarIcon = false
   @Published var debugMode = false
 
@@ -87,7 +86,6 @@ final class SettingsModel: ObservableObject {
     dimsStaleThumbnails = config.dimsStaleThumbnails
     overlayFillsScreen = config.overlayFillsScreen
     maxWindows = config.maxWindows
-    closeAfterActivation = config.closeAfterActivation
     showMenuBarIcon = config.showMenuBarIcon
     debugMode = config.debugMode
   }
@@ -155,7 +153,6 @@ final class SettingsModel: ObservableObject {
     config.usesPrivateSpaceAPI = usesPrivateSpaceAPI
     config.overlayFillsScreen = overlayFillsScreen
     config.maxWindows = max(1, maxWindows)
-    config.closeAfterActivation = closeAfterActivation
     config.showMenuBarIcon = showMenuBarIcon
     config.debugMode = debugMode
 

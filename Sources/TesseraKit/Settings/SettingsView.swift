@@ -283,7 +283,7 @@ struct SettingsView: View {
 
       Section(localized("Windows")) {
         TextField(
-          localized("Ignore applications"),
+          localized("Never list these applications"),
           text: $model.ignoredApplications,
           prompt: Text(localized("AmneziaVPN, Some Tray App"))
         )
@@ -295,9 +295,13 @@ struct SettingsView: View {
           .font(.caption)
           .foregroundStyle(.secondary)
 
-        Toggle(localized("Close the overlay after switching"), isOn: $model.closeAfterActivation)
         Toggle(
-          localized("Leave out menu bar applications"), isOn: $model.ignoresMenuBarApplications)
+          localized("Leave out applications with no Dock icon"),
+          isOn: $model.ignoresMenuBarApplications)
+
+        Text(menuBarNote)
+          .font(.caption)
+          .foregroundStyle(.secondary)
       }
 
       Section(localized("The switcher itself")) {
@@ -381,6 +385,19 @@ struct SettingsView: View {
       How many windows the switcher keeps in mind at all — every one of them holds \
       a preview in memory. What the overlay draws from that list is capped \
       separately, under Layout.
+      """)
+  }
+
+  /// The toggle above it, in the words of what it actually looks at: an
+  /// application with no Dock icon, which is what "lives in the menu bar" means
+  /// to AppKit.
+  private var menuBarNote: String {
+    localized(
+      """
+      An application with no Dock icon — one that lives in the menu bar. Its \
+      windows are panels it puts up itself rather than places to switch to, and \
+      Accessibility often will not raise them at all. The field above leaves out \
+      applications by name, whatever kind they are.
       """)
   }
 

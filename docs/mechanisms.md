@@ -737,9 +737,8 @@ pressed inside that moment would otherwise land in the application that came
 forward — which is how Escape, then Return and Space, were reported as doing
 nothing at all. Escape did nothing, and neither did the keys
 that mean "this one" — which is how both were reported. Pressing a confirm key
-finishes the switch and closes the overlay whatever `close_after_activation` says,
-because that setting is about picking a tile with a mouse or a number, and a confirm
-key is someone saying they are done looking.
+finishes the switch and closes the overlay, because a confirm key is someone
+saying they are done looking.
 
 What it costs is honest to state: those eight keys stop reaching other applications
 while the overlay is up, and Space and Return are not small keys to borrow. They
@@ -767,13 +766,20 @@ application that had just left, and the overlay hid itself the instant it was
 shown.
 
 Any application, including the one the overlay has just raised a window in.
-Excepting that one sounded right, since `close_after_activation = false` says the
-overlay stays up while windows are picked from it, but it is not what the panel did
-before: AppKit hid it whenever this application was deactivated, whoever had taken
-over. Excepted, picking a window left the overlay on screen, which reads as an
-overlay that will not go away. Stepping through windows still keeps it, because a
-step raises a window without activating its application, so nothing comes
-forward — which is the whole reason that mode exists.
+Excepting that one sounded right — it would be a way to keep the overlay up while
+windows are picked from it — but it is not what the panel did before: AppKit hid it
+whenever this application was deactivated, whoever had taken over. Excepted, picking
+a window left the overlay on screen, which reads as an overlay that will not go
+away. Stepping through windows still keeps it, because a step raises a window
+without activating its application, so nothing comes forward — which is the whole
+reason that mode exists.
+
+This is also what killed `close_after_activation`, a setting that offered to keep
+the overlay up after a pick. It could not: whatever it said, the picked window's
+application came forward, this one was deactivated, and the overlay went away here.
+A setting whose two positions do the same thing is worse than no setting, so it was
+removed rather than defended; picking a window closes the overlay, and that is now
+stated once, in `selectWindow(id:)`.
 
 ## What opening the overlay costs
 

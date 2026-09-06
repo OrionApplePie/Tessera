@@ -33,7 +33,6 @@ struct AppConfigLoaderTests {
     "overlay_row_align",
     "overlay_deck",
     "overlay_fills_screen",
-    "close_after_activation",
     "show_menu_bar_icon",
     "debug_mode",
     "activation_settle_seconds",
@@ -67,7 +66,6 @@ struct AppConfigLoaderTests {
       window_thumbnail_mode = "corner"
       overlay_grouping = "displays+spaces"
       overlay_background = "#10203040"
-      close_after_activation = false
       show_menu_bar_icon = false
       debug_mode = true
       activation_settle_seconds = 2.5
@@ -90,7 +88,6 @@ struct AppConfigLoaderTests {
       #expect(config.windowThumbnailMode == .corner)
       #expect(config.overlayGrouping == [.displays, .spaces])
       #expect(config.overlayBackground.hexDescription == "#10203040")
-      #expect(config.closeAfterActivation == false)
       #expect(config.showMenuBarIcon == false)
       #expect(config.debugMode == true)
       #expect(config.activationSettleSeconds == 2.5)
@@ -105,7 +102,7 @@ struct AppConfigLoaderTests {
 
       #expect(config.maxWindows == 4)
       #expect(config.refreshIntervalSeconds == AppConfig.default.refreshIntervalSeconds)
-      #expect(config.closeAfterActivation == AppConfig.default.closeAfterActivation)
+      #expect(config.showMenuBarIcon == AppConfig.default.showMenuBarIcon)
     }
   }
 
@@ -402,10 +399,6 @@ extension AppConfigLoaderTests {
       sourceLocation: sourceLocation
     )
     #expect(config.maxWindows == defaults.maxWindows, sourceLocation: sourceLocation)
-    #expect(
-      config.closeAfterActivation == defaults.closeAfterActivation,
-      sourceLocation: sourceLocation
-    )
     #expect(config.showMenuBarIcon == defaults.showMenuBarIcon, sourceLocation: sourceLocation)
     #expect(config.debugMode == defaults.debugMode, sourceLocation: sourceLocation)
     #expect(config.hotkey == defaults.hotkey, sourceLocation: sourceLocation)

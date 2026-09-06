@@ -110,7 +110,6 @@ enum AppConfigWriter {
     # Applications to leave out of the switcher, comma separated.
     ignored_apps = "\(config.ignoredApplications.sorted().joined(separator: ", "))"
 
-    close_after_activation = \(config.closeAfterActivation)
     show_menu_bar_icon = \(config.showMenuBarIcon)
     debug_mode = \(config.debugMode)
     """

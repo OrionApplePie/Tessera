@@ -436,13 +436,18 @@ final class OverlayWindowController: NSWindowController, NSWindowDelegate {
     }
   }
 
+  /// Picking a window is the end of the overlay's turn, so it goes away — whether
+  /// it was picked with the mouse, with a number or with the confirm key.
+  ///
+  /// This used to be a setting, and it was one that could not be switched off:
+  /// whatever it said, the application coming forward deactivated this one and
+  /// `observeOtherApplications` put the overlay away regardless. A setting that
+  /// changes nothing is worse than none, so the behaviour it never had is gone and
+  /// the one it always had is written here.
   func selectWindow(id windowID: CGWindowID) {
     logger.info("Window selected from overlay")
 
-    if config.closeAfterActivation {
-      hideOverlay()
-    }
-
+    hideOverlay()
     windowCoordinator.activateWindow(id: windowID)
   }
 
@@ -469,9 +474,8 @@ final class OverlayWindowController: NSWindowController, NSWindowDelegate {
   /// was pressed — under any of the readings that key has.
 
   /// Return or Space: the window has been chosen, so this finishes — it comes
-  /// forward and the overlay goes away, whatever `close_after_activation` says
-  /// about picking a tile with the mouse or a number. Pressing the confirm key is
-  /// the moment someone says they are done looking.
+  /// forward and the overlay goes away. Pressing the confirm key is the moment
+  /// someone says they are done looking.
   func activateSelection() {
     selectWindow(at: selection.index)
     hideOverlay()
@@ -718,12 +722,12 @@ extension OverlayWindowController {
   /// on screen with nothing to take it down.
   ///
   /// Including one the overlay itself asked for. Letting that one through sounded
-  /// right — `config.closeAfterActivation` off means the overlay stays up while windows
-  /// are picked from it — but it is not what the panel used to do: AppKit hid it
-  /// whenever this application was deactivated, whoever had taken over. Picking a
-  /// window left the overlay on screen, which reads as an overlay that will not go
-  /// away. Stepping through windows still keeps it, because a step raises a window
-  /// without activating its application, and nothing comes forward.
+  /// right — it would be a way to keep the overlay up while windows are picked from
+  /// it — but it is not what the panel used to do: AppKit hid it whenever this
+  /// application was deactivated, whoever had taken over. Picking a window left the
+  /// overlay on screen, which reads as an overlay that will not go away. Stepping
+  /// through windows still keeps it, because a step raises a window without
+  /// activating its application, and nothing comes forward.
   private func observeOtherApplications() {
     activationObserver = NSWorkspace.shared.notificationCenter.addObserver(
       forName: NSWorkspace.didActivateApplicationNotification,

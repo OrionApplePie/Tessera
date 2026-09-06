@@ -123,7 +123,6 @@ overlay_background = "#2B2E33C2"
 close_hotkey = "cmd+w"
 close_action = "quit"
 
-close_after_activation = false
 show_menu_bar_icon = true
 debug_mode = false
 

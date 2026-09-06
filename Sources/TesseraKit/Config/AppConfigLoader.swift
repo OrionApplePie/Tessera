@@ -167,11 +167,6 @@ struct AppConfigLoader {
       default: config.overlayFillsScreen,
       key: "overlay_fills_screen"
     )
-    config.closeAfterActivation = try bool(
-      values["close_after_activation"],
-      default: config.closeAfterActivation,
-      key: "close_after_activation"
-    )
     config.showMenuBarIcon = try bool(
       values["show_menu_bar_icon"],
       default: config.showMenuBarIcon,

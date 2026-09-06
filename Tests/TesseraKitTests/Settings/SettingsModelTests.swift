@@ -39,7 +39,6 @@ struct SettingsModelTests {
     config.overlayFillsScreen = true
     config.activationSettleSeconds = 0.75
     config.unresponsiveAfterSeconds = 4
-    config.closeAfterActivation = false
     config.showMenuBarIcon = false
     config.debugMode = true
 
