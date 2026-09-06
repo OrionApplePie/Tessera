@@ -781,14 +781,39 @@ private struct WindowThumbnailContent: View {
   let dimsStale: Bool
   @Environment(\.isMeasuringOverlay) private var isMeasuring
 
+  /// A long window is shown whole, everything else fills the tile.
+  ///
+  /// Filling is right for a picture already in the tile's shape — a crop is taken
+  /// that way on purpose — and wrong for the whole of a tall narrow window, which
+  /// it would scale up until only the middle band was left. That is the picture
+  /// this switcher goes out of its way to capture whole, and then cropped again on
+  /// its way to the screen.
+  @ViewBuilder
+  private func image(_ thumbnail: CGImage) -> some View {
+    let picture = Image(decorative: thumbnail, scale: 1, orientation: .up)
+      .resizable()
+      .interpolation(.high)
+      .antialiased(true)
+
+    let size = CGSize(width: thumbnail.width, height: thumbnail.height)
+
+    if WindowThumbnailMode.isLong(size) {
+      // Against the card's own ground, not against the desktop: wallpaper behind it
+      // would read as a Space holding this one window, and a long window is usually
+      // beside others. Inset a little on every side, so the window reads as
+      // standing in the card rather than as cropped by it.
+      picture
+        .scaledToFit()
+        .padding(metrics.padding * 2)
+    } else {
+      picture.scaledToFill()
+    }
+  }
+
   var body: some View {
     ZStack {
       if let thumbnail = tile.thumbnail, !isMeasuring {
-        Image(decorative: thumbnail, scale: 1, orientation: .up)
-          .resizable()
-          .interpolation(.high)
-          .antialiased(true)
-          .scaledToFill()
+        image(thumbnail)
           .opacity(dimsStale && tile.isThumbnailStale ? 0.72 : 1)
       } else {
         RoundedRectangle(cornerRadius: 6, style: .continuous)
