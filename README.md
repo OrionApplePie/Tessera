@@ -44,11 +44,14 @@ window_thumbnail_mode = "corner2x"  # twice as much corner, at half size
 window_thumbnail_mode = "quarter"   # roughly a quarter of the window
 ```
 
-A window much longer than the tile it is drawn in is captured whole whatever the
-mode says, because a crop keeps the tile's shape and the tile is square: a tall
-narrow window — a chat panel, a player — is cropped to its top, which is the one
-thing that does not tell it apart. Measured on a 338 by 612 point window, three
-quarters of it in a square is its top third.
+A long window is captured whole whatever the mode says, because a crop keeps the
+tile's shape: a tall narrow window — a chat panel, a player — is cropped to its
+top, and its shape is the one thing that tells it apart. Long means the window's
+own sides differ by 1.7 times or more; measured on this desktop, ordinary windows
+run from 1.40 to 1.60 and the ones this is for start at 1.8.
+
+A window that is not on screen keeps the preview it already had, so one of these
+shows its old cropped picture until its Space has been visited once.
 
 ```toml
 window_thumbnail_whole_when_long = true   # the default

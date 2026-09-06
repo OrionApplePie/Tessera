@@ -56,26 +56,26 @@ enum WindowThumbnailMode: Equatable, Sendable, CaseIterable {
     }
   }
 
-  /// Whether a window is so far from the tile's shape that a piece of it says
-  /// nothing about which window it is.
+  /// Whether a window is long enough that a piece of it says nothing about which
+  /// window it is.
   ///
-  /// A crop keeps the tile's proportions, and a tile is square — so a tall narrow
-  /// window is cropped to its top and a wide flat one to its left end. Measured on
-  /// a 338x612 window, three quarters of it in a square is its top third: the
-  /// shape, which is the thing that identifies such a window at a glance, is
-  /// exactly what gets cut off. Whole is the honest answer there.
+  /// A crop keeps the tile's proportions, so a tall narrow window is cropped to its
+  /// top and a wide flat one to its left end — and the shape is the very thing that
+  /// identifies such a window at a glance. Measured on a 338 by 612 window: three
+  /// quarters of it in a tile's shape is its top 56 per cent.
   ///
-  /// The threshold is a ratio against the tile's own, so it means "much longer than
-  /// what it is drawn in" rather than a number of points.
-  static func isLong(_ window: CGSize, comparedTo tile: CGSize, ratio: CGFloat = 1.8) -> Bool {
-    guard window.width > 0, window.height > 0, tile.width > 0, tile.height > 0 else {
+  /// The threshold is the window's own sides and not a comparison with the tile,
+  /// which was the first attempt and caught nothing: a tile is drawn landscape
+  /// — 360 by 274 with its label — so a ratio against it put the bar at 2.4 and the
+  /// window that prompted all this sat at 1.8. Measured on this desktop, ordinary
+  /// windows run from 1.40 to 1.60 and the long ones start at 1.8, so 1.7 divides
+  /// them with room on both sides.
+  static func isLong(_ window: CGSize, ratio: CGFloat = 1.7) -> Bool {
+    guard window.width > 0, window.height > 0 else {
       return false
     }
 
-    let windowSides = max(window.width / window.height, window.height / window.width)
-    let tileSides = max(tile.width / tile.height, tile.height / tile.width)
-
-    return windowSides >= tileSides * ratio
+    return max(window.width / window.height, window.height / window.width) >= ratio
   }
 
   /// The mode a particular window is actually captured with: the one asked for,
@@ -83,10 +83,9 @@ enum WindowThumbnailMode: Equatable, Sendable, CaseIterable {
   static func capturing(
     _ window: CGSize,
     wanted: WindowThumbnailMode,
-    tile: CGSize,
     takingLongWindowsWhole: Bool
   ) -> WindowThumbnailMode {
-    guard takingLongWindowsWhole, isLong(window, comparedTo: tile) else {
+    guard takingLongWindowsWhole, isLong(window) else {
       return wanted
     }
 
