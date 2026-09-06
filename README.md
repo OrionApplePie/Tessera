@@ -59,7 +59,7 @@ captured through ScreenCaptureKit's `sourceRect` rather than cropped afterwards 
 a large window costs no more than a small one. A window smaller than the piece
 asked for is taken whole.
 
-How many pixels a `fit` capture gets is not a number anybody types: the map sizes
+How many pixels a `fit` capture gets is not a number anybody types: the overlay sizes
 its tiles from the screen and from how many Spaces there are, so the capture is
 made for the largest tile the overlay may draw. `window_thumbnail_quality` is the
 knob for wanting more than that.
@@ -100,7 +100,7 @@ when it does not.
 
 The windows of a Space are stacked, not spread out: one card on top, a mark saying
 how many are behind it, and a turn of the card as you step through them. A Space
-then takes the room of one window however many it holds, which is what keeps a map
+then takes the room of one window however many it holds, which is what keeps an overlay
 of a dozen Spaces readable. `overlay_deck = "fan"` spreads them instead, each card
 peeking out from behind the one in front of it.
 
@@ -259,22 +259,22 @@ overlay_layout = "rows"     # exactly overlay_columns across
 largest tile. They differ in one thing: `fitted` starts a new row where the
 display changes, so each screen's Spaces read as a block, and `flow` does not —
 the Spaces run on in the order the displays are arranged, a monitor above the
-laptop first, and the row breaks only when it is full. That fits more on the map
+laptop first, and the row breaks only when it is full. That fits more on the overlay
 at a larger tile, and the heading is then what says which display a Space is on.
 
 The two numbers that apply to all of them are a ceiling and a floor:
 
 ```toml
-overlay_max_cells = 20   # at most this many Spaces on the map, shared between displays
+overlay_max_cells = 20   # at most this many Spaces on the overlay, shared between displays
 overlay_min_tile = 150   # points; what will not fit at this size is left off
 ```
 
 A cell is what stands beside its neighbour — a Space when its windows are stacked,
 a window when they are fanned out. The ceiling is shared out between the displays
 rather than spent first-come, so one busy screen cannot crowd the other off the
-map, and the Space you are on is charged to it rather than added on top. The floor
+overlay, and the Space you are on is charged to it rather than added on top. The floor
 is what stops the answer to "one more Space" being "every tile a little smaller":
-past it the map leaves Spaces off instead.
+past it the overlay leaves Spaces off instead.
 
 The overlay paints an opaque matte surface by default — dark enough for the white
 tile text, light enough that it does not read as a hole in the screen. It is one
@@ -339,13 +339,13 @@ heading of the Space — weighted in that order — the way `fzf` does: letters 
 not be adjacent, but the start of a word beats the middle of one and letters
 running together beat letters scattered. A Space with nothing on it is found by
 its heading, so `desktop 3` reaches an empty desktop. What is typed is shown in a
-line under the map, `Backspace` takes a letter back, and `Esc` clears it before it
+line under the overlay, `Backspace` takes a letter back, and `Esc` clears it before it
 closes anything.
 
 `⌃⌥⇧` with an arrow steps through the windows and switches to each one as it goes,
 leaving the overlay up, and the overlay travels to the display the window is on
 rather than staying behind — a tiling window manager's directional movement, as
-close as macOS allows. It is the overlay that is the map, because macOS has no
+close as macOS allows. It is the overlay that stands in for them, because macOS has no
 geometric arrangement of Spaces to navigate.
 
 Stepping is for finding a window by looking at it rather than at its
@@ -435,7 +435,7 @@ route needs nothing beyond the Accessibility permission Tessera already asks for
 
 Closing is offered only for a Space with nothing on it. A Space with windows
 closes just as readily and macOS moves those windows to the neighbouring Space —
-too large a thing to happen from one keystroke, and the map cannot show it before
+too large a thing to happen from one keystroke, and the overlay cannot show it before
 it is done. The same two actions are available as `tessera space add` and
 `tessera space close`, where an index may be given explicitly.
 
@@ -668,7 +668,7 @@ Pick a combination nothing else owns, and prefer checking rather than assuming:
 
 ## What things are called
 
-The overlay is the **map**; each Space on it is a **tessera**; a window inside one
+The overlay is the **overlay**; each Space on it is a **tessera**; a window inside one
 is a **card**; several cards shown as a stack are a **deck**. [docs/glossary.md](docs/glossary.md)
 has the full list with the Russian words beside them, and says where the code still
 uses an older name.
@@ -704,7 +704,7 @@ pages and then cancelled.
 
 Some controls apply only in some arrangements, and say so by greying out rather
 than by doing nothing: the row length is listened to by the fixed arrangement
-alone, and the arrangement itself only while the map grows into the screen.
+alone, and the arrangement itself only while the overlay grows into the screen.
 
 Two things worth knowing before using it:
 
@@ -807,7 +807,7 @@ Sources/TesseraKit/
     OverlayGrouping.swift              Whether the overlay groups by Space
     OverlayLayout.swift                How the Spaces are arranged
     OverlayRowAlignment.swift          Where a short row sits under a long one
-    OverlaySearch.swift                What typing at the map does
+    OverlaySearch.swift                What typing at the overlay does
     ThumbnailQuality.swift             How many pixels a capture is worth
     WindowOrder.swift                  Tile order and the places it hands out
     WindowThumbnailMode.swift          What part of a window a tile shows
@@ -850,7 +850,7 @@ Sources/TesseraKit/
   Search/
     FuzzyMatch.swift                   Scoring a typed query against a name
     KeyboardLayouts.swift              What a key means in every layout enabled
-    WindowSearch.swift                 Ranking the map against what was typed
+    WindowSearch.swift                 Ranking the overlay against what was typed
 
   Hotkeys/
     HotkeyBinding.swift                Hotkey spec parsing and Carbon key codes

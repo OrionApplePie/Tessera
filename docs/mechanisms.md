@@ -574,7 +574,7 @@ on it at once. Key code 9 answers `["v", "м"]` on this machine.
 
 That costs 16µs per press for two layouts, measured over a hundred calls, which is
 why nothing is cached: a layout added while the app is running is picked up on the
-next key press. Input methods that translate rather than map keys publish no key
+next key press. Input methods that translate rather than overlay keys publish no key
 layout and are skipped, as is any key that produces something other than a letter.
 
 ## Showing the overlay
@@ -638,10 +638,10 @@ in the same colour.
 
 ## Stepping through windows with the overlay open
 
-The overlay is a map, and `⌃⌥⇧` with an arrow moves across it: the highlight moves,
+The overlay is an overlay, and `⌃⌥⇧` with an arrow moves across it: the highlight moves,
 the window under it comes forward, and the overlay stays up. It is the nearest
 thing to a tiling window manager's directional movement that macOS allows, and the
-map has to be the overlay because macOS arranges Spaces in no geometry a person
+overlay has to be the overlay because macOS arranges Spaces in no geometry a person
 can navigate.
 
 Three details make it work rather than merely happen.
@@ -775,7 +775,7 @@ overlay that will not go away. Stepping through windows still keeps it, because 
 step raises a window without activating its application, so nothing comes
 forward — which is the whole reason that mode exists.
 
-## What opening the map costs
+## What opening the overlay costs
 
 Measured on this machine, from the keystroke to the panel being on screen, with a
 watcher outside the process reading Tessera's own Accessibility tree:
@@ -787,14 +787,14 @@ watcher outside the process reading Tessera's own Accessibility tree:
 Three things were paying for it, and the log said which:
 
 - **Waiting for the window list.** `SCShareableContent.current` takes 67-115 ms
-  here, with 350 windows on the machine, and the map used to wait for it before
+  here, with 350 windows on the machine, and the overlay used to wait for it before
   drawing anything. It now draws on the list already in hand and lets the fresh one
   arrive behind it — the list is rebuilt every few seconds anyway, so it almost
   always answers with the same thing. The highlight is put back where opening would
   have put it once the fresh list lands, but only if nobody has moved it since.
   Only the very first open, with nothing to draw at all, still waits.
-- **Measuring the layout again for a map that had not changed shape.** The fitted
-  size is cached against what the map is made of, and that signature used to
+- **Measuring the layout again for an overlay that had not changed shape.** The fitted
+  size is cached against what the overlay is made of, and that signature used to
   include how many windows each Space holds — so a window opening anywhere cost
   123 ms and fourteen trial layouts on the next open. It does not: a deck is drawn
   at one tile's size whatever it holds (`deckDepth` is a constant), and the only
@@ -805,8 +805,8 @@ Three things were paying for it, and the log said which:
   answer. A refresh now folds into the one already running, and only runs after it
   if it wanted thumbnails that one was not taking.
 
-What is *not* worth chasing: nothing happens while the map is up. The list is held
-and the captures stop, so the map does not move under the hand — measured over six
+What is *not* worth chasing: nothing happens while the overlay is up. The list is held
+and the captures stop, so the overlay does not move under the hand — measured over six
 seconds of an open overlay, the log is silent.
 
 ## The numbers, and which of them are settings
@@ -905,7 +905,7 @@ the *other display's* bar it changed display and Space at once. The same drag,
 driven from `tessera move`, moved a window and the switcher then listed it as
 off-screen, which is what a window on another Space looks like.
 
-And then it was taken out. Driven from the map — choose a destination with the
+And then it was taken out. Driven from the overlay — choose a destination with the
 keys held, send on release — it failed more often than it worked: `Could not
 send Finder to that Space`, with the destination correct in the log and the
 window still where it started. Why the same drag lands from one caller and not
