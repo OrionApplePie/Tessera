@@ -37,7 +37,8 @@ when a window fails to come forward.
 ## What a tile shows
 
 ```toml
-window_thumbnail_mode = "fit"       # the default: the whole window, scaled down
+window_thumbnail_mode = "75"        # the default: three quarters of the window
+window_thumbnail_mode = "fit"       # the whole window, scaled down
 window_thumbnail_mode = "corner"    # its top left corner, at actual size
 window_thumbnail_mode = "corner2x"  # twice as much corner, at half size
 window_thumbnail_mode = "quarter"   # roughly a quarter of the window
@@ -218,16 +219,10 @@ Tiles can be split into groups along two independent axes, each named group
 getting its own heading and its own row:
 
 ```toml
-ignored_apps = ""
-overlay_columns = 4
-window_order = "title"
-overlay_grouping = "displays"         # the default: one group per monitor
-overlay_grouping = "displays+spaces"  # and one per Space within each monitor
+overlay_grouping = "displays+spaces"  # the default: a group per Space, per monitor
+overlay_grouping = "displays"         # one group per monitor
 overlay_grouping = "spaces"           # split by Space, without naming the monitor
-ignored_apps = ""
-overlay_columns = 4
-window_order = "title"
-overlay_grouping = "displays"             # one grid, no headings
+overlay_grouping = "none"             # one grid, no headings
 ```
 
 Splitting by Space splits by display whichever way this is set — a Space belongs
@@ -240,7 +235,7 @@ group. A group wider than `overlay_columns` wraps onto a second row, so the over
 fitting the screen:
 
 ```toml
-overlay_columns = 4   # the default
+overlay_columns = 7   # the default, and only the fixed arrangement is told it
 ```
 
 Every group shares one column count, so tiles line up down the overlay rather than
@@ -265,7 +260,7 @@ at a larger tile, and the heading is then what says which display a Space is on.
 The two numbers that apply to all of them are a ceiling and a floor:
 
 ```toml
-overlay_max_cells = 20   # at most this many Spaces on the overlay, shared between displays
+overlay_max_cells = 24   # at most this many Spaces on the overlay, shared between displays
 overlay_min_tile = 150   # points; what will not fit at this size is left off
 ```
 
@@ -732,7 +727,7 @@ Useful settings:
 refresh_interval_seconds = 3
 window_thumbnails_stale_seconds = 30
 
-dim_stale_thumbnails = false
+dim_stale_thumbnails = true
 max_windows = 24
 
 hotkey = "ctrl+alt+space"

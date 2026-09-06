@@ -55,8 +55,8 @@ struct OverlayGroupingTests {
     }
   }
 
-  @Test("Displays are grouped by default, Spaces are not")
-  func defaultGroupsDisplaysOnly() {
-    #expect(AppConfig.default.overlayGrouping == .displays)
+  @Test("Displays and Spaces are both grouped by default")
+  func defaultGroupsBoth() {
+    #expect(AppConfig.default.overlayGrouping == [.displays, .spaces])
   }
 }

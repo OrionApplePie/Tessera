@@ -90,27 +90,30 @@ struct AppConfig: Equatable {
     refreshIntervalSeconds: 3,
     windowThumbnailsStaleSeconds: 30,
     maxWindows: 24,
-    closeAfterActivation: true,
+    closeAfterActivation: false,
     showMenuBarIcon: true,
     debugMode: false,
-    ignoresMenuBarApplications: true,
+    ignoresMenuBarApplications: false,
     ignoredApplications: [],
     closeHotkey: HotkeyBinding(modifiers: .command, key: .letterW),
     // Quitting by default: a window closed on an application that stays running is
     // how a leftover window is made, and this switcher has had enough of those.
     closeAction: .quitApplication,
-    // Off: a preview a few seconds old is still the window you are looking for,
-    // and fading it says more about the switcher than about the window.
-    dimsStaleThumbnails: false,
-    // Four keeps the panel well inside a laptop screen and the tiles close enough
-    // together to take in at a glance.
-    overlayColumns: 4,
+    // On: a preview taken a while ago is worth marking as such, because a window
+    // that has moved on since looks like the window you want and is not.
+    dimsStaleThumbnails: true,
+    // Only the fixed arrangement is told a row length; seven is what a laptop
+    // screen carries at a readable tile.
+    overlayColumns: 7,
     windowOrder: .title,
-    // The whole window. A corner reads better for text, but only once someone has
-    // decided that is what they want to see.
     usesPrivateSpaceAPI: true,
-    windowThumbnailMode: .fit,
-    thumbnailQuality: .tile,
+    // Three quarters of the window rather than all of it: the part that says which
+    // window this is — the top of a page, the first lines of a document — at a size
+    // that can still be read, instead of the whole thing shrunk past legibility.
+    windowThumbnailMode: .threeQuarters,
+    // Captured sharper than the tile strictly needs, so a preview still reads when
+    // the overlay grows into a large screen.
+    thumbnailQuality: .hd,
     // Long enough for a Space switch and its animation to finish, so a window is
     // not condemned for being slow. Nothing is polled while it passes: the system
     // announces the switch, and this is only the point at which waiting stops.
@@ -119,7 +122,7 @@ struct AppConfig: Equatable {
     // in a few; measured against a normal desktop, half a second was not enough for
     // either and two is. Anything past that is wedged, not slow.
     unresponsiveAfterSeconds: 2,
-    overlayGrouping: .displays,
+    overlayGrouping: [.displays, .spaces],
     // Matte graphite: dark enough for white tile text, light enough not to read as
     // a hole in the screen.
     overlayBackground: OverlayColor(
@@ -128,10 +131,10 @@ struct AppConfig: Equatable {
     overlayArrows: .spaces,
     overlaySearch: .letter,
     overlayLayout: .flow,
-    overlayRowAlignment: .center,
-    overlayMaxCells: 20,
+    overlayRowAlignment: .leading,
+    overlayMaxCells: 24,
     overlayMinTile: 150,
-    overlayFillsScreen: false,
+    overlayFillsScreen: true,
     // Deliberately not cmd- or alt+space: those belong to Spotlight and to every
     // launcher that replaces it.
     hotkey: HotkeyBinding(modifiers: [.control, .option], key: .space)

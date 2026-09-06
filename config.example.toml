@@ -5,7 +5,7 @@ refresh_interval_seconds = 3
 window_thumbnails_stale_seconds = 30
 
 # Fade a preview once it is older than window_thumbnails_stale_seconds.
-dim_stale_thumbnails = false
+dim_stale_thumbnails = true
 
 max_windows = 24
 
@@ -24,7 +24,7 @@ hotkey = "ctrl+alt+space"
 # Leave out applications with no Dock icon — the ones that live in the menu bar.
 # Their windows are panels they show themselves, and Accessibility often does not
 # list them, so a tile for one could not be raised anyway.
-ignore_menu_bar_apps = true
+ignore_menu_bar_apps = false
 
 # Applications to leave out of the switcher, comma separated. Useful for a tray
 # application that keeps a hidden window around after you close it, which looks
@@ -33,7 +33,7 @@ ignored_apps = ""
 
 # How many Spaces a row holds in the "rows" layout. The other two work the count
 # out for themselves, and ignore this.
-overlay_columns = 4
+overlay_columns = 7
 
 # What a tile shows of a window. "fit" scales the whole window down, which says
 # what shape it is and where things sit in it. The others take its top left corner
@@ -44,7 +44,7 @@ overlay_columns = 4
 #   "corner2x"  twice that across and down, drawn at half size
 #   "quarter"   roughly a quarter of the window's area, scaled to fit
 # The target size above applies to "fit" only; a corner is measured from the tile.
-window_thumbnail_mode = "fit"
+window_thumbnail_mode = "75"
 
 # Ask the window server directly which Space a window is on. There is no public
 # way to ask, so this is the one private interface here; off, Space membership is
@@ -60,11 +60,11 @@ window_order = "title"
 # largest tile can show — measured at about 60 MB for two dozen windows — while
 # "hd" and "max" trade memory for sharpness on a screen-filling overlay: a
 # gigabyte and more for the same list.
-window_thumbnail_quality = "tile"
+window_thumbnail_quality = "hd"
 
 # Tile grouping: "displays", "spaces", "displays+spaces" or "none". Each named
 # axis gets its own heading and its own row.
-overlay_grouping = "displays"
+overlay_grouping = "displays+spaces"
 
 # How the Spaces are arranged. "flow" is the default: no bands, so the Spaces run
 # one after another in the order the displays stand and wrap only when the row is
@@ -79,7 +79,7 @@ overlay_layout = "flow"
 # its windows are stacked, a window when they are fanned out. This is a ceiling
 # only; the shape of the overlay comes from overlay_layout, and only "rows" is told a
 # row length.
-overlay_max_cells = 20
+overlay_max_cells = 24
 
 # The smallest a tile may be drawn, in points. A overlay that keeps every Space by
 # making each one unreadable has answered the wrong question, so what does not fit
@@ -87,7 +87,7 @@ overlay_max_cells = 20
 overlay_min_tile = 150
 
 # Where a short row sits under a long one: "center", "left" or "right".
-overlay_row_align = "center"
+overlay_row_align = "left"
 
 # What an arrow counts in: "spaces" moves from Space to Space and leaves the
 # windows inside one to the cycling key, "windows" walks every window in turn.
@@ -107,7 +107,7 @@ overlay_deck = "stack"  # stack | fan | deal
 
 # Open the overlay at the size of the screen, less a margin, with tiles as large
 # as that room allows — rather than at the size its tiles happen to need.
-overlay_fills_screen = false
+overlay_fills_screen = true
 
 # Overlay surface, #RRGGBB or #RRGGBBAA. The default lets the desktop through;
 # drop the alpha channel, as in "#2B2E33", for a solid panel.
@@ -119,7 +119,7 @@ overlay_background = "#2B2E33C2"
 close_hotkey = "cmd+w"
 close_action = "quit"
 
-close_after_activation = true
+close_after_activation = false
 show_menu_bar_icon = true
 debug_mode = false
 
