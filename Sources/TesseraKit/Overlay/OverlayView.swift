@@ -52,7 +52,15 @@ struct TileMetrics: Equatable, Sendable {
   /// size.
   var surfaceCornerRadius: CGFloat { (10 * scale).rounded() }
   /// The height of the two lines of text under a thumbnail.
-  var labelHeight: CGFloat { (30 * scale).rounded() }
+  ///
+  /// Solved from the lines themselves rather than from the tile. The two grow at
+  /// different rates — the tile linearly, the text damped — so a box measured in
+  /// tiles was too small for its own text everywhere below about a 400 point tile,
+  /// and the second line spilled over the bottom edge of the card. Measured: a
+  /// 245 point tile left 37 points for text that needed 40.
+  var labelHeight: CGFloat {
+    ((nameFontSize + titleFontSize) * 1.25 + labelGap).rounded()
+  }
 
   /// Text grows with the tile, but not as fast as the tile does. A card three times
   /// the size does not want a name three times the size — it wants a name that is

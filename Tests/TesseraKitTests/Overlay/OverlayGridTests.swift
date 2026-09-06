@@ -600,4 +600,19 @@ struct MapShapeTests {
 
     #expect(Set(shapes).count == shapes.count)
   }
+
+  /// The label box is solved from the text it holds, not from the tile: the two
+  /// grow at different rates, and a box measured in tiles was too small for its own
+  /// two lines everywhere below a 400 point tile — which is where the second line
+  /// went over the bottom edge of the card.
+  @Test("Two lines fit under a thumbnail at every tile size")
+  func labelsFitTheirBox() {
+    for width in stride(from: 150.0, through: 560.0, by: 10.0) {
+      let metrics = TileMetrics(width: width)
+      let lines = (metrics.nameFontSize + metrics.titleFontSize) * 1.2
+
+      #expect(metrics.labelHeight >= lines)
+      #expect(metrics.thumbnailHeight > 0)
+    }
+  }
 }
