@@ -47,7 +47,7 @@ struct WindowActivator {
   }
 
   @discardableResult
-  func activate(_ window: WindowTileModel) throws -> Result {
+  func activate(_ window: WindowTile) throws -> Result {
     guard let application = NSRunningApplication(processIdentifier: window.processID) else {
       throw WindowActivationError.applicationGone(window.displayAppName)
     }
@@ -72,7 +72,7 @@ struct WindowActivator {
   /// stepping onto a Finder window landed on the desktop. Here, failing to aim
   /// means doing nothing at all.
   @discardableResult
-  func raiseWithoutActivating(_ window: WindowTileModel) throws -> Result {
+  func raiseWithoutActivating(_ window: WindowTile) throws -> Result {
     guard isAccessibilityTrusted else {
       throw WindowActivationError.accessibilityNotTrusted
     }
@@ -94,7 +94,7 @@ struct WindowActivator {
   /// Needs no Accessibility permission, and reaches applications whose windows
   /// Accessibility does not list at all. The application is asked, not killed: it
   /// still gets to prompt about unsaved work.
-  func quitApplication(_ window: WindowTileModel) throws {
+  func quitApplication(_ window: WindowTile) throws {
     guard let application = NSRunningApplication(processIdentifier: window.processID) else {
       throw WindowActivationError.applicationGone(window.displayAppName)
     }
@@ -130,7 +130,7 @@ struct WindowActivator {
   }
 
   /// Closes the window by pressing its own close button, the way a person would.
-  func close(_ window: WindowTileModel) throws {
+  func close(_ window: WindowTile) throws {
     let element = try accessibilityWindow(for: window)
 
     var buttonValue: CFTypeRef?
@@ -161,7 +161,7 @@ struct WindowActivator {
   ///
   /// Arrival is judged by where the window ended up rather than by the call
   /// returning: an application may clamp the frame or refuse it outright.
-  func send(_ window: WindowTileModel, toDisplay displayID: CGDirectDisplayID) -> Bool {
+  func send(_ window: WindowTile, toDisplay displayID: CGDirectDisplayID) -> Bool {
     let target = CGDisplayBounds(displayID)
 
     guard !target.isEmpty else {
@@ -194,7 +194,7 @@ struct WindowActivator {
   /// application: every application's own green button means something slightly
   /// different, and a switcher that tiles windows has to give the same answer
   /// twice running.
-  func place(_ window: WindowTileModel, _ placement: WindowPlacement) -> Bool {
+  func place(_ window: WindowTile, _ placement: WindowPlacement) -> Bool {
     guard let bounds = DisplayInfo.visibleBounds(of: window.displayID) else {
       logger.error("No room known for display \(window.displayID)")
 
@@ -220,7 +220,7 @@ struct WindowActivator {
   /// and the menu bar goes away, and only the application can do that. Most answer
   /// for `AXFullScreen`; the ones that do not still have a zoom button, which is
   /// what a person would press instead.
-  func toggleFullscreen(_ window: WindowTileModel) -> Bool {
+  func toggleFullscreen(_ window: WindowTile) -> Bool {
     do {
       let element = try accessibilityWindow(for: window)
       var value: CFTypeRef?
@@ -267,7 +267,7 @@ struct WindowActivator {
 
   /// Where a window is, as Accessibility sees it — the live rectangle rather than
   /// the one the last capture recorded.
-  func frame(of window: WindowTileModel) throws -> CGRect {
+  func frame(of window: WindowTile) throws -> CGRect {
     let element = try accessibilityWindow(for: window)
 
     guard let frame = Self.frame(of: element) else {
@@ -286,7 +286,7 @@ struct WindowActivator {
   /// The position is set twice because a resize can push a window back onto the
   /// display it came from.
   @discardableResult
-  func setFrame(_ frame: CGRect, of window: WindowTileModel) throws -> CGRect {
+  func setFrame(_ frame: CGRect, of window: WindowTile) throws -> CGRect {
     let element = try accessibilityWindow(for: window)
 
     Self.set(frame.origin, on: element)
@@ -353,7 +353,7 @@ struct WindowActivator {
   /// Not every window is there to be found: Accessibility lists none of Finder's
   /// browser windows, for one. Saying so is better than acting on whichever window
   /// it does offer.
-  private func accessibilityWindow(for window: WindowTileModel) throws -> AXUIElement {
+  private func accessibilityWindow(for window: WindowTile) throws -> AXUIElement {
     guard isAccessibilityTrusted else {
       throw WindowActivationError.accessibilityNotTrusted
     }

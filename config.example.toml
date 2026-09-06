@@ -70,18 +70,18 @@ overlay_grouping = "displays"
 # one after another in the order the displays stand and wrap only when the row is
 # full, with the row length chosen for the largest tile. "fitted" is the same
 # search but keeps each display's Spaces to their own rows, "count" takes the row
-# length from how many Spaces there are — four make a map two by two, nine three
+# length from how many Spaces there are — four make a overlay two by two, nine three
 # by three — and "rows" uses overlay_columns and nothing else.
 overlay_layout = "flow"
 
-# The most cells the map draws, shared out between the displays — twenty means ten
+# The most cells the overlay draws, shared out between the displays — twenty means ten
 # each with two screens. A cell is what stands beside its neighbour: a Space when
 # its windows are stacked, a window when they are fanned out. This is a ceiling
-# only; the shape of the map comes from overlay_layout, and only "rows" is told a
+# only; the shape of the overlay comes from overlay_layout, and only "rows" is told a
 # row length.
 overlay_max_cells = 20
 
-# The smallest a tile may be drawn, in points. A map that keeps every Space by
+# The smallest a tile may be drawn, in points. A overlay that keeps every Space by
 # making each one unreadable has answered the wrong question, so what does not fit
 # at this size is left off instead.
 overlay_min_tile = 150
@@ -93,7 +93,7 @@ overlay_row_align = "center"
 # windows inside one to the cycling key, "windows" walks every window in turn.
 overlay_arrows = "spaces"
 
-# What typing a letter at the map does. "letter" is the default: it moves to the
+# What typing a letter at the overlay does. "letter" is the default: it moves to the
 # next window whose application starts with that letter, and pressing it again
 # moves to the next one. "fuzzy" builds a query out of what is typed and scores it
 # against the application, the window title and the heading of the Space.

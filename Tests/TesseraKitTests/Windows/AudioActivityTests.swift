@@ -51,8 +51,8 @@ struct AudioActivityTests {
     #expect(AudioActivity.parentProcess(of: ProcessInfo.processInfo.processIdentifier) > 0)
   }
 
-  private func makeTile(id: CGWindowID, processID: pid_t) -> WindowTileModel {
-    WindowTileModel(
+  private func makeTile(id: CGWindowID, processID: pid_t) -> WindowTile {
+    WindowTile(
       id: id,
       appName: "App",
       title: "Window",

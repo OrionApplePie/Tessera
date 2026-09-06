@@ -84,7 +84,7 @@ enum OverlayGrid {
   /// that screen can show without taking a tile below the size it is worth drawing.
   @MainActor
   static func budgets(
-    forSections sections: [WindowTileSection],
+    forSections sections: [SpaceSection],
     config: AppConfig,
     on displayID: CGDirectDisplayID?
   ) -> [CGDirectDisplayID: Int] {
@@ -108,7 +108,7 @@ enum OverlayGrid {
   /// budget of seven cells on a row of five would leave a band of two under a band
   /// of five and call it a share.
   static func budgets(
-    forSections sections: [WindowTileSection],
+    forSections sections: [SpaceSection],
     cells total: Int,
     perRow: Int,
     stacked: Bool
@@ -407,7 +407,7 @@ enum OverlayGrid {
   /// empty desktop there is still an active window somewhere — the front
   /// application keeps one on the Space you came from, and it can even be a
   /// minimized one — and highlighting that put the mark on another Space entirely.
-  static func initialIndex(for targets: [OverlayTarget], standingOn here: WindowSectionID?) -> Int {
+  static func initialIndex(for targets: [OverlayTarget], standingOn here: SpaceSectionID?) -> Int {
     if let here, let index = targets.firstIndex(where: { $0.space == here }) {
       return index
     }

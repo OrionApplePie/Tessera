@@ -225,8 +225,8 @@ struct WindowListServiceTests {
     isOnScreen: Bool = true,
     isMinimized: Bool = false,
     displayID: CGDirectDisplayID = 1
-  ) -> WindowInfo {
-    WindowInfo(
+  ) -> DiscoveredWindow {
+    DiscoveredWindow(
       id: id,
       appName: appName,
       title: title,

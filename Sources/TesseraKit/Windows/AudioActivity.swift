@@ -24,16 +24,16 @@ struct AudioActivity {
   }
 
   /// The same tiles, with the ones whose application is sounding marked.
-  func marking(_ tiles: [WindowTileModel]) -> [WindowTileModel] {
+  func marking(_ tiles: [WindowTile]) -> [WindowTile] {
     Self.marking(tiles, playing: playingApplications())
   }
 
   /// Kept apart from the asking so it can be tested: what CoreAudio answers is the
   /// machine's business, what is done with the answer is ours.
   nonisolated static func marking(
-    _ tiles: [WindowTileModel],
+    _ tiles: [WindowTile],
     playing: Set<pid_t>
-  ) -> [WindowTileModel] {
+  ) -> [WindowTile] {
     guard !playing.isEmpty else {
       return tiles
     }

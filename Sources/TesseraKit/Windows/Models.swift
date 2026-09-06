@@ -7,7 +7,7 @@ import Foundation
 /// `id` is the CoreGraphics window number. It is stable for the lifetime of the
 /// window, which is what lets a thumbnail, a tile and an activation request all
 /// refer to the same window without holding a non-Sendable `SCWindow`.
-struct WindowInfo: Identifiable, Hashable, Sendable {
+struct DiscoveredWindow: Identifiable, Hashable, Sendable {
   let id: CGWindowID
   let appName: String
   let title: String
@@ -26,7 +26,7 @@ struct WindowInfo: Identifiable, Hashable, Sendable {
 }
 
 /// One tile in the overlay: a window plus whatever preview we managed to capture.
-struct WindowTileModel: Identifiable {
+struct WindowTile: Identifiable {
   let id: CGWindowID
   let appName: String
   let title: String
@@ -60,7 +60,7 @@ struct WindowTileModel: Identifiable {
 
 /// Identifies one heading in the overlay: a Space of a display, or a display's
 /// windows whose Space is not known.
-struct WindowSectionID: Hashable {
+struct SpaceSectionID: Hashable {
   let displayID: CGDirectDisplayID
   let spaceIndex: Int?
 }
@@ -71,8 +71,8 @@ struct WindowSectionID: Hashable {
 /// to be able to reach it. Windows and empty Spaces therefore share one list, and
 /// the index the overlay keeps is an index into that.
 enum OverlayTarget: Identifiable {
-  case window(WindowTileModel)
-  case space(WindowSectionID)
+  case window(WindowTile)
+  case space(SpaceSectionID)
 
   var id: String {
     switch self {
@@ -83,7 +83,7 @@ enum OverlayTarget: Identifiable {
     }
   }
 
-  var window: WindowTileModel? {
+  var window: WindowTile? {
     guard case .window(let tile) = self else {
       return nil
     }
@@ -91,7 +91,7 @@ enum OverlayTarget: Identifiable {
     return tile
   }
 
-  var space: WindowSectionID? {
+  var space: SpaceSectionID? {
     guard case .space(let section) = self else {
       return nil
     }
@@ -102,11 +102,11 @@ enum OverlayTarget: Identifiable {
 
 /// The tiles of one Space of one display, as the overlay lays them out under a
 /// single heading.
-struct WindowTileSection: Identifiable {
-  let id: WindowSectionID
+struct SpaceSection: Identifiable {
+  let id: SpaceSectionID
   /// Empty when there is nothing worth saying: one display, one known Space.
   let title: String
-  var tiles: [WindowTileModel]
+  var tiles: [WindowTile]
   /// What the arrows can land on here: the windows, or the Space itself when it
   /// holds none.
   var targets: [OverlayTarget] {
@@ -137,10 +137,10 @@ struct WindowTileSection: Identifiable {
   /// end — a map that keeps everything by making every tile too small to read is
   /// answering the wrong question.
   static func fitting(
-    _ sections: [WindowTileSection],
+    _ sections: [SpaceSection],
     cellsPerDisplay budget: Int,
     stacked: Bool
-  ) -> [WindowTileSection] {
+  ) -> [SpaceSection] {
     let budgets = Dictionary(
       uniqueKeysWithValues: Set(sections.map(\.id.displayID)).map { ($0, budget) })
 
@@ -159,10 +159,10 @@ struct WindowTileSection: Identifiable {
   /// of six, which is a second row, and a budget counted in rows that quietly draws
   /// one more is not a budget.
   static func fitting(
-    _ sections: [WindowTileSection],
+    _ sections: [SpaceSection],
     cellsByDisplay budgets: [CGDirectDisplayID: Int],
     stacked: Bool
-  ) -> [WindowTileSection] {
+  ) -> [SpaceSection] {
     var spent: [CGDirectDisplayID: Int] = [:]
 
     for section in sections where section.isCurrent {
@@ -195,7 +195,7 @@ struct WindowTileSection: Identifiable {
   /// what is already on screen, and this is how they are recognised: everything the
   /// drawing depends on goes in, and nothing else does, so a rebuild that changes
   /// nothing changes no pixels either.
-  static func signature(of sections: [WindowTileSection]) -> Int {
+  static func signature(of sections: [SpaceSection]) -> Int {
     var hasher = Hasher()
 
     for section in sections {
@@ -230,8 +230,8 @@ struct WindowTileSection: Identifiable {
   /// would not name — has nothing left to be once its tiles are gone.
   static func removing(
     _ windowID: CGWindowID,
-    from sections: [WindowTileSection]
-  ) -> [WindowTileSection] {
+    from sections: [SpaceSection]
+  ) -> [SpaceSection] {
     sections.compactMap { section in
       var section = section
       section.tiles.removeAll { $0.id == windowID }
@@ -254,8 +254,8 @@ struct WindowTileSection: Identifiable {
   static func swapping(
     _ first: Int,
     _ second: Int,
-    in sections: [WindowTileSection]
-  ) -> [WindowTileSection]? {
+    in sections: [SpaceSection]
+  ) -> [SpaceSection]? {
     guard first != second else {
       return nil
     }
@@ -278,35 +278,35 @@ struct WindowTileSection: Identifiable {
   }
 
   static func sections(
-    from tiles: [WindowTileModel],
+    from tiles: [WindowTile],
     displayNames: [CGDirectDisplayID: String],
     grouping: OverlayGrouping = .displays,
     spaceCounts: [CGDirectDisplayID: Int] = [:],
     displayOrder: [CGDirectDisplayID] = [],
     currentSpaces: [CGDirectDisplayID: Int] = [:],
-    spaceNames: [WindowSectionID: String] = [:],
-    fullscreenSpaces: Set<WindowSectionID> = []
-  ) -> [WindowTileSection] {
+    spaceNames: [SpaceSectionID: String] = [:],
+    fullscreenSpaces: Set<SpaceSectionID> = []
+  ) -> [SpaceSection] {
     guard !grouping.isEmpty else {
       guard let first = tiles.first else {
         return []
       }
 
       return [
-        WindowTileSection(
-          id: WindowSectionID(displayID: first.displayID, spaceIndex: first.spaceIndex),
+        SpaceSection(
+          id: SpaceSectionID(displayID: first.displayID, spaceIndex: first.spaceIndex),
           title: "",
           tiles: tiles
         )
       ]
     }
 
-    var runs: [(id: WindowSectionID, tiles: [WindowTileModel])] = []
+    var runs: [(id: SpaceSectionID, tiles: [WindowTile])] = []
 
     for tile in tiles {
       // A Space belongs to one display, so splitting by Space splits by display
       // whether or not the heading says so.
-      let id = WindowSectionID(
+      let id = SpaceSectionID(
         displayID: tile.displayID,
         spaceIndex: grouping.contains(.spaces) ? tile.spaceIndex : nil
       )
@@ -333,7 +333,7 @@ struct WindowTileSection: Identifiable {
     }
 
     return runs.map { run in
-      WindowTileSection(
+      SpaceSection(
         id: run.id,
         title: title(
           for: run.id,
@@ -353,16 +353,16 @@ struct WindowTileSection: Identifiable {
   /// Fills in a run for every Space each display has, in the system's order, so
   /// that the empty ones appear between the occupied ones rather than not at all.
   private static func withEmptySpaces(
-    _ runs: [(id: WindowSectionID, tiles: [WindowTileModel])],
+    _ runs: [(id: SpaceSectionID, tiles: [WindowTile])],
     spaceCounts: [CGDirectDisplayID: Int],
     displayOrder: [CGDirectDisplayID]
-  ) -> [(id: WindowSectionID, tiles: [WindowTileModel])] {
-    var byID: [WindowSectionID: [WindowTileModel]] = [:]
+  ) -> [(id: SpaceSectionID, tiles: [WindowTile])] {
+    var byID: [SpaceSectionID: [WindowTile]] = [:]
     for run in runs {
       byID[run.id, default: []].append(contentsOf: run.tiles)
     }
 
-    var filled: [(id: WindowSectionID, tiles: [WindowTileModel])] = []
+    var filled: [(id: SpaceSectionID, tiles: [WindowTile])] = []
 
     // The displays as they are actually arranged, so a monitor standing above the
     // laptop is drawn above it whether or not anything is open on it. Ordered by
@@ -377,7 +377,7 @@ struct WindowTileSection: Identifiable {
 
     for displayID in displays {
       for index in 0..<(spaceCounts[displayID] ?? 0) {
-        let id = WindowSectionID(displayID: displayID, spaceIndex: index)
+        let id = SpaceSectionID(displayID: displayID, spaceIndex: index)
         filled.append((id, byID[id] ?? []))
       }
     }
@@ -390,7 +390,7 @@ struct WindowTileSection: Identifiable {
   /// contributes more than one group. With a single display and a single group it
   /// says nothing, and the overlay draws no heading at all.
   private static func title(
-    for id: WindowSectionID,
+    for id: SpaceSectionID,
     displayNames: [CGDirectDisplayID: String],
     namesDisplay: Bool,
     namesSpace: Bool,

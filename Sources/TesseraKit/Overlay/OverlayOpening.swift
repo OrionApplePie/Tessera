@@ -8,7 +8,7 @@ extension OverlayWindowController {
   /// The empty Space you are standing on, when that is what the map opened over.
   /// On a Space of its own it decides both where the highlight starts and how the
   /// map is drawn.
-  func standingSpace() -> WindowSectionID? {
+  func standingSpace() -> SpaceSectionID? {
     let display = DisplayInfo.displayID(of: screenInFront)
     let here = windowCoordinator.sections.first { $0.isCurrent && $0.id.displayID == display }
 

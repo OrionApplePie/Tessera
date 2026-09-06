@@ -13,7 +13,8 @@ extension SettingsView {
   var keysPage: some View {
     Form {
       Section(localized("Opening it")) {
-        key(model.hotkey.isEmpty ? localized("not set") : model.hotkey, localized("Show the map"))
+        key(
+          model.hotkey.isEmpty ? localized("not set") : model.hotkey, localized("Show the overlay"))
         key(
           localized("⌃⌥ + arrows"),
           localized("Step through windows, and switch when the keys are let go"))
@@ -29,7 +30,7 @@ extension SettingsView {
             : localized("Walk the windows whose name starts with it"))
         key(localized("Tab, ⇧Tab"), localized("The next and previous window inside a Space"))
         key(localized("Return, Space"), localized("Switch to what the highlight is on"))
-        key(localized("Esc"), localized("Clear what was typed, then close the map"))
+        key(localized("Esc"), localized("Clear what was typed, then close the overlay"))
       }
 
       Section(localized("Doing something to a window")) {
@@ -39,7 +40,8 @@ extension SettingsView {
         key(localized("⌘F"), localized("Hand it to the application's own fullscreen"))
         key(localized("⇧ + arrows"), localized("Move the tile itself, within its group"))
         key(
-          localized("⌃⌥⇧ + arrows"), localized("Switch to the window that way, keeping the map up"))
+          localized("⌃⌥⇧ + arrows"),
+          localized("Switch to the window that way, keeping the overlay up"))
         key(
           model.closeHotkey.isEmpty ? localized("not set") : model.closeHotkey,
           model.closeAction == .quitApplication

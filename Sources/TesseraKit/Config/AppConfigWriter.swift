@@ -67,7 +67,7 @@ enum AppConfigWriter {
     overlay_deck = "\(config.overlayDeck.name)"
     overlay_arrows = "\(config.overlayArrows.name)"
 
-    # What typing a letter at the map does: "letter" walks the windows of the
+    # What typing a letter at the overlay does: "letter" walks the windows of the
     # application it starts, "fuzzy" builds a query out of what is typed and scores
     # it against the application, the title and the Space.
     overlay_search = "\(config.overlaySearch.name)"
@@ -76,7 +76,7 @@ enum AppConfigWriter {
     overlay_max_cells = \(config.overlayMaxCells)
 
     # The smallest a tile may be drawn, in points. What will not fit at this size is
-    # left off the map rather than shrunk past reading.
+    # left off the overlay rather than shrunk past reading.
     overlay_min_tile = \(number(config.overlayMinTile))
     overlay_fills_screen = \(config.overlayFillsScreen)
 

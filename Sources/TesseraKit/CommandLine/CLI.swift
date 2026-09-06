@@ -151,7 +151,7 @@ enum CLI {
       throw CLIError.commandFailed("No switchable window with id \(windowID)")
     }
 
-    let tile = WindowTileModel(
+    let tile = WindowTile(
       id: window.id,
       appName: window.appName,
       title: window.title,
@@ -196,7 +196,7 @@ enum CLI {
   /// success and does nothing at all.
   @MainActor
   private static func raiseThroughTheWindowMenu(
-    _ tile: WindowTileModel,
+    _ tile: WindowTile,
     config: AppConfig
   ) async -> Bool {
     guard let application = NSRunningApplication(processIdentifier: tile.processID) else {

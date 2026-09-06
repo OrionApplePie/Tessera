@@ -24,7 +24,7 @@ enum WindowSearch {
   private static let placeWeight = 1
 
   /// Everything on the map, in the order it is drawn.
-  static func candidates(in sections: [WindowTileSection]) -> [Candidate] {
+  static func candidates(in sections: [SpaceSection]) -> [Candidate] {
     var candidates: [Candidate] = []
     var index = 0
 

@@ -11,10 +11,10 @@ import Foundation
 /// caller is expected to do something with a `false`.
 extension WindowCoordinator {
   func publish(
-    _ tiles: [WindowTileModel],
+    _ tiles: [WindowTile],
     displayNames: [CGDirectDisplayID: String]
   ) {
-    let all = WindowTileSection.sections(
+    let all = SpaceSection.sections(
       from: AudioActivity(debugMode: config.debugMode).marking(tiles),
       displayNames: displayNames, grouping: config.overlayGrouping,
       spaceCounts: spaceCounts, displayOrder: displayOrder, currentSpaces: currentSpaces,
@@ -22,9 +22,9 @@ extension WindowCoordinator {
 
     let budgets = OverlayGrid.budgets(forSections: all, config: config, on: activeDisplay)
 
-    let fitted = WindowTileSection.fitting(
+    let fitted = SpaceSection.fitting(
       all, cellsByDisplay: budgets, stacked: config.overlayDeck == .stack)
-    let signature = WindowTileSection.signature(of: fitted)
+    let signature = SpaceSection.signature(of: fitted)
 
     // Assigned only when the drawing would differ. The list is rebuilt several times
     // a second and almost always comes out the same; publishing it anyway redrew
@@ -44,17 +44,17 @@ extension WindowCoordinator {
   }
 
   /// Sends a window to another display. Says whether it went.
-  func sendWindow(_ tile: WindowTileModel, toDisplay displayID: CGDirectDisplayID) -> Bool {
+  func sendWindow(_ tile: WindowTile, toDisplay displayID: CGDirectDisplayID) -> Bool {
     activator.send(tile, toDisplay: displayID)
   }
 
   /// Puts a window in a part of its screen. Says whether it went.
-  func placeWindow(_ tile: WindowTileModel, _ placement: WindowPlacement) -> Bool {
+  func placeWindow(_ tile: WindowTile, _ placement: WindowPlacement) -> Bool {
     activator.place(tile, placement)
   }
 
   /// Turns a window's fullscreen mode on or off.
-  func toggleFullscreen(_ tile: WindowTileModel) -> Bool {
+  func toggleFullscreen(_ tile: WindowTile) -> Bool {
     activator.toggleFullscreen(tile)
   }
 

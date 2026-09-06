@@ -7,12 +7,12 @@ import Foundation
 @MainActor
 final class WindowCoordinator: ObservableObject {
   /// Tiles grouped by display, in the order the overlay draws them.
-  @Published private(set) var sections: [WindowTileSection] = []
+  @Published private(set) var sections: [SpaceSection] = []
   @Published private(set) var isRefreshPaused = false
 
   /// Every tile in draw order. Activation, the number keys and the arrow keys all
   /// address tiles by this flat index, so sections stay purely a layout concern.
-  var tiles: [WindowTileModel] {
+  var tiles: [WindowTile] {
     sections.flatMap(\.tiles)
   }
 
@@ -43,15 +43,15 @@ final class WindowCoordinator: ObservableObject {
   /// What each group is called: a desktop by its number among desktops, a
   /// fullscreen Space by the application filling it — the way Mission Control
   /// names them.
-  var spaceNames: [WindowSectionID: String] = [:]
-  var fullscreenSpaces: Set<WindowSectionID> = []
+  var spaceNames: [SpaceSectionID: String] = [:]
+  var fullscreenSpaces: Set<SpaceSectionID> = []
   private var spaceOrder: [CGDirectDisplayID: [SpaceQuery.Space]] = [:]
   /// What the map on screen is made of, so an identical rebuild does not redraw it.
   var drawnSignature = 0
 
   /// Puts a map on screen. The building of it lives next door, in the extension
   /// that publishes; the setter stays here so nothing else can quietly replace it.
-  func draw(_ map: [WindowTileSection]) {
+  func draw(_ map: [SpaceSection]) {
     sections = map
   }
   /// The displays as they are physically arranged, top to bottom and then left to
@@ -67,7 +67,7 @@ final class WindowCoordinator: ObservableObject {
   var isRefreshing = false
   var refreshingWithThumbnails = false
   var wantsAnotherRefresh = false
-  private var pendingRaise: WindowTileModel?
+  private var pendingRaise: WindowTile?
   private var pendingRaiseDeadline: Task<Void, Never>?
   /// Set the first time a tile is dragged. The arrangement then outranks the
   /// configured order for the rest of the session, because an order someone made
@@ -286,7 +286,7 @@ final class WindowCoordinator: ObservableObject {
     let icons = applicationIcons(for: windows)
 
     var model = windows.map { window in
-      WindowTileModel(
+      WindowTile(
         id: window.id,
         appName: window.appName,
         title: window.title,
@@ -314,8 +314,8 @@ final class WindowCoordinator: ObservableObject {
   /// A minimized window has no surface: the capture would not fail, it would never
   /// answer. Whatever was cached before it went to the Dock is kept.
   private func captureThumbnails(
-    for windows: [WindowInfo],
-    into model: [WindowTileModel],
+    for windows: [DiscoveredWindow],
+    into model: [WindowTile],
     displayNames: [CGDirectDisplayID: String]
   ) async {
     var model = model
@@ -450,7 +450,7 @@ extension WindowCoordinator {
   /// documents — could only bring the application forward and let it choose. Once
   /// the switch has happened those windows are on this Space, Accessibility can see
   /// them, and the one that was asked for can be raised after all.
-  private func raiseOnceTheSpaceHasSwitched(_ tile: WindowTileModel) {
+  private func raiseOnceTheSpaceHasSwitched(_ tile: WindowTile) {
     // The Window menu is asked first, because it answers the case that brought us
     // here — a window Accessibility cannot see. But only of an application that is
     // already frontmost: pressing an item of one that is not returns success and
@@ -504,7 +504,7 @@ extension WindowCoordinator {
     }
   }
 
-  private func isFrontmost(_ tile: WindowTileModel) -> Bool {
+  private func isFrontmost(_ tile: WindowTile) -> Bool {
     NSWorkspace.shared.frontmostApplication?.processIdentifier == tile.processID
   }
 
@@ -516,7 +516,7 @@ extension WindowCoordinator {
   /// again a second and a half later means pressing a menu item in an application
   /// the person may well be using by then: they see its menu open by itself, for a
   /// window that has usually arrived already.
-  private func giveUpOnPendingRaise(_ tile: WindowTileModel) {
+  private func giveUpOnPendingRaise(_ tile: WindowTile) {
     if (try? activator.raiseWithoutActivating(tile)) == .raisedTheWindow {
       logger.info("Raised the window when the wait ran out")
     } else {
@@ -531,7 +531,7 @@ extension WindowCoordinator {
   /// Without this, a window the person reached themselves — by switching Spaces, or
   /// by clicking it — would still be chased when the wait ran out, in an
   /// application they had moved on to.
-  private func forgetPendingRaiseIfItArrived(_ windows: [WindowInfo]) {
+  private func forgetPendingRaiseIfItArrived(_ windows: [DiscoveredWindow]) {
     guard let pending = pendingRaise,
       windows.contains(where: { $0.id == pending.id && $0.isOnScreen })
     else {
@@ -551,7 +551,7 @@ extension WindowCoordinator {
   /// Presses the window's entry in its application's own Window menu, which is the
   /// only public list that names windows on other Spaces — and so the only way to
   /// reach one fullscreen window from another.
-  private func raiseThroughWindowMenu(_ tile: WindowTileModel) -> Bool {
+  private func raiseThroughWindowMenu(_ tile: WindowTile) -> Bool {
     menuActivator.raiseWindow(titled: tile.title, processID: tile.processID)
   }
 
@@ -563,7 +563,7 @@ extension WindowCoordinator {
   /// A window that was asked to come forward and did not is a leftover of an
   /// application that keeps its window object after closing it. Nothing about the
   /// window says so; only the outcome does.
-  private func judgeRecentActivations(against windows: [WindowInfo]) {
+  private func judgeRecentActivations(against windows: [DiscoveredWindow]) {
     let outcomes = activationVerifier.evaluate(
       onScreen: Set(windows.filter(\.isOnScreen).map(\.id)),
       existing: Set(windows.map(\.id))
@@ -582,7 +582,7 @@ extension WindowCoordinator {
 // MARK: - Spaces
 
 extension WindowCoordinator {
-  private func updateSpaceTracker(with windows: [WindowInfo]) {
+  private func updateSpaceTracker(with windows: [DiscoveredWindow]) {
     for displayID in Set(windows.map(\.displayID)) {
       let onScreen = windows.filter { $0.displayID == displayID && $0.isOnScreen }
       spaceTracker.observe(onScreen: Set(onScreen.map(\.id)), on: displayID)
@@ -608,7 +608,7 @@ extension WindowCoordinator {
   /// Turns the window server's Space identifiers into the small per-display numbers
   /// the overlay groups by. Ordered by identifier, which is the order the Spaces
   /// were made in, so a heading does not move about between refreshes.
-  private func updateExactSpaces(with windows: [WindowInfo]) {
+  private func updateExactSpaces(with windows: [DiscoveredWindow]) {
     guard spaceQuery.isAvailable else {
       exactSpaceIndices = [:]
       return
@@ -626,8 +626,8 @@ extension WindowCoordinator {
     var indices: [CGWindowID: Int] = [:]
     var counts: [CGDirectDisplayID: Int] = [:]
     var current: [CGDirectDisplayID: Int] = [:]
-    var names: [WindowSectionID: String] = [:]
-    var fullscreen: Set<WindowSectionID> = []
+    var names: [SpaceSectionID: String] = [:]
+    var fullscreen: Set<SpaceSectionID> = []
 
     for displayID in Set(windows.map(\.displayID)).union(systemOrder.keys) {
       let onDisplay = windows.filter { $0.displayID == displayID }
@@ -658,7 +658,7 @@ extension WindowCoordinator {
       ) { first, _ in first }
 
       for (index, space) in ordered.enumerated() where space.isFullscreen {
-        fullscreen.insert(WindowSectionID(displayID: displayID, spaceIndex: index))
+        fullscreen.insert(SpaceSectionID(displayID: displayID, spaceIndex: index))
       }
     }
 
@@ -671,7 +671,7 @@ extension WindowCoordinator {
     exactSpaceIndices = indices
   }
 
-  private func spaceRanks(for windows: [WindowInfo]) -> [CGWindowID: Int] {
+  private func spaceRanks(for windows: [DiscoveredWindow]) -> [CGWindowID: Int] {
     var ranks: [CGWindowID: Int] = [:]
 
     for displayID in Set(windows.map(\.displayID)) {
@@ -781,7 +781,7 @@ extension WindowCoordinator {
     // finish what it was doing, and one that is quitting may take a second. Taking
     // the tile away now is the honest reading of what was asked for; if the
     // application refuses, the next refresh puts it back.
-    sections = WindowTileSection.removing(windowID, from: sections)
+    sections = SpaceSection.removing(windowID, from: sections)
     logger.debug("Took the tile away at once; \(tiles.count) left")
   }
 }
@@ -796,7 +796,7 @@ extension WindowCoordinator {
   /// whether to follow it with the highlight.
   @discardableResult
   func swapTiles(at index: Int, with target: Int) -> Bool {
-    guard let swapped = WindowTileSection.swapping(index, target, in: sections) else {
+    guard let swapped = SpaceSection.swapping(index, target, in: sections) else {
       return false
     }
 
@@ -904,7 +904,7 @@ extension WindowCoordinator {
 
   /// One icon per application rather than per window, since every window of an
   /// application shows the same one.
-  private func applicationIcons(for windows: [WindowInfo]) -> [pid_t: NSImage] {
+  private func applicationIcons(for windows: [DiscoveredWindow]) -> [pid_t: NSImage] {
     let entries = Set(windows.map(\.processID)).compactMap { processID in
       NSRunningApplication(processIdentifier: processID)?.icon.map { (processID, $0) }
     }
@@ -912,7 +912,7 @@ extension WindowCoordinator {
     return Dictionary(uniqueKeysWithValues: entries)
   }
 
-  private func applyCache(to tiles: inout [WindowTileModel]) {
+  private func applyCache(to tiles: inout [WindowTile]) {
     for index in tiles.indices {
       let windowID = tiles[index].id
       tiles[index].thumbnail = previewCache.thumbnail(for: windowID)

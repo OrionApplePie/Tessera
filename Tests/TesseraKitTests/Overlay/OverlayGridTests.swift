@@ -171,7 +171,7 @@ struct OverlayGridTests {
   /// holds that window, so it is drawn as tiles and never as a place of its own.
   @Test("In a window, the highlight starts on the window")
   func initialIndexPrefersTheActiveWindow() {
-    let elsewhere = WindowSectionID(displayID: 1, spaceIndex: 2)
+    let elsewhere = SpaceSectionID(displayID: 1, spaceIndex: 2)
     let targets: [OverlayTarget] = [
       .space(elsewhere), .window(makeTile(id: 1, isActive: true)),
     ]
@@ -184,7 +184,7 @@ struct OverlayGridTests {
   /// minimized. Marking that one put "you are here" on another Space.
   @Test("Standing on an empty Space beats an active window somewhere else")
   func initialIndexBeatsAnActiveWindowElsewhere() {
-    let here = WindowSectionID(displayID: 1, spaceIndex: 2)
+    let here = SpaceSectionID(displayID: 1, spaceIndex: 2)
     let targets: [OverlayTarget] = [
       .window(makeTile(id: 1, isActive: true)), .space(here),
     ]
@@ -199,8 +199,8 @@ struct OverlayGridTests {
   /// first tile of the list, which is a window on some other Space.
   @Test("Standing on an empty Space, the highlight starts there")
   func initialIndexIsTheSpaceYouStandOn() {
-    let here = WindowSectionID(displayID: 1, spaceIndex: 2)
-    let elsewhere = WindowSectionID(displayID: 1, spaceIndex: 3)
+    let here = SpaceSectionID(displayID: 1, spaceIndex: 2)
+    let elsewhere = SpaceSectionID(displayID: 1, spaceIndex: 3)
     let targets: [OverlayTarget] = [
       .window(makeTile(id: 1)), .space(elsewhere), .space(here),
     ]
@@ -321,8 +321,8 @@ struct OverlayGridTests {
     isActive: Bool = false,
     appName: String = "Finder",
     title: String = "Downloads"
-  ) -> WindowTileModel {
-    WindowTileModel(
+  ) -> WindowTile {
+    WindowTile(
       id: id,
       appName: appName,
       title: title,
@@ -555,7 +555,7 @@ extension OverlayGridTests {
   @Test("A letter counts the empty Spaces the highlight can sit on")
   func matchingCountsEmptySpaces() {
     let targets: [OverlayTarget] = [
-      .space(WindowSectionID(displayID: 1, spaceIndex: 0)),
+      .space(SpaceSectionID(displayID: 1, spaceIndex: 0)),
       .window(makeTile(id: 1, appName: "Arc")),
       .window(makeTile(id: 2, appName: "Telegram")),
     ]

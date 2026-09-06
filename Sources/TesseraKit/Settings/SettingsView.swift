@@ -163,12 +163,12 @@ struct SettingsView: View {
   /// and what a keypress moves through.
   private var layoutPage: some View {
     Form {
-      Section(localized("The map")) {
+      Section(localized("The overlay")) {
         // First, because it decides whether anything below it is listened to. With
         // it off the map is drawn at a fixed tile size and the row length is the
         // only thing that shapes it; with it on the arrangement chooses, and works
         // the row length out for itself unless it is the fixed one.
-        Toggle(localized("Grow the map into the screen"), isOn: $model.overlayFillsScreen)
+        Toggle(localized("Grow the overlay into the screen"), isOn: $model.overlayFillsScreen)
 
         Picker(localized("Arrange"), selection: $model.overlayLayout) {
           Text(localized("As large as the screen allows")).tag(OverlayLayout.fitted)
@@ -204,9 +204,9 @@ struct SettingsView: View {
 
       Section(localized("Groups")) {
         Picker(localized("A Space of several windows"), selection: $model.overlayDeck) {
-          Text(localized("One card, flipped through")).tag(OverlayDeckStyle.stack)
-          Text(localized("Cards fanned out")).tag(OverlayDeckStyle.fan)
-          Text(localized("One card, dealt in place")).tag(OverlayDeckStyle.deal)
+          Text(localized("One tile, flipped through")).tag(OverlayDeckStyle.stack)
+          Text(localized("Tiles fanned out")).tag(OverlayDeckStyle.fan)
+          Text(localized("One tile, dealt in place")).tag(OverlayDeckStyle.deal)
         }
 
         Toggle(localized("Group by display"), isOn: $model.groupsDisplays)
@@ -385,7 +385,7 @@ struct SettingsView: View {
   private var gridNote: String {
     let budget = localized(
       """
-      At most %lld Spaces on the map, shared out between the displays, and none drawn \
+      At most %lld Spaces on the overlay, shared out between the displays, and none drawn \
       smaller than %lld points — what will not fit at that size is left off.
       """, model.overlayMaxCells, Int(model.overlayMinTile))
 

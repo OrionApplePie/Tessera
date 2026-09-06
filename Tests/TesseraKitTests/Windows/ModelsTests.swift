@@ -39,8 +39,8 @@ struct ModelsTests {
     #expect(Set([first, second, duplicate]).count == 2)
   }
 
-  private func makeTile(appName: String, title: String) -> WindowTileModel {
-    WindowTileModel(
+  private func makeTile(appName: String, title: String) -> WindowTile {
+    WindowTile(
       id: 1,
       appName: appName,
       title: title,
@@ -55,8 +55,8 @@ struct ModelsTests {
     )
   }
 
-  private func makeWindow(id: CGWindowID) -> WindowInfo {
-    WindowInfo(
+  private func makeWindow(id: CGWindowID) -> DiscoveredWindow {
+    DiscoveredWindow(
       id: id,
       appName: "Safari",
       title: "Apple",
@@ -69,11 +69,11 @@ struct ModelsTests {
   }
 }
 
-@Suite("WindowTileSection")
-struct WindowTileSectionTests {
+@Suite("SpaceSection")
+struct SpaceSectionTests {
   @Test("Tiles are split where the display changes")
   func splitsOnDisplayChange() {
-    let sections = WindowTileSection.sections(
+    let sections = SpaceSection.sections(
       from: [
         makeTile(id: 1, displayID: 1),
         makeTile(id: 2, displayID: 1),
@@ -89,7 +89,7 @@ struct WindowTileSectionTests {
 
   @Test("Tiles are split where the Space changes")
   func splitsOnSpaceChange() {
-    let sections = WindowTileSection.sections(
+    let sections = SpaceSection.sections(
       from: [
         makeTile(id: 1, displayID: 1, spaceIndex: 0),
         makeTile(id: 2, displayID: 1, spaceIndex: 1),
@@ -104,7 +104,7 @@ struct WindowTileSectionTests {
   @Test("A display contributing one group is named without a Space")
   func doesNotNameASpaceWhenThereIsOnlyOneGroup() {
     // Two Spaces are known on this display, but only one has windows on show.
-    let sections = WindowTileSection.sections(
+    let sections = SpaceSection.sections(
       from: [
         makeTile(id: 1, displayID: 1, spaceIndex: 1),
         makeTile(id: 2, displayID: 2, spaceIndex: 0),
@@ -121,7 +121,7 @@ struct WindowTileSectionTests {
   /// had windows, it put the monitor standing highest at the bottom of the map.
   @Test("A display with nothing on it keeps its place in the arrangement")
   func ordersEmptyDisplaysByTheArrangement() {
-    let sections = WindowTileSection.sections(
+    let sections = SpaceSection.sections(
       from: [makeTile(id: 1, displayID: 1, spaceIndex: 0)],
       displayNames: [1: "Color LCD", 2: "VG27AQL1A"],
       grouping: [.displays, .spaces],
@@ -134,7 +134,7 @@ struct WindowTileSectionTests {
     // Without an arrangement to go by there is nothing but the windows to order the
     // displays: the one that had them comes first, and this is what the map looked
     // like before the arrangement was passed in at all.
-    let unarranged = WindowTileSection.sections(
+    let unarranged = SpaceSection.sections(
       from: [makeTile(id: 1, displayID: 1, spaceIndex: 0)],
       displayNames: [1: "Color LCD", 2: "VG27AQL1A"],
       grouping: [.displays, .spaces],
@@ -150,16 +150,16 @@ struct WindowTileSectionTests {
   /// its frame and the tap that shows it.
   @Test("A fullscreen Space is named when nothing else names it")
   func namesAFullscreenSpaceWhenItIsAllThereIs() {
-    let fullscreen = WindowSectionID(displayID: 1, spaceIndex: 1)
+    let fullscreen = SpaceSectionID(displayID: 1, spaceIndex: 1)
 
-    let sections = WindowTileSection.sections(
+    let sections = SpaceSection.sections(
       from: [
         makeTile(id: 1, displayID: 1, spaceIndex: 0),
         makeTile(id: 2, displayID: 1, spaceIndex: 1),
       ],
       displayNames: [1: "Color LCD"],
       grouping: [.displays, .spaces],
-      spaceNames: [WindowSectionID(displayID: 1, spaceIndex: 0): "Desktop 1", fullscreen: ""],
+      spaceNames: [SpaceSectionID(displayID: 1, spaceIndex: 0): "Desktop 1", fullscreen: ""],
       fullscreenSpaces: [fullscreen]
     )
 
@@ -171,9 +171,9 @@ struct WindowTileSectionTests {
   /// application there was the same word twice.
   @Test("A fullscreen Space beside another display keeps the display's name alone")
   func leavesAFullscreenSpaceUnnamedBesideADisplay() {
-    let fullscreen = WindowSectionID(displayID: 2, spaceIndex: 0)
+    let fullscreen = SpaceSectionID(displayID: 2, spaceIndex: 0)
 
-    let sections = WindowTileSection.sections(
+    let sections = SpaceSection.sections(
       from: [
         makeTile(id: 1, displayID: 1, spaceIndex: 0),
         makeTile(id: 2, displayID: 2, spaceIndex: 0),
@@ -189,7 +189,7 @@ struct WindowTileSectionTests {
 
   @Test("Display and Space are both named when both distinguish the section")
   func namesDisplayAndSpaceTogether() {
-    let sections = WindowTileSection.sections(
+    let sections = SpaceSection.sections(
       from: [
         makeTile(id: 1, displayID: 1, spaceIndex: 0),
         makeTile(id: 2, displayID: 2, spaceIndex: 0),
@@ -205,7 +205,7 @@ struct WindowTileSectionTests {
 
   @Test("Windows on a Space nobody has visited are named as such")
   func namesTheUnknownSpace() {
-    let sections = WindowTileSection.sections(
+    let sections = SpaceSection.sections(
       from: [
         makeTile(id: 1, displayID: 1, spaceIndex: 0),
         makeTile(id: 2, displayID: 1, spaceIndex: nil),
@@ -219,7 +219,7 @@ struct WindowTileSectionTests {
 
   @Test("One display and one Space need no heading at all")
   func saysNothingWhenThereIsNothingToSay() {
-    let sections = WindowTileSection.sections(
+    let sections = SpaceSection.sections(
       from: [makeTile(id: 1, displayID: 1, spaceIndex: 0)],
       displayNames: [1: "Color LCD"],
       grouping: [.displays, .spaces]
@@ -230,7 +230,7 @@ struct WindowTileSectionTests {
 
   @Test("A display with no windows gets no section, even though it is connected")
   func aDisplayWithoutWindowsGetsNoSection() {
-    let sections = WindowTileSection.sections(
+    let sections = SpaceSection.sections(
       from: [makeTile(id: 1, displayID: 1)],
       displayNames: [1: "Color LCD", 2: "VG27AQL1A"]
     )
@@ -240,7 +240,7 @@ struct WindowTileSectionTests {
 
   @Test("Grouping by display alone leaves a display's Spaces together")
   func displayGroupingIgnoresSpaces() {
-    let sections = WindowTileSection.sections(
+    let sections = SpaceSection.sections(
       from: [
         makeTile(id: 1, displayID: 1, spaceIndex: 0),
         makeTile(id: 2, displayID: 1, spaceIndex: 1),
@@ -256,7 +256,7 @@ struct WindowTileSectionTests {
 
   @Test("Grouping by Space alone splits the Spaces but names no display")
   func spaceGroupingNamesNoDisplay() {
-    let sections = WindowTileSection.sections(
+    let sections = SpaceSection.sections(
       from: [
         makeTile(id: 1, displayID: 1, spaceIndex: 0),
         makeTile(id: 2, displayID: 1, spaceIndex: 1),
@@ -270,7 +270,7 @@ struct WindowTileSectionTests {
 
   @Test("Without grouping every window lands in one untitled section")
   func flatGroupingYieldsOneSection() {
-    let sections = WindowTileSection.sections(
+    let sections = SpaceSection.sections(
       from: [
         makeTile(id: 1, displayID: 1, spaceIndex: 0),
         makeTile(id: 2, displayID: 2, spaceIndex: 1),
@@ -288,18 +288,18 @@ struct WindowTileSectionTests {
   @Test("Without grouping and without tiles there is still nothing to draw")
   func flatGroupingWithoutTilesYieldsNothing() {
     #expect(
-      WindowTileSection.sections(from: [], displayNames: [:], grouping: []).isEmpty)
+      SpaceSection.sections(from: [], displayNames: [:], grouping: []).isEmpty)
   }
 
   @Test("No tiles yield no sections")
   func noTilesYieldNoSections() {
     #expect(
-      WindowTileSection.sections(from: [], displayNames: [:]).isEmpty)
+      SpaceSection.sections(from: [], displayNames: [:]).isEmpty)
   }
 
   @Test("A display with no name falls back to its number")
   func fallsBackToTheDisplayNumber() {
-    let sections = WindowTileSection.sections(
+    let sections = SpaceSection.sections(
       from: [makeTile(id: 1, displayID: 7), makeTile(id: 2, displayID: 8)],
       displayNames: [:]
     )
@@ -311,7 +311,7 @@ struct WindowTileSectionTests {
   func keepsEveryTile() {
     let tiles = (1...5).map { makeTile(id: CGWindowID($0), displayID: $0 <= 2 ? 1 : 2) }
 
-    let sections = WindowTileSection.sections(from: tiles, displayNames: [:])
+    let sections = SpaceSection.sections(from: tiles, displayNames: [:])
 
     #expect(sections.flatMap(\.tiles).map(\.id) == tiles.map(\.id))
   }
@@ -320,8 +320,8 @@ struct WindowTileSectionTests {
     id: CGWindowID,
     displayID: CGDirectDisplayID,
     spaceIndex: Int? = nil
-  ) -> WindowTileModel {
-    WindowTileModel(
+  ) -> WindowTile {
+    WindowTile(
       id: id,
       appName: "Finder",
       title: "Downloads",
@@ -338,15 +338,15 @@ struct WindowTileSectionTests {
 }
 
 @Suite("Arranging tiles")
-struct WindowTileSectionSwapTests {
+struct SpaceSectionSwapTests {
   private let sections = [
-    WindowTileSection(
-      id: WindowSectionID(displayID: 1, spaceIndex: nil),
+    SpaceSection(
+      id: SpaceSectionID(displayID: 1, spaceIndex: nil),
       title: "Color LCD",
       tiles: [Self.makeTile(id: 1), Self.makeTile(id: 2), Self.makeTile(id: 3)]
     ),
-    WindowTileSection(
-      id: WindowSectionID(displayID: 2, spaceIndex: nil),
+    SpaceSection(
+      id: SpaceSectionID(displayID: 2, spaceIndex: nil),
       title: "VG27AQL1A",
       tiles: [Self.makeTile(id: 4), Self.makeTile(id: 5)]
     ),
@@ -354,7 +354,7 @@ struct WindowTileSectionSwapTests {
 
   @Test("Two tiles of one group change places")
   func swapsWithinASection() throws {
-    let swapped = try #require(WindowTileSection.swapping(0, 2, in: sections))
+    let swapped = try #require(SpaceSection.swapping(0, 2, in: sections))
 
     #expect(swapped[0].tiles.map(\.id) == [3, 2, 1])
     #expect(swapped[1].tiles.map(\.id) == [4, 5])
@@ -362,7 +362,7 @@ struct WindowTileSectionSwapTests {
 
   @Test("A swap is addressed by place in the whole list, not within a group")
   func addressesTilesByTheirFlatPlace() throws {
-    let swapped = try #require(WindowTileSection.swapping(3, 4, in: sections))
+    let swapped = try #require(SpaceSection.swapping(3, 4, in: sections))
 
     #expect(swapped[1].tiles.map(\.id) == [5, 4])
     #expect(swapped[0].tiles.map(\.id) == [1, 2, 3])
@@ -370,23 +370,23 @@ struct WindowTileSectionSwapTests {
 
   @Test("A swap across groups is refused, not silently relocated")
   func refusesToCrossASection() {
-    #expect(WindowTileSection.swapping(2, 3, in: sections) == nil)
-    #expect(WindowTileSection.swapping(0, 4, in: sections) == nil)
+    #expect(SpaceSection.swapping(2, 3, in: sections) == nil)
+    #expect(SpaceSection.swapping(0, 4, in: sections) == nil)
   }
 
   @Test("A tile does not swap with itself")
   func refusesToSwapATileWithItself() {
-    #expect(WindowTileSection.swapping(1, 1, in: sections) == nil)
+    #expect(SpaceSection.swapping(1, 1, in: sections) == nil)
   }
 
   @Test("A place nobody occupies is refused")
   func refusesPlacesOutsideTheList() {
-    #expect(WindowTileSection.swapping(0, 99, in: sections) == nil)
-    #expect(WindowTileSection.swapping(0, 1, in: []) == nil)
+    #expect(SpaceSection.swapping(0, 99, in: sections) == nil)
+    #expect(SpaceSection.swapping(0, 1, in: []) == nil)
   }
 
-  private static func makeTile(id: CGWindowID) -> WindowTileModel {
-    WindowTileModel(
+  private static func makeTile(id: CGWindowID) -> WindowTile {
+    WindowTile(
       id: id,
       appName: "Finder",
       title: "Downloads",
@@ -405,15 +405,15 @@ struct WindowTileSectionSwapTests {
   /// left without tiles was dropped, and an empty Space has no tiles by definition.
   @Test("Closing a window leaves the empty Spaces where they were")
   func closingAWindowKeepsEmptySpaces() {
-    let empty = WindowTileSection(
-      id: WindowSectionID(displayID: 1, spaceIndex: 1), title: "Desktop 2", tiles: [])
-    let occupied = WindowTileSection(
-      id: WindowSectionID(displayID: 1, spaceIndex: 0),
+    let empty = SpaceSection(
+      id: SpaceSectionID(displayID: 1, spaceIndex: 1), title: "Desktop 2", tiles: [])
+    let occupied = SpaceSection(
+      id: SpaceSectionID(displayID: 1, spaceIndex: 0),
       title: "Desktop 1",
       tiles: [Self.makeTile(id: 7)]
     )
 
-    let left = WindowTileSection.removing(7, from: [occupied, empty])
+    let left = SpaceSection.removing(7, from: [occupied, empty])
 
     #expect(left.count == 2)
     #expect(left.allSatisfy { $0.tiles.isEmpty })
@@ -423,34 +423,34 @@ struct WindowTileSectionSwapTests {
   /// the map as one — the place did not go anywhere.
   @Test("A Space emptied by the close stays as a place")
   func closingTheLastWindowLeavesTheSpace() {
-    let section = WindowTileSection(
-      id: WindowSectionID(displayID: 1, spaceIndex: 2),
+    let section = SpaceSection(
+      id: SpaceSectionID(displayID: 1, spaceIndex: 2),
       title: "Desktop 3",
       tiles: [Self.makeTile(id: 3)]
     )
 
-    #expect(WindowTileSection.removing(3, from: [section]).count == 1)
+    #expect(SpaceSection.removing(3, from: [section]).count == 1)
   }
 
   /// A group standing for no Space at all is the exception: with its tiles gone
   /// there is nothing left for it to mean.
   @Test("A group of windows on no known Space goes when its last tile does")
   func closingTheLastWindowOfAnUnknownSpaceDropsTheGroup() {
-    let section = WindowTileSection(
-      id: WindowSectionID(displayID: 1, spaceIndex: nil),
+    let section = SpaceSection(
+      id: SpaceSectionID(displayID: 1, spaceIndex: nil),
       title: "Other",
       tiles: [Self.makeTile(id: 4)]
     )
 
-    #expect(WindowTileSection.removing(4, from: [section]).isEmpty)
+    #expect(SpaceSection.removing(4, from: [section]).isEmpty)
   }
 
   /// A cell is what stands beside its neighbour: one card for a stacked Space
   /// however many windows it holds, one for every window when they are fanned out.
   @Test("A Space costs one cell stacked and one per window fanned")
   func cellsCountWhatIsDrawn() {
-    let section = WindowTileSection(
-      id: WindowSectionID(displayID: 1, spaceIndex: 0),
+    let section = SpaceSection(
+      id: SpaceSectionID(displayID: 1, spaceIndex: 0),
       title: "Desktop 1",
       tiles: [Self.makeTile(id: 1), Self.makeTile(id: 2), Self.makeTile(id: 3)]
     )
@@ -462,8 +462,8 @@ struct WindowTileSectionSwapTests {
   /// An empty Space is still a cell: it is drawn, so it takes room.
   @Test("An empty Space costs a cell either way")
   func anEmptySpaceCostsACell() {
-    let empty = WindowTileSection(
-      id: WindowSectionID(displayID: 1, spaceIndex: 4), title: "Desktop 5", tiles: [])
+    let empty = SpaceSection(
+      id: SpaceSectionID(displayID: 1, spaceIndex: 4), title: "Desktop 5", tiles: [])
 
     #expect(empty.cells(whenStacked: true) == 1)
     #expect(empty.cells(whenStacked: false) == 1)
@@ -475,14 +475,14 @@ struct WindowTileSectionSwapTests {
   @Test("The map is cut to its budget, display by display")
   func trimsToTheBudget() {
     let sections = (0..<6).map { index in
-      WindowTileSection(
-        id: WindowSectionID(displayID: index < 3 ? 1 : 2, spaceIndex: index),
+      SpaceSection(
+        id: SpaceSectionID(displayID: index < 3 ? 1 : 2, spaceIndex: index),
         title: "Desktop \(index)",
         tiles: []
       )
     }
 
-    let kept = WindowTileSection.fitting(sections, cellsPerDisplay: 2, stacked: true)
+    let kept = SpaceSection.fitting(sections, cellsPerDisplay: 2, stacked: true)
 
     #expect(kept.count == 4)
     #expect(kept.filter { $0.id.displayID == 1 }.count == 2)
@@ -493,14 +493,14 @@ struct WindowTileSectionSwapTests {
   @Test("Each display is held to its own budget")
   func trimsToPerDisplayBudgets() {
     let sections = (0..<8).map { index in
-      WindowTileSection(
-        id: WindowSectionID(displayID: index < 4 ? 1 : 2, spaceIndex: index),
+      SpaceSection(
+        id: SpaceSectionID(displayID: index < 4 ? 1 : 2, spaceIndex: index),
         title: "Desktop \(index)",
         tiles: []
       )
     }
 
-    let kept = WindowTileSection.fitting(
+    let kept = SpaceSection.fitting(
       sections, cellsByDisplay: [1: 3, 2: 1], stacked: true)
 
     #expect(kept.filter { $0.id.displayID == 1 }.count == 3)
@@ -512,11 +512,11 @@ struct WindowTileSectionSwapTests {
   @Test("A display the budget does not mention draws nothing")
   func dropsADisplayWithoutABudget() {
     let sections = [
-      WindowTileSection(id: WindowSectionID(displayID: 1, spaceIndex: 0), title: "a", tiles: []),
-      WindowTileSection(id: WindowSectionID(displayID: 2, spaceIndex: 1), title: "b", tiles: []),
+      SpaceSection(id: SpaceSectionID(displayID: 1, spaceIndex: 0), title: "a", tiles: []),
+      SpaceSection(id: SpaceSectionID(displayID: 2, spaceIndex: 1), title: "b", tiles: []),
     ]
 
-    let kept = WindowTileSection.fitting(sections, cellsByDisplay: [1: 2], stacked: true)
+    let kept = SpaceSection.fitting(sections, cellsByDisplay: [1: 2], stacked: true)
 
     #expect(kept.map(\.id.displayID) == [1])
   }
@@ -525,17 +525,17 @@ struct WindowTileSectionSwapTests {
   /// six — a second row on a map budgeted in rows. It is spent first instead.
   @Test("The Space you are on is charged to the budget, not added to it")
   func chargesTheCurrentSpaceToTheBudget() {
-    var current = WindowTileSection(
-      id: WindowSectionID(displayID: 1, spaceIndex: 9), title: "Desktop 10", tiles: [])
+    var current = SpaceSection(
+      id: SpaceSectionID(displayID: 1, spaceIndex: 9), title: "Desktop 10", tiles: [])
     current.isCurrent = true
 
     let sections =
       (0..<5).map { (index: Int) in
-        WindowTileSection(
-          id: WindowSectionID(displayID: 1, spaceIndex: index), title: "\(index)", tiles: [])
+        SpaceSection(
+          id: SpaceSectionID(displayID: 1, spaceIndex: index), title: "\(index)", tiles: [])
       } + [current]
 
-    let kept = WindowTileSection.fitting(sections, cellsByDisplay: [1: 5], stacked: true)
+    let kept = SpaceSection.fitting(sections, cellsByDisplay: [1: 5], stacked: true)
 
     #expect(kept.count == 5)
     #expect(kept.contains { $0.isCurrent })
@@ -544,17 +544,17 @@ struct WindowTileSectionSwapTests {
   /// The Space you are on is never cut: it is the one place the map has to show.
   @Test("The Space you are on survives the budget")
   func keepsTheCurrentSpace() {
-    var last = WindowTileSection(
-      id: WindowSectionID(displayID: 1, spaceIndex: 9), title: "Desktop 10", tiles: [])
+    var last = SpaceSection(
+      id: SpaceSectionID(displayID: 1, spaceIndex: 9), title: "Desktop 10", tiles: [])
     last.isCurrent = true
 
     let sections =
       (0..<3).map { (index: Int) in
-        WindowTileSection(
-          id: WindowSectionID(displayID: 1, spaceIndex: index), title: "\(index)", tiles: [])
+        SpaceSection(
+          id: SpaceSectionID(displayID: 1, spaceIndex: index), title: "\(index)", tiles: [])
       } + [last]
 
-    let kept = WindowTileSection.fitting(sections, cellsPerDisplay: 2, stacked: true)
+    let kept = SpaceSection.fitting(sections, cellsPerDisplay: 2, stacked: true)
 
     #expect(kept.contains { $0.isCurrent })
   }

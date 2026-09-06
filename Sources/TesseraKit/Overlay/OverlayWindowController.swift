@@ -419,7 +419,7 @@ final class OverlayWindowController: NSWindowController, NSWindowDelegate {
 
   /// Choosing a Space rather than a window: the overlay goes away and that Space
   /// comes up, which is the only way onto an empty desktop.
-  func focusSpace(_ section: WindowSectionID) {
+  func focusSpace(_ section: SpaceSectionID) {
     guard let index = section.spaceIndex else {
       return
     }
@@ -594,7 +594,7 @@ extension OverlayWindowController {
     send(moving, to: target.displayID)
   }
 
-  private func send(_ tile: WindowTileModel, to displayID: CGDirectDisplayID) {
+  private func send(_ tile: WindowTile, to displayID: CGDirectDisplayID) {
     guard tile.displayID != displayID else {
       // The arrow pointed at another Space of the same display, and moving a window
       // between Spaces is the one thing macOS keeps to itself.
@@ -627,8 +627,8 @@ extension OverlayWindowController {
   /// action tried again, which is the same thing a person would have to do before
   /// reaching for the window themselves.
   private func onWindow(
-    _ tile: WindowTileModel,
-    _ action: @MainActor (WindowTileModel) -> Bool
+    _ tile: WindowTile,
+    _ action: @MainActor (WindowTile) -> Bool
   ) async -> Bool {
     if action(tile) {
       return true
@@ -904,7 +904,7 @@ extension OverlayWindowController {
   }
 
   /// Whether the display is already showing the Space this window is on.
-  private func showsTheSpace(of tile: WindowTileModel) -> Bool {
+  private func showsTheSpace(of tile: WindowTile) -> Bool {
     windowCoordinator.sections.contains {
       $0.isCurrent && $0.id.displayID == tile.displayID && $0.id.spaceIndex == tile.spaceIndex
     }
@@ -917,7 +917,7 @@ extension OverlayWindowController {
   /// two places at once. The panel only moves when the display actually changes:
   /// re-placing it on every step would shift it by whatever the new screen's room
   /// allows, for no reason.
-  private func followTheStep(to tile: WindowTileModel) {
+  private func followTheStep(to tile: WindowTile) {
     followTheStep(toDisplay: tile.displayID)
   }
 

@@ -10,7 +10,7 @@ import Foundation
 /// the background app has learned which Space a window is on, a one-shot CLI
 /// command has not.
 struct WindowSnapshot: Sendable {
-  let windows: [WindowInfo]
+  let windows: [DiscoveredWindow]
   let displayNames: [CGDirectDisplayID: String]
   let displayOrder: [CGDirectDisplayID]
 }
@@ -92,7 +92,7 @@ struct WindowListService {
     let windows =
       candidates
       .map { window, processID in
-        WindowInfo(
+        DiscoveredWindow(
           id: window.windowID,
           appName: window.owningApplication?.applicationName ?? "",
           title: window.title ?? "",
@@ -167,13 +167,13 @@ struct WindowListService {
   /// title may move a tile. `stable` ignores all of it and keeps the places handed
   /// out by `sequence`.
   nonisolated static func ordered(
-    _ windows: [WindowInfo],
+    _ windows: [DiscoveredWindow],
     displayOrder: [CGDirectDisplayID],
     spaceRanks: [CGWindowID: Int] = [:],
     sequence: [CGWindowID: Int] = [:],
     order: WindowOrder = .title,
     limit: Int
-  ) -> [WindowInfo] {
+  ) -> [DiscoveredWindow] {
     let rankByDisplay = Dictionary(
       uniqueKeysWithValues: displayOrder.enumerated().map { ($0.element, $0.offset) })
 

@@ -132,8 +132,8 @@ struct WindowOrderRegistryTests {
     id: CGWindowID,
     appName: String = "Finder",
     title: String = "Downloads"
-  ) -> WindowInfo {
-    WindowInfo(
+  ) -> DiscoveredWindow {
+    DiscoveredWindow(
       id: id,
       appName: appName,
       title: title,

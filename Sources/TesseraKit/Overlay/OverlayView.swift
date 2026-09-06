@@ -181,7 +181,7 @@ struct OverlayView: View {
   let rowAlignment: OverlayRowAlignment
   let dimsStaleThumbnails: Bool
   let onSelect: (CGWindowID) -> Void
-  let onFocusSpace: (WindowSectionID) -> Void
+  let onFocusSpace: (SpaceSectionID) -> Void
   let onMove: (CGWindowID, CGWindowID) -> Void
   let onClose: () -> Void
 
@@ -463,7 +463,7 @@ extension Color {
 /// are and the chosen one comes to the front.
 private struct WindowDeck: View {
   let metrics: TileMetrics
-  let tiles: [WindowTileModel]
+  let tiles: [WindowTile]
   /// The flat index of the first card, which is what the highlight and the number
   /// keys address.
   let offset: Int
@@ -549,7 +549,7 @@ private struct WindowDeck: View {
 
   /// The card on top: the highlighted one while the highlight is in this Space, and
   /// the first otherwise.
-  private var front: (position: Int, tile: WindowTileModel)? {
+  private var front: (position: Int, tile: WindowTile)? {
     let here = selectedIndex - offset
 
     if tiles.indices.contains(here) {
@@ -559,7 +559,7 @@ private struct WindowDeck: View {
     return tiles.first.map { (0, $0) }
   }
 
-  private func card(at position: Int, tile: WindowTileModel) -> some View {
+  private func card(at position: Int, tile: WindowTile) -> some View {
     let isSelected = offset + position == selectedIndex
 
     return WindowTileButton(
@@ -595,10 +595,10 @@ private struct CardTurn: ViewModifier {
 }
 
 private struct SectionLayout: Identifiable {
-  let section: WindowTileSection
+  let section: SpaceSection
   let offset: Int
 
-  var id: WindowSectionID {
+  var id: SpaceSectionID {
     section.id
   }
 }
@@ -620,7 +620,7 @@ private struct SectionHeading: View {
 
 private struct WindowTileButton: View {
   let metrics: TileMetrics
-  let tile: WindowTileModel
+  let tile: WindowTile
   let shortcutIndex: Int
   let isSelected: Bool
   /// Painted under the tile's own translucent fill when the tile sits in a deck.
@@ -753,7 +753,7 @@ private struct WindowTileButton: View {
 
 private struct WindowThumbnailContent: View {
   let metrics: TileMetrics
-  let tile: WindowTileModel
+  let tile: WindowTile
   let dimsStale: Bool
   @Environment(\.isMeasuringOverlay) private var isMeasuring
 

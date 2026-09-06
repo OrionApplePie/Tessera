@@ -329,12 +329,12 @@ final class SpaceQuery {
   static func names(
     for ordered: [SpaceQuery.Space],
     on displayID: CGDirectDisplayID
-  ) -> [WindowSectionID: String] {
-    var names: [WindowSectionID: String] = [:]
+  ) -> [SpaceSectionID: String] {
+    var names: [SpaceSectionID: String] = [:]
     var desktopNumber = 0
 
     for (index, space) in ordered.enumerated() {
-      let id = WindowSectionID(displayID: displayID, spaceIndex: index)
+      let id = SpaceSectionID(displayID: displayID, spaceIndex: index)
 
       guard space.isFullscreen else {
         desktopNumber += 1

@@ -72,7 +72,7 @@ struct WindowOrderRegistry {
     }
   }
 
-  mutating func sequence(for windows: [WindowInfo]) -> [CGWindowID: Int] {
+  mutating func sequence(for windows: [DiscoveredWindow]) -> [CGWindowID: Int] {
     let newcomers =
       windows
       .filter { sequenceByWindow[$0.id] == nil }

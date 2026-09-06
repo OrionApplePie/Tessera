@@ -59,14 +59,14 @@ struct WindowSearchTests {
   /// including the Spaces with nothing on them, which the highlight counts too.
   @Test("Every place on the map is a candidate, empty Spaces included")
   func buildsCandidatesFromTheMap() {
-    var empty = WindowTileSection(
-      id: WindowSectionID(displayID: 1, spaceIndex: 0), title: "Desktop 1", tiles: [])
+    var empty = SpaceSection(
+      id: SpaceSectionID(displayID: 1, spaceIndex: 0), title: "Desktop 1", tiles: [])
     empty.tiles = []
 
     let sections = [
       empty,
-      WindowTileSection(
-        id: WindowSectionID(displayID: 1, spaceIndex: 1),
+      SpaceSection(
+        id: SpaceSectionID(displayID: 1, spaceIndex: 1),
         title: "Desktop 2",
         tiles: [makeTile(id: 1, appName: "Arc", title: "Home")]
       ),
@@ -81,8 +81,8 @@ struct WindowSearchTests {
     #expect(built[1].title == "Home")
   }
 
-  private func makeTile(id: CGWindowID, appName: String, title: String) -> WindowTileModel {
-    WindowTileModel(
+  private func makeTile(id: CGWindowID, appName: String, title: String) -> WindowTile {
+    WindowTile(
       id: id,
       appName: appName,
       title: title,
