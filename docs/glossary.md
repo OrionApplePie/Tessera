@@ -1,74 +1,76 @@
-# Что как называется
+# What things are called
 
-Одни и те же вещи живут в трёх местах: в разговоре, в интерфейсе и в коде. Здесь
-записано, как они называются в каждом — чтобы «плитка» в письме, `tile` в
-исходнике и слово в настройках означали одно и то же.
+The same things live in three places at once: in conversation, in the interface
+and in the code. This is what each of them calls what, so that «плитка» in a
+message, `tile` in a source file and the word in the settings window all mean one
+thing.
 
-Правило одно: **у вещи одно имя**. Оверлей — всегда оверлей, а не «карта»;
-плитка — всегда окно, а не «карточка».
+One rule: **a thing has one name**. The overlay is always the overlay, never "the
+map"; a tile is always a window, never "a card".
 
-- [Слова](#слова)
-- [Сущности в коде](#сущности-в-коде)
-- [Как показывается колода](#как-показывается-колода)
-- [Где что искать](#где-что-искать)
+- [Words](#words)
+- [The entities in the code](#the-entities-in-the-code)
+- [How a deck is drawn](#how-a-deck-is-drawn)
+- [Where each subject lives](#where-each-subject-lives)
 
-## Слова
+## Words
 
-| По-русски | In English | Что это |
+| In English | По-русски | What it is |
 |---|---|---|
-| **оверлей** | overlay | Всплывающее окно переключателя целиком: то, что появляется на ⌃⌥Space. |
-| **спейс**, **рабочий стол** | space, desktop | Рабочий стол macOS. Полноэкранное окно — тоже спейс, свой собственный. |
-| **секция** | section | Один спейс на оверлее — с окнами или пустой. |
-| **плитка** | tile | Одно окно приложения. Лежит внутри секции. |
-| **колода**, **группа** | deck, group | Несколько плиток одной секции, показанных стопкой. Не сущность, а способ показа. |
-| **скриншот**, **снимок** | screenshot, thumbnail | Снимок окна, который рисуется на плитке. |
-| **выделение** | highlight | Где стоит клавиатура: на плитке или на пустой секции. |
+| **overlay** | оверлей | The switcher's window as a whole: what appears on ⌃⌥Space. |
+| **space**, **desktop** | спейс, рабочий стол | A macOS desktop. A fullscreen window is a Space too — its own. |
+| **section** | секция | One Space on the overlay, with windows or empty. |
+| **tile** | плитка | One window of an application. It lives inside a section. |
+| **deck**, **group** | колода, группа | Several tiles of one section drawn as a stack. Not an entity — a way of drawing. |
+| **screenshot**, **preview** | скриншот, снимок | The picture of a window drawn on its tile. |
+| **highlight** | выделение | Where the keyboard is: on a tile, or on an empty section. |
 
-## Сущности в коде
+## The entities in the code
 
-Их две. Всё остальное — либо служебное, либо про отрисовку.
+There are two. Everything else is either machinery or drawing.
 
-| Тип | Это | Из чего состоит |
+| Type | What it is | What it holds |
 |---|---|---|
-| `SpaceSection` | **секция** — один спейс одного дисплея | `id`, `title`, `tiles`, `isCurrent`, `isFullscreen`, `targets` |
-| `WindowTile` | **плитка** — одно окно | `id` (номер окна), `appName`, `title`, `processID`, `displayID`, `spaceIndex`, `thumbnail`, `isActive`, `isMinimized`, `isSounding` |
+| `SpaceSection` | a **section** — one Space of one display | `id`, `title`, `tiles`, `isCurrent`, `isFullscreen`, `targets` |
+| `WindowTile` | a **tile** — one window | `id` (the window number), `appName`, `title`, `processID`, `displayID`, `spaceIndex`, `thumbnail`, `isActive`, `isMinimized`, `isSounding` |
 
-Рядом с ними:
+Beside them:
 
-| Тип | Это |
+| Type | What it is |
 |---|---|
-| `SpaceSectionID` | адрес секции: дисплей и номер спейса. По нему секции узнаются между обновлениями |
-| `DiscoveredWindow` | окно, как его нашли в системе, до превращения в плитку |
-| `OverlayTarget` | то, на чём может стоять выделение: `.window(плитка)` или `.space(секция)` — пустой спейс тоже место, куда можно перейти |
-| `WindowSnapshot` | весь список окон разом, каким его вернуло перечисление |
+| `SpaceSectionID` | a section's address: display and Space number. Sections are recognised across refreshes by it |
+| `DiscoveredWindow` | a window as the system reported it, before it becomes a tile |
+| `OverlayTarget` | what the highlight can stand on: `.window(tile)` or `.space(section)` — an empty Space is a place you can go to as well |
+| `WindowSnapshot` | the whole window list as one enumeration returned it |
 
-**Группы как типа нет**, и заводить его незачем: у неё не нашлось бы ни одного
-поля, которого нет у секции. Она живёт только в отрисовке — `WindowGroup` рисует
-рамку секции с заголовком, `WindowDeck` раскладывает её плитки. Места секция
-занимает одну ячейку в любом режиме: веер уменьшает свои плитки, чтобы поместиться
-в габарит одной.
+**There is no type for a group**, and no reason to add one: it would carry no
+field a section does not have. It exists only in the drawing — `WindowGroup` draws
+a section's frame and heading, `WindowDeck` lays out its tiles. A section takes
+one cell of room in every style: the fan shrinks its own tiles to fit the room of
+one.
 
-## Как показывается колода
+## How a deck is drawn
 
-Три режима; различаются тем, что происходит при переходе к следующей плитке.
+Three styles, differing in what happens on the way to the next tile.
 
-| По-русски | В коде | Что видно |
-|---|---|---|
-| **флип** | `OverlayDeckStyle.stack`, `WindowDeck.stacked` | Одна плитка поверх остальных, счётчик сбоку. Шаг переворачивает её. По умолчанию. |
-| **тусовать** | `.fan`, `WindowDeck.fanned` | Все плитки видны сразу, каждая выглядывает из-за предыдущей полоской. |
-| **сдача** | `.deal`, `WindowDeck.dealt` | Одна плитка, как во флипе, но следующая просто оказывается на месте: ни поворота, ни движения. |
+| In English | По-русски | In the code | What you see |
+|---|---|---|---|
+| **flip** | флип | `OverlayDeckStyle.stack`, `WindowDeck.stacked` | One tile over the rest, with a count beside the heading. A step turns it over. The default. |
+| **fan** | тусовать | `.fan`, `WindowDeck.fanned` | Every tile visible at once, each peeking out from behind the one in front by a strip. |
+| **deal** | сдача | `.deal`, `WindowDeck.dealt` | One tile, as in the flip, but the next one is simply there: no turn, no motion. |
 
-В конфиге: `overlay_deck = "stack" | "fan" | "deal"`.
+In the configuration: `overlay_deck = "stack" | "fan" | "deal"`.
 
-## Где что искать
+## Where each subject lives
 
-| Про что | Где |
+| Subject | Where |
 |---|---|
-| оверлей | `Overlay/` — `OverlayWindowController`, `OverlayPanel`, `OverlayView`, `OverlayGrid`, `OverlayFitting` |
-| спейсы | `Spaces/` — `SpaceQuery`, `SpaceTracker`, `DesktopSwitcher`, `MissionControl` |
-| окна | `Windows/` — `WindowListService`, `WindowActivator`, `WindowCoordinator` |
-| скриншоты | `Thumbnails/` — `WindowThumbnailService`, `WindowPreviewCache` |
+| the overlay | `Overlay/` — `OverlayWindowController`, `OverlayPanel`, `OverlayView`, `OverlayGrid`, `OverlayFitting` |
+| Spaces | `Spaces/` — `SpaceQuery`, `SpaceTracker`, `DesktopSwitcher`, `MissionControl` |
+| windows | `Windows/` — `WindowListService`, `WindowActivator`, `WindowCoordinator` |
+| screenshots | `Thumbnails/` — `WindowThumbnailService`, `WindowPreviewCache` |
 
-Префикс `Window…` у сервисов оставлен намеренно: там он читается как часть фразы
-(«активатор окон») и ничего не путает. В именах сущностей он убран — секция
-называется спейсом, потому что спейс она и есть, даже когда окон в ней нет.
+The `Window…` prefix on the services is deliberate: there it reads as part of a
+phrase — an activator of windows — and confuses nothing. It is gone from the
+entities, where a section is named after the Space it is, even when no window is
+in it.
