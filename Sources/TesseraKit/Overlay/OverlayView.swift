@@ -813,7 +813,11 @@ private struct WindowThumbnailContent: View {
       // like a different kind of tile. Inset a little all round, so the window
       // reads as standing in the card rather than as cropped by it.
       ZStack {
+        // The same ground a tile with no picture stands on: the overlay's own
+        // colour so the highlight cannot show through, and the same lift of white
+        // over it, so a window drawn whole sits on what every other tile sits on.
         ground
+        Color.white.opacity(0.06)
 
         picture
           .scaledToFit()
