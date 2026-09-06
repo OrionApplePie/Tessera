@@ -72,7 +72,9 @@ struct TileMetrics: Equatable, Sendable {
 
   /// How far each card of a deck peeks out from the one in front of it, and how
   /// many cards deep that goes before the rest hide behind the last.
-  var deckStep: CGSize { CGSize(width: (10 * scale).rounded(), height: 0) }
+  var deckStep: CGSize {
+    CGSize(width: (10 * scale).rounded(), height: (8 * scale).rounded())
+  }
   var deckDepth: Int { 4 }
 
   var contentWidth: CGFloat { width - padding * 2 }
@@ -84,20 +86,22 @@ struct TileMetrics: Equatable, Sendable {
     return columns * width + (columns - 1) * spacing
   }
 
-  /// The room one Space takes, the same for every Space on the map.
+  /// The room one Space takes on the overlay — one tile's worth, in every style.
   ///
-  /// Sized for the deepest deck rather than for the cards actually in it: a group
-  /// as wide as its own contents made every row a different shape, and a Space
-  /// gaining a window pushed its neighbours along.
-  func deckSize(for style: OverlayDeckStyle) -> CGSize {
-    guard style == .fan else {
-      return CGSize(width: width, height: width)
-    }
+  /// The fan used to be given room for its own depth on top of that, which made a
+  /// fanned overlay a different shape from a flipped one and every row a different
+  /// height. It shrinks its cards to peek out inside this box instead, so the
+  /// overlay is laid out the same way whichever style is chosen.
+  var deckSize: CGSize {
+    CGSize(width: width, height: width)
+  }
 
-    return CGSize(
-      width: width + deckStep.width * CGFloat(deckDepth),
-      height: width + deckStep.height * CGFloat(deckDepth)
-    )
+  /// The card inside a fan: small enough that the deepest one still fits the box
+  /// above once it has been stepped down and across.
+  var fannedCardWidth: CGFloat {
+    max(
+      TileMetrics.range.lowerBound / 2,
+      width - max(deckStep.width, deckStep.height) * CGFloat(deckDepth))
   }
 
   /// How many tiles fit across a screen this wide, counting the gaps between them
@@ -114,15 +118,11 @@ struct TileMetrics: Equatable, Sendable {
   /// This is what "fill the screen" means in practice: the map keeps its shape and
   /// the tiles grow into the room, rather than the same small tiles floating in a
   /// large empty panel.
-  static func filling(
-    width available: CGFloat,
-    columns: Int,
-    style: OverlayDeckStyle
-  ) -> TileMetrics {
+  static func filling(width available: CGFloat, columns: Int) -> TileMetrics {
     let count = CGFloat(max(columns, 1))
     // Solved for the tile: the row is `count` decks with gaps between them, inside
     // the surface's own padding, and every part of that scales with the tile.
-    let perTile = base.deckSize(for: style).width + base.spacing + base.groupPadding * 2
+    let perTile = base.deckSize.width + base.spacing + base.groupPadding * 2
     let fixed = base.surfacePadding * 2
     let scale = (available - fixed) / (count * perTile - base.spacing)
 
@@ -253,7 +253,7 @@ struct OverlayView: View {
       title: entry.section.title,
       isCurrent: entry.section.isCurrent,
       isFullscreen: entry.section.isFullscreen,
-      cards: deck == .stack ? entry.section.tiles.count : 1,
+      cards: entry.section.tiles.count,
       isEmpty: entry.section.tiles.isEmpty,
       isSelected: entry.section.tiles.isEmpty && entry.offset == selectedIndex,
       holdsSelection: range.contains(selectedIndex),
@@ -261,7 +261,7 @@ struct OverlayView: View {
       desktop: entry.section.tiles.isEmpty && !isMeasuring
         ? windowCoordinator.desktopImage(
           for: entry.section.id.displayID,
-          fitting: metrics.deckSize(for: deck))
+          fitting: metrics.deckSize)
         : nil,
       content: {
         WindowDeck(
@@ -488,13 +488,15 @@ private struct WindowDeck: View {
     }
   }
 
-  /// Every card visible, each behind the one in front of it by a strip.
+  /// Every card visible, each behind the one in front of it by a strip — across
+  /// and downwards, so a deck reads as a deck rather than as a row.
   private var fanned: some View {
-    let size = metrics.deckSize(for: .fan)
+    let size = metrics.deckSize
+    let inner = TileMetrics(width: metrics.fannedCardWidth)
 
     return ZStack(alignment: .topLeading) {
       ForEach(Array(tiles.enumerated()), id: \.element.id) { item in
-        card(at: item.offset, tile: item.element)
+        card(at: item.offset, tile: item.element, metrics: inner)
           // Past the last step the cards sit on the one before them: they are
           // hidden either way, and a deck that kept growing would be no more
           // compact than a row.
@@ -525,8 +527,8 @@ private struct WindowDeck: View {
       }
     }
     .frame(
-      width: metrics.deckSize(for: .stack).width,
-      height: metrics.deckSize(for: .stack).height
+      width: metrics.deckSize.width,
+      height: metrics.deckSize.height
     )
     .animation(.easeInOut(duration: 0.2), value: selectedIndex)
   }
@@ -542,8 +544,8 @@ private struct WindowDeck: View {
       }
     }
     .frame(
-      width: metrics.deckSize(for: .deal).width,
-      height: metrics.deckSize(for: .deal).height
+      width: metrics.deckSize.width,
+      height: metrics.deckSize.height
     )
   }
 
@@ -559,11 +561,15 @@ private struct WindowDeck: View {
     return tiles.first.map { (0, $0) }
   }
 
-  private func card(at position: Int, tile: WindowTile) -> some View {
+  private func card(
+    at position: Int,
+    tile: WindowTile,
+    metrics: TileMetrics? = nil
+  ) -> some View {
     let isSelected = offset + position == selectedIndex
 
     return WindowTileButton(
-      metrics: metrics,
+      metrics: metrics ?? self.metrics,
       tile: tile,
       shortcutIndex: offset + position,
       isSelected: isSelected,

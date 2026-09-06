@@ -445,28 +445,22 @@ struct SpaceSectionSwapTests {
     #expect(SpaceSection.removing(4, from: [section]).isEmpty)
   }
 
-  /// A cell is what stands beside its neighbour: one card for a stacked Space
-  /// however many windows it holds, one for every window when they are fanned out.
-  @Test("A Space costs one cell stacked and one per window fanned")
-  func cellsCountWhatIsDrawn() {
-    let section = SpaceSection(
+  /// One Space, one cell — a deck is drawn in the room of a single tile whichever
+  /// style draws it, so a Space of six windows takes what a Space of one takes.
+  @Test("Every Space costs one cell, however many windows it holds")
+  func everySpaceCostsOneCell() {
+    let crowded = SpaceSection(
       id: SpaceSectionID(displayID: 1, spaceIndex: 0),
       title: "Desktop 1",
       tiles: [Self.makeTile(id: 1), Self.makeTile(id: 2), Self.makeTile(id: 3)]
     )
-
-    #expect(section.cells(whenStacked: true) == 1)
-    #expect(section.cells(whenStacked: false) == 3)
-  }
-
-  /// An empty Space is still a cell: it is drawn, so it takes room.
-  @Test("An empty Space costs a cell either way")
-  func anEmptySpaceCostsACell() {
     let empty = SpaceSection(
-      id: SpaceSectionID(displayID: 1, spaceIndex: 4), title: "Desktop 5", tiles: [])
+      id: SpaceSectionID(displayID: 1, spaceIndex: 1), title: "Desktop 2", tiles: [])
 
-    #expect(empty.cells(whenStacked: true) == 1)
-    #expect(empty.cells(whenStacked: false) == 1)
+    let kept = SpaceSection.fitting([crowded, empty], cellsPerDisplay: 2)
+
+    #expect(kept.count == 2)
+    #expect(SpaceSection.fitting([crowded, empty], cellsPerDisplay: 1).count == 1)
   }
 
   /// The budget is per display, and what does not fit is left off the end — a map
@@ -482,7 +476,7 @@ struct SpaceSectionSwapTests {
       )
     }
 
-    let kept = SpaceSection.fitting(sections, cellsPerDisplay: 2, stacked: true)
+    let kept = SpaceSection.fitting(sections, cellsPerDisplay: 2)
 
     #expect(kept.count == 4)
     #expect(kept.filter { $0.id.displayID == 1 }.count == 2)
@@ -501,7 +495,7 @@ struct SpaceSectionSwapTests {
     }
 
     let kept = SpaceSection.fitting(
-      sections, cellsByDisplay: [1: 3, 2: 1], stacked: true)
+      sections, cellsByDisplay: [1: 3, 2: 1])
 
     #expect(kept.filter { $0.id.displayID == 1 }.count == 3)
     #expect(kept.filter { $0.id.displayID == 2 }.count == 1)
@@ -516,7 +510,7 @@ struct SpaceSectionSwapTests {
       SpaceSection(id: SpaceSectionID(displayID: 2, spaceIndex: 1), title: "b", tiles: []),
     ]
 
-    let kept = SpaceSection.fitting(sections, cellsByDisplay: [1: 2], stacked: true)
+    let kept = SpaceSection.fitting(sections, cellsByDisplay: [1: 2])
 
     #expect(kept.map(\.id.displayID) == [1])
   }
@@ -535,7 +529,7 @@ struct SpaceSectionSwapTests {
           id: SpaceSectionID(displayID: 1, spaceIndex: index), title: "\(index)", tiles: [])
       } + [current]
 
-    let kept = SpaceSection.fitting(sections, cellsByDisplay: [1: 5], stacked: true)
+    let kept = SpaceSection.fitting(sections, cellsByDisplay: [1: 5])
 
     #expect(kept.count == 5)
     #expect(kept.contains { $0.isCurrent })
@@ -554,7 +548,7 @@ struct SpaceSectionSwapTests {
           id: SpaceSectionID(displayID: 1, spaceIndex: index), title: "\(index)", tiles: [])
       } + [last]
 
-    let kept = SpaceSection.fitting(sections, cellsPerDisplay: 2, stacked: true)
+    let kept = SpaceSection.fitting(sections, cellsPerDisplay: 2)
 
     #expect(kept.contains { $0.isCurrent })
   }

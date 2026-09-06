@@ -382,8 +382,8 @@ struct OverlayGridPlacementTests {
   /// useful in.
   @Test("A tile grows into the screen it is given")
   func tileFillsTheScreen() {
-    let narrow = TileMetrics.filling(width: 1200, columns: 5, style: .stack)
-    let wide = TileMetrics.filling(width: 2400, columns: 5, style: .stack)
+    let narrow = TileMetrics.filling(width: 1200, columns: 5)
+    let wide = TileMetrics.filling(width: 2400, columns: 5)
 
     #expect(narrow.width < wide.width)
     #expect(TileMetrics.range.contains(narrow.width))

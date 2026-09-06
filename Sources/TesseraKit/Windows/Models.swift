@@ -119,17 +119,6 @@ struct SpaceSection: Identifiable {
   /// behaves differently: it holds one window and cannot hold another.
   var isFullscreen: Bool = false
 
-  /// How much room this group takes on the map, counted in cells.
-  ///
-  /// A cell is what stands beside its neighbour, and that is not the same thing in
-  /// every mode: stacked, a Space is one card however many windows it holds; fanned,
-  /// every window is its own card. Counting windows would overstate the first and
-  /// counting Spaces would understate the second, so the map is measured in what it
-  /// actually draws.
-  func cells(whenStacked stacked: Bool) -> Int {
-    stacked ? 1 : max(1, tiles.count)
-  }
-
   /// The map cut down to a budget of cells, per display.
   ///
   /// The Space you are on is never cut: it is the one place the map has to be able
@@ -138,13 +127,12 @@ struct SpaceSection: Identifiable {
   /// answering the wrong question.
   static func fitting(
     _ sections: [SpaceSection],
-    cellsPerDisplay budget: Int,
-    stacked: Bool
+    cellsPerDisplay budget: Int
   ) -> [SpaceSection] {
     let budgets = Dictionary(
       uniqueKeysWithValues: Set(sections.map(\.id.displayID)).map { ($0, budget) })
 
-    return fitting(sections, cellsByDisplay: budgets, stacked: stacked)
+    return fitting(sections, cellsByDisplay: budgets)
   }
 
   /// The same, with a budget of its own for each display.
@@ -160,13 +148,12 @@ struct SpaceSection: Identifiable {
   /// one more is not a budget.
   static func fitting(
     _ sections: [SpaceSection],
-    cellsByDisplay budgets: [CGDirectDisplayID: Int],
-    stacked: Bool
+    cellsByDisplay budgets: [CGDirectDisplayID: Int]
   ) -> [SpaceSection] {
     var spent: [CGDirectDisplayID: Int] = [:]
 
     for section in sections where section.isCurrent {
-      spent[section.id.displayID, default: 0] += section.cells(whenStacked: stacked)
+      spent[section.id.displayID, default: 0] += 1
     }
 
     return sections.filter { section in
@@ -174,7 +161,7 @@ struct SpaceSection: Identifiable {
         return true
       }
 
-      let cost = section.cells(whenStacked: stacked)
+      let cost = 1
       let already = spent[section.id.displayID] ?? 0
 
       guard already + cost <= budgets[section.id.displayID] ?? 0 else {

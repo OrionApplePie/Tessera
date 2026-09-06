@@ -144,8 +144,7 @@ extension OverlayWindowController {
 
     for candidate in candidates {
       fittedColumns = candidate
-      metrics = TileMetrics.filling(
-        width: room.width, columns: widestRow(under: candidate), style: config.overlayDeck)
+      metrics = TileMetrics.filling(width: room.width, columns: widestRow(under: candidate))
 
       let size = shrinkToFit(room)
 

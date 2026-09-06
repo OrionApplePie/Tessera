@@ -22,8 +22,7 @@ extension WindowCoordinator {
 
     let budgets = OverlayGrid.budgets(forSections: all, config: config, on: activeDisplay)
 
-    let fitted = SpaceSection.fitting(
-      all, cellsByDisplay: budgets, stacked: config.overlayDeck == .stack)
+    let fitted = SpaceSection.fitting(all, cellsByDisplay: budgets)
     let signature = SpaceSection.signature(of: fitted)
 
     // Assigned only when the drawing would differ. The list is rebuilt several times

@@ -95,8 +95,7 @@ enum OverlayGrid {
       cells: min(config.overlayMaxCells, cells(fitting: room, tile: config.overlayMinTile)),
       // Shared in whole rows where the row length is settled, and cell by cell
       // where the layout has yet to work it out.
-      perRow: config.overlayLayout == .rows ? config.overlayColumns : 1,
-      stacked: config.overlayDeck == .stack
+      perRow: config.overlayLayout == .rows ? config.overlayColumns : 1
     )
   }
 
@@ -110,8 +109,7 @@ enum OverlayGrid {
   static func budgets(
     forSections sections: [SpaceSection],
     cells total: Int,
-    perRow: Int,
-    stacked: Bool
+    perRow: Int
   ) -> [CGDirectDisplayID: Int] {
     let columns = max(1, perRow)
     var displays: [CGDirectDisplayID] = []
@@ -124,7 +122,7 @@ enum OverlayGrid {
         displays.append(id)
       }
 
-      wanted[id, default: 0] += section.cells(whenStacked: stacked)
+      wanted[id, default: 0] += 1
     }
 
     // Shared in whole rows where a row length is settled, and cell by cell where it
