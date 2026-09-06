@@ -169,7 +169,10 @@ final class WindowThumbnailService {
     let configuration = SCStreamConfiguration()
     configuration.showsCursor = false
     configuration.ignoreShadowsSingleWindow = true
-    configuration.shouldBeOpaque = true
+    // Keeping the alpha keeps the window's own corners: asked for an opaque
+    // capture, the window server fills the rounded corners in and the preview comes
+    // back a rectangle, which is not the shape of any window on this system.
+    configuration.shouldBeOpaque = false
     configuration.preservesAspectRatio = true
 
     switch mode {

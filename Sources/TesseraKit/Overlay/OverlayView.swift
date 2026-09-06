@@ -288,6 +288,7 @@ struct OverlayView: View {
           offset: entry.offset,
           selectedIndex: selectedIndex,
           style: deck,
+          ground: Color(background.opaque),
           base: entry.section.tiles.count > 1 ? Color(background.opaque) : nil,
           dimsStaleThumbnails: dimsStaleThumbnails,
           onMove: onMove,
@@ -487,6 +488,10 @@ private struct WindowDeck: View {
   let offset: Int
   let selectedIndex: Int
   let style: OverlayDeckStyle
+  /// What shows through where a picture does not reach: the overlay's own ground,
+  /// so that a window drawn whole sits on the same grey as everything else rather
+  /// than on the colour of the highlight.
+  let ground: Color
   /// What a card is painted on when it has another one behind it. The tiles are
   /// translucent by design and the panel is too, so stacked without a backing they
   /// showed each other's titles through their own.
@@ -589,6 +594,7 @@ private struct WindowDeck: View {
     return WindowTileButton(
       metrics: metrics ?? self.metrics,
       tile: tile,
+      ground: ground,
       shortcutIndex: offset + position,
       isSelected: isSelected,
       base: base,
@@ -645,6 +651,7 @@ private struct SectionHeading: View {
 private struct WindowTileButton: View {
   let metrics: TileMetrics
   let tile: WindowTile
+  var ground: Color = .clear
   let shortcutIndex: Int
   let isSelected: Bool
   /// Painted under the tile's own translucent fill when the tile sits in a deck.
@@ -667,7 +674,8 @@ private struct WindowTileButton: View {
   /// path, which is what a switcher needs.
   private var tileContent: some View {
     VStack(alignment: .leading, spacing: metrics.labelGap) {
-      WindowThumbnailContent(metrics: metrics, tile: tile, dimsStale: dimsStaleThumbnails)
+      WindowThumbnailContent(
+        metrics: metrics, tile: tile, ground: ground, dimsStale: dimsStaleThumbnails)
 
       VStack(alignment: .leading, spacing: 3) {
         HStack(alignment: .firstTextBaseline, spacing: 6) {
@@ -778,6 +786,7 @@ private struct WindowTileButton: View {
 private struct WindowThumbnailContent: View {
   let metrics: TileMetrics
   let tile: WindowTile
+  var ground: Color = .clear
   let dimsStale: Bool
   @Environment(\.isMeasuringOverlay) private var isMeasuring
 
@@ -798,13 +807,18 @@ private struct WindowThumbnailContent: View {
     let size = CGSize(width: thumbnail.width, height: thumbnail.height)
 
     if WindowThumbnailMode.isLong(size) {
-      // Against the card's own ground, not against the desktop: wallpaper behind it
-      // would read as a Space holding this one window, and a long window is usually
-      // beside others. Inset a little on every side, so the window reads as
-      // standing in the card rather than as cropped by it.
-      picture
-        .scaledToFit()
-        .padding(metrics.padding * 2)
+      // On the overlay's own grey, not on the desktop and not on the highlight:
+      // wallpaper behind it would read as a Space holding this one window, and the
+      // colour of the highlight showing through the sides made a chosen card look
+      // like a different kind of tile. Inset a little all round, so the window
+      // reads as standing in the card rather than as cropped by it.
+      ZStack {
+        ground
+
+        picture
+          .scaledToFit()
+          .padding(metrics.padding * 2)
+      }
     } else {
       picture.scaledToFill()
     }
