@@ -40,6 +40,10 @@ enum AppConfigWriter {
     window_thumbnails_stale_seconds = \(number(config.windowThumbnailsStaleSeconds))
 
     # Fade a preview once it is older than window_thumbnails_stale_seconds.
+    # A window much longer than the tile it is drawn in is captured whole whatever
+    # the mode above says: a square crop of a tall narrow window is its top and
+    # nothing that tells it apart.
+    window_thumbnail_whole_when_long = \(config.capturesLongWindowsWhole)
     dim_stale_thumbnails = \(config.dimsStaleThumbnails)
 
     max_windows = \(config.maxWindows)

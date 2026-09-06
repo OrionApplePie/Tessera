@@ -43,6 +43,10 @@ struct AppConfig: Equatable {
   var windowThumbnailMode: WindowThumbnailMode
   /// How many pixels a thumbnail is captured with.
   var thumbnailQuality: ThumbnailQuality
+  /// Whether a window much longer than the tile it is drawn in is captured whole,
+  /// whatever `windowThumbnailMode` says. A crop of one shows its top and nothing
+  /// that tells it apart.
+  var capturesLongWindowsWhole: Bool
   /// How long the system is given to finish a switch — a Space to change, an
   /// application to come forward — before a window that has not appeared is one
   /// that is not coming.
@@ -114,6 +118,9 @@ struct AppConfig: Equatable {
     // Captured sharper than the tile strictly needs, so a preview still reads when
     // the overlay grows into a large screen.
     thumbnailQuality: .hd,
+    // A tall narrow window — a chat panel, a player — is recognised by its shape,
+    // and a square crop of one throws that away.
+    capturesLongWindowsWhole: true,
     // Long enough for a Space switch and its animation to finish, so a window is
     // not condemned for being slow. Nothing is polled while it passes: the system
     // announces the switch, and this is only the point at which waiting stops.

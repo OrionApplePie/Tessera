@@ -18,6 +18,7 @@ final class WindowThumbnailService {
   private let captureTile: TileMetrics
   private let quality: ThumbnailQuality
   private let mode: WindowThumbnailMode
+  private let takesLongWindowsWhole: Bool
   private let logger: AppLogger
   private var unresponsiveWindows = UnresponsiveWindowTracker()
 
@@ -32,6 +33,7 @@ final class WindowThumbnailService {
     self.captureTile = config.overlayFillsScreen ? TileMetrics(width: 360) : .base
     self.quality = config.thumbnailQuality
     self.mode = config.windowThumbnailMode
+    self.takesLongWindowsWhole = config.capturesLongWindowsWhole
     self.captureTimeout = .seconds(config.unresponsiveAfterSeconds)
     self.logger = AppLogger(debugMode: config.debugMode, category: .capture)
   }
@@ -162,6 +164,10 @@ final class WindowThumbnailService {
   /// are the pixels shown.
   @available(macOS 14.0, *)
   private func configuration(for windowSize: CGSize) -> SCStreamConfiguration {
+    let mode = WindowThumbnailMode.capturing(
+      windowSize, wanted: mode,
+      tile: CGSize(width: captureTile.width, height: captureTile.thumbnailHeight),
+      takingLongWindowsWhole: takesLongWindowsWhole)
     let configuration = SCStreamConfiguration()
     configuration.showsCursor = false
     configuration.ignoreShadowsSingleWindow = true

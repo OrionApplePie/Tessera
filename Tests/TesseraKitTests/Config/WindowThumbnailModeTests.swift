@@ -103,4 +103,46 @@ struct WindowThumbnailModeTests {
     #expect(three.height > quarter.height)
     #expect(three.width <= window.width)
   }
+
+  /// A crop keeps the tile's shape, and the tile is square — so a window far from
+  /// square loses exactly what identifies it. Measured on the window that prompted
+  /// this: 338 by 612 points, three quarters of which is its top third.
+  @Test("A tall narrow window counts as long")
+  func spotsATallWindow() {
+    let tile = CGSize(width: 190, height: 190)
+
+    #expect(WindowThumbnailMode.isLong(CGSize(width: 338, height: 612), comparedTo: tile))
+    #expect(WindowThumbnailMode.isLong(CGSize(width: 2000, height: 600), comparedTo: tile))
+  }
+
+  /// An ordinary window is not: it is close enough to the tile's shape that a piece
+  /// of it still says which window it is.
+  @Test("A window near the tile's shape is not long")
+  func leavesOrdinaryWindowsAlone() {
+    let tile = CGSize(width: 190, height: 190)
+
+    #expect(!WindowThumbnailMode.isLong(CGSize(width: 1200, height: 800), comparedTo: tile))
+    #expect(!WindowThumbnailMode.isLong(CGSize(width: 900, height: 900), comparedTo: tile))
+    #expect(!WindowThumbnailMode.isLong(.zero, comparedTo: tile))
+  }
+
+  /// The setting decides, and only for the windows the rule catches: everything
+  /// else is captured the way it was asked for.
+  @Test("A long window is taken whole only when that is asked for")
+  func takesLongWindowsWholeWhenAsked() {
+    let tile = CGSize(width: 190, height: 190)
+    let long = CGSize(width: 338, height: 612)
+    let ordinary = CGSize(width: 1200, height: 800)
+
+    #expect(
+      WindowThumbnailMode.capturing(
+        long, wanted: .threeQuarters, tile: tile, takingLongWindowsWhole: true) == .fit)
+    #expect(
+      WindowThumbnailMode.capturing(
+        long, wanted: .threeQuarters, tile: tile, takingLongWindowsWhole: false)
+        == .threeQuarters)
+    #expect(
+      WindowThumbnailMode.capturing(
+        ordinary, wanted: .corner, tile: tile, takingLongWindowsWhole: true) == .corner)
+  }
 }

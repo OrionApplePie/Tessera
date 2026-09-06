@@ -39,6 +39,7 @@ final class SettingsModel: ObservableObject {
 
   @Published var refreshIntervalSeconds: Double = 0
   @Published var windowThumbnailsStaleSeconds: Double = 0
+  @Published var capturesLongWindowsWhole = false
   @Published var dimsStaleThumbnails = false
   @Published var overlayFillsScreen = false
   @Published var maxWindows: Int = 0
@@ -82,6 +83,7 @@ final class SettingsModel: ObservableObject {
     groupsSpaces = config.overlayGrouping.contains(.spaces)
     refreshIntervalSeconds = config.refreshIntervalSeconds
     windowThumbnailsStaleSeconds = config.windowThumbnailsStaleSeconds
+    capturesLongWindowsWhole = config.capturesLongWindowsWhole
     dimsStaleThumbnails = config.dimsStaleThumbnails
     overlayFillsScreen = config.overlayFillsScreen
     maxWindows = config.maxWindows
@@ -140,6 +142,7 @@ final class SettingsModel: ObservableObject {
     config.unresponsiveAfterSeconds = unresponsiveAfterSeconds
     config.refreshIntervalSeconds = max(0.5, refreshIntervalSeconds)
     config.windowThumbnailsStaleSeconds = max(1, windowThumbnailsStaleSeconds)
+    config.capturesLongWindowsWhole = capturesLongWindowsWhole
     config.dimsStaleThumbnails = dimsStaleThumbnails
     config.thumbnailQuality = thumbnailQuality
     config.overlayLayout = overlayLayout

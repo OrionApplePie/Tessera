@@ -154,6 +154,10 @@ struct SettingsView: View {
           Text(localized("The most, and the most memory")).tag(ThumbnailQuality.max)
         }
 
+        Toggle(
+          localized("A long window whole, whatever the mode"),
+          isOn: $model.capturesLongWindowsWhole)
+
         Toggle(localized("Fade a stale preview"), isOn: $model.dimsStaleThumbnails)
       }
     }

@@ -60,6 +60,11 @@ struct AppConfigLoader {
       key: "window_thumbnails_stale_seconds"
     )
 
+    config.capturesLongWindowsWhole = try bool(
+      values["window_thumbnail_whole_when_long"],
+      default: config.capturesLongWindowsWhole,
+      key: "window_thumbnail_whole_when_long"
+    )
     config.dimsStaleThumbnails = try bool(
       values["dim_stale_thumbnails"],
       default: config.dimsStaleThumbnails,

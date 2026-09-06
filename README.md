@@ -44,6 +44,17 @@ window_thumbnail_mode = "corner2x"  # twice as much corner, at half size
 window_thumbnail_mode = "quarter"   # roughly a quarter of the window
 ```
 
+A window much longer than the tile it is drawn in is captured whole whatever the
+mode says, because a crop keeps the tile's shape and the tile is square: a tall
+narrow window — a chat panel, a player — is cropped to its top, which is the one
+thing that does not tell it apart. Measured on a 338 by 612 point window, three
+quarters of it in a square is its top third.
+
+```toml
+window_thumbnail_whole_when_long = true   # the default
+window_thumbnail_whole_when_long = false  # crop those too, like everything else
+```
+
 `fit` says what shape a window is and where things sit in it, which is enough to
 tell two applications apart. It is not enough to tell two documents apart: a
 window scaled into a tile turns its text into grey texture.

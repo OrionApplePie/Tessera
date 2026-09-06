@@ -56,6 +56,43 @@ enum WindowThumbnailMode: Equatable, Sendable, CaseIterable {
     }
   }
 
+  /// Whether a window is so far from the tile's shape that a piece of it says
+  /// nothing about which window it is.
+  ///
+  /// A crop keeps the tile's proportions, and a tile is square — so a tall narrow
+  /// window is cropped to its top and a wide flat one to its left end. Measured on
+  /// a 338x612 window, three quarters of it in a square is its top third: the
+  /// shape, which is the thing that identifies such a window at a glance, is
+  /// exactly what gets cut off. Whole is the honest answer there.
+  ///
+  /// The threshold is a ratio against the tile's own, so it means "much longer than
+  /// what it is drawn in" rather than a number of points.
+  static func isLong(_ window: CGSize, comparedTo tile: CGSize, ratio: CGFloat = 1.8) -> Bool {
+    guard window.width > 0, window.height > 0, tile.width > 0, tile.height > 0 else {
+      return false
+    }
+
+    let windowSides = max(window.width / window.height, window.height / window.width)
+    let tileSides = max(tile.width / tile.height, tile.height / tile.width)
+
+    return windowSides >= tileSides * ratio
+  }
+
+  /// The mode a particular window is actually captured with: the one asked for,
+  /// unless the window is long and the setting says to take those whole.
+  static func capturing(
+    _ window: CGSize,
+    wanted: WindowThumbnailMode,
+    tile: CGSize,
+    takingLongWindowsWhole: Bool
+  ) -> WindowThumbnailMode {
+    guard takingLongWindowsWhole, isLong(window, comparedTo: tile) else {
+      return wanted
+    }
+
+    return .fit
+  }
+
   /// The piece of a window this mode captures, in points, keeping the tile's own
   /// proportions so that the view has nothing left to crop and the top left corner
   /// is what actually reaches the screen.

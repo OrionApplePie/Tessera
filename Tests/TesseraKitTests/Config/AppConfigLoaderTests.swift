@@ -21,6 +21,7 @@ struct AppConfigLoaderTests {
     "window_order",
     "use_private_space_api",
     "window_thumbnail_mode",
+    "window_thumbnail_whole_when_long",
     "window_thumbnail_quality",
     "overlay_grouping",
     "overlay_background",
